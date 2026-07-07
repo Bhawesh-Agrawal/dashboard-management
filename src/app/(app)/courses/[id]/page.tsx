@@ -13,6 +13,7 @@ import {
   computeAttendanceMarks,
   getAttendanceMarksConfig,
 } from "@/features/assessments/lib/calculations";
+import type { AttendanceStatus } from "@prisma/client";
 
 export default async function CourseDetailPage({
   params,
@@ -38,10 +39,10 @@ export default async function CourseDetailPage({
   } else {
     // Auto mode: compute from AttendanceRecord rows
     const present = course.attendanceRecords.filter(
-      (r) => r.status === "present"
+      (r: { status: AttendanceStatus }) => r.status === "present"
     ).length;
     const absent = course.attendanceRecords.filter(
-      (r) => r.status === "absent"
+      (r: { status: AttendanceStatus }) => r.status === "absent"
     ).length;
     attendancePercent = computeAttendancePercent(present, absent);
   }

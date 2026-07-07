@@ -1,28 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { updateTask, deleteTask } from "@/features/tasks/lib/actions";
+import { updateTask } from "@/features/tasks/lib/actions";
 import type { TaskWithCourse } from "@/types";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
 import { LinkToPicker, type LinkToOption } from "./link-to-picker";
 
 export function EditTaskDialog({
   task,
   courses,
   projects,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: {
   task: TaskWithCourse;
   courses?: LinkToOption[];
   projects?: LinkToOption[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string>(task.courseId || "");
   const [selectedProjectId, setSelectedProjectId] = useState<string>(task.projectId || "");
@@ -45,22 +49,9 @@ export function EditTaskDialog({
     setOpen(false);
   }
 
-  async function handleDelete() {
-    if (!confirm("Delete this task?")) return;
-    setLoading(true);
-    await deleteTask(task.id);
-    setLoading(false);
-    setOpen(false);
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<button className="p-1 text-muted-foreground hover:text-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" />}
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Edit Task</DialogTitle>
         </DialogHeader>
@@ -133,16 +124,7 @@ export function EditTaskDialog({
               onProjectChange={setSelectedProjectId}
             />
           )}
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={loading}
-              className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </button>
+          <div className="flex justify-end pt-2">
             <button
               type="submit"
               disabled={loading}

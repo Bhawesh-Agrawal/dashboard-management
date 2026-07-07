@@ -1,4 +1,4 @@
-import { Link } from "next-view-transitions";
+import Link from "next/link";
 import { GraduationCap, Repeat, FileText, Briefcase, DollarSign, BookOpen, Users, Settings, LogOut } from "lucide-react";
 import { logout } from "@/features/auth/lib/actions";
 

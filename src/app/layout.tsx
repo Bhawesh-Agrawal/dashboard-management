@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display } from "next/font/google";
-import { ViewTransitions } from "next-view-transitions";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistration } from "@/components/shared/service-worker-registration";
@@ -51,9 +50,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ViewTransitions>
-          {children}
-        </ViewTransitions>
+        {children}
         <Toaster />
         <ServiceWorkerRegistration />
       </body>

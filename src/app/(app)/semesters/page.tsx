@@ -1,7 +1,7 @@
 import { getSemesters } from "@/features/semesters/lib/queries";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Link } from "next-view-transitions";
+import Link from "next/link";
 import { CreateSemesterDialog } from "@/features/semesters/components/semester-form";
 import { computeCourseGrade } from "@/features/assessments/lib/queries";
 import { computeSGPA, computeCGPA } from "@/features/assessments/lib/calculations";

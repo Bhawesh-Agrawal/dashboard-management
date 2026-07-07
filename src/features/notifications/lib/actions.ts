@@ -2,8 +2,23 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/features/auth/lib/supabase-server";
 
 type DailySummarySection = "classes" | "tasks" | "routines" | "deadlines" | "attendance";
+
+/**
+ * Get the current user's ID from Supabase auth.
+ * Falls back to "default-user" if auth fails.
+ */
+async function getCurrentUserId(): Promise<string> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || "default-user";
+  } catch {
+    return "default-user";
+  }
+}
 
 /**
  * Save daily summary preferences.
@@ -13,7 +28,7 @@ export async function saveDailySummaryPreferences(
   sections: DailySummarySection[]
 ): Promise<{ success: boolean }> {
   try {
-    const userId = "default-user";
+    const userId = await getCurrentUserId();
 
     await prisma.notificationPreference.upsert({
       where: {
@@ -52,7 +67,7 @@ export async function getDailySummaryPreferences(): Promise<{
   sections: DailySummarySection[];
 } | null> {
   try {
-    const userId = "default-user";
+    const userId = await getCurrentUserId();
 
     const pref = await prisma.notificationPreference.findUnique({
       where: {
@@ -97,7 +112,7 @@ export async function toggleNotificationType(
   enabled: boolean
 ): Promise<{ success: boolean }> {
   try {
-    const userId = "default-user";
+    const userId = await getCurrentUserId();
 
     await prisma.notificationPreference.upsert({
       where: {
@@ -128,7 +143,7 @@ export async function toggleNotificationType(
  * Get all notification preferences.
  */
 export async function getNotificationPreferences() {
-  const userId = "default-user";
+  const userId = await getCurrentUserId();
 
   return prisma.notificationPreference.findMany({
     where: { userId },

@@ -3,6 +3,7 @@ import { MobileTabs } from "@/components/layout/mobile-tabs";
 import { FabCluster } from "@/components/layout/fab-cluster";
 import { SearchOverlay } from "@/features/search/components/search-overlay";
 import { OfflineBanner } from "@/components/shared/offline-banner";
+import { PageTransition } from "@/components/shared/page-transition";
 
 // All pages in this layout query the database — force dynamic rendering.
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default function AppLayout({
       {/* Main content area */}
       <main className="lg:pl-64 min-h-screen pb-24 lg:pb-0">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 lg:px-8 py-6 md:py-8 lg:py-10" style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top, 0px))" }}>
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
 

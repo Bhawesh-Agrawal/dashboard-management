@@ -5,9 +5,19 @@ import { AttendanceTableEditor } from "@/features/settings/components/attendance
 import { AIProviderSettings } from "@/features/settings/components/ai-provider-settings";
 import { GoogleCalendarSettings } from "@/features/settings/components/google-calendar-settings";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
+import { NotificationTypeToggles } from "@/features/notifications/components/notification-type-toggles";
+import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
+import {
+  getNotificationPreferences,
+  getDailySummaryPreferences,
+} from "@/features/notifications/lib/actions";
 
 export default async function SettingsPage() {
   const courses = await getAllCourses();
+  const [notificationPreferences, dailySummaryPrefs] = await Promise.all([
+    getNotificationPreferences(),
+    getDailySummaryPreferences(),
+  ]);
 
   return (
     <div>
@@ -38,7 +48,16 @@ export default async function SettingsPage() {
         {/* Notifications */}
         <section className="border-t border-border pt-10">
           <h2 className="page-heading text-lg mb-6">Notifications</h2>
-          <NotificationSettings />
+          <div className="space-y-6">
+            <NotificationSettings />
+            <NotificationTypeToggles initialPreferences={notificationPreferences} />
+            {dailySummaryPrefs && (
+              <DailySummarySettings
+                initialTime={dailySummaryPrefs.time}
+                initialSections={dailySummaryPrefs.sections}
+              />
+            )}
+          </div>
         </section>
       </div>
     </div>

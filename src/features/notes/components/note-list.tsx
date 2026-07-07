@@ -1,7 +1,7 @@
 "use client";
 
 import type { NoteWithCourse } from "@/types";
-import { Link } from "next-view-transitions";
+import Link from "next/link";
 import { EditNoteDialog } from "./edit-note-dialog";
 
 export function NoteList({ notes }: { notes: NoteWithCourse[] }) {

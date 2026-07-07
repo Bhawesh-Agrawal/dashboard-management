@@ -170,7 +170,7 @@ export function FabCluster() {
           if (!nextOpen) resetState();
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl">Quick Add</DialogTitle>
           </DialogHeader>

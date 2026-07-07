@@ -232,67 +232,130 @@ async function generateAssessmentNotifications(): Promise<
   return notifications;
 }
 
+type DailySummarySection = "classes" | "tasks" | "routines" | "deadlines" | "attendance";
+
 /**
  * Generate the daily summary digest.
+ * Respects user's dailySummaryTime and dailySummarySections preferences.
  */
-async function generateDailySummary(): Promise<NotificationPayload[]> {
+async function generateDailySummary(userId: string): Promise<NotificationPayload[]> {
   const now = new Date();
   const dayOfWeek = getDayOfWeekEnum(now.getDay());
 
-  // Get today's classes
-  const classes = await prisma.classSchedule.findMany({
-    where: {
-      dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
-    },
-    include: { course: { select: { name: true } } },
-  });
+  // Fetch user's daily summary preferences
+  let preferredTime = "19:00";
+  let sections: DailySummarySection[] = ["classes", "tasks", "routines", "deadlines", "attendance"];
 
-  // Get starred tasks
-  const starredTasks = await prisma.task.findMany({
-    where: { starred: true, status: "open" },
-    take: 3,
-  });
-
-  // Get attendance alerts
-  const activeSemester = await prisma.semester.findFirst({
-    where: { isActive: true },
-  });
-
-  const attendanceAlerts: string[] = [];
-  if (activeSemester) {
-    const courses = await prisma.course.findMany({
-      where: { semesterId: activeSemester.id },
-      include: { attendanceRecords: true },
+  try {
+    const pref = await prisma.notificationPreference.findUnique({
+      where: {
+        userId_type: {
+          userId,
+          type: "daily_summary",
+        },
+      },
     });
 
-    for (const course of courses) {
-      const present = course.attendanceRecords.filter(
-        (r) => r.status === "present"
-      ).length;
-      const absent = course.attendanceRecords.filter(
-        (r) => r.status === "absent"
-      ).length;
-      const percent = computeAttendancePercent(present, absent);
+    if (pref) {
+      preferredTime = pref.dailySummaryTime || "19:00";
+      sections = (pref.dailySummarySections as DailySummarySection[]) || sections;
+    }
+  } catch {
+    // Table may not exist yet — use defaults
+  }
 
-      if (percent < 75 && present + absent > 0) {
-        attendanceAlerts.push(course.name);
-      }
+  // Check if current time is within 5 minutes of preferred time
+  const [prefHours, prefMinutes] = preferredTime.split(":").map(Number);
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const diffMinutes =
+    (prefHours * 60 + prefMinutes) - (currentHour * 60 + currentMinutes);
+
+  if (diffMinutes < 0 || diffMinutes > 5) {
+    // Not within the time window — skip daily summary
+    return [];
+  }
+
+  // Build summary body based on selected sections
+  const parts: string[] = [];
+
+  if (sections.includes("classes")) {
+    const classes = await prisma.classSchedule.findMany({
+      where: {
+        dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+      },
+      include: { course: { select: { name: true } } },
+    });
+    if (classes.length > 0) {
+      parts.push(`${classes.length} classes today`);
     }
   }
 
-  // Build summary body
-  const parts: string[] = [];
-
-  if (classes.length > 0) {
-    parts.push(`${classes.length} classes today`);
+  if (sections.includes("tasks")) {
+    const starredTasks = await prisma.task.findMany({
+      where: { starred: true, status: "open" },
+      take: 3,
+    });
+    if (starredTasks.length > 0) {
+      parts.push(`${starredTasks.length} top tasks`);
+    }
   }
 
-  if (starredTasks.length > 0) {
-    parts.push(`${starredTasks.length} top tasks`);
+  if (sections.includes("attendance")) {
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true },
+    });
+
+    const attendanceAlerts: string[] = [];
+    if (activeSemester) {
+      const courses = await prisma.course.findMany({
+        where: { semesterId: activeSemester.id },
+        include: { attendanceRecords: true },
+      });
+
+      for (const course of courses) {
+        const present = course.attendanceRecords.filter(
+          (r) => r.status === "present"
+        ).length;
+        const absent = course.attendanceRecords.filter(
+          (r) => r.status === "absent"
+        ).length;
+        const percent = computeAttendancePercent(present, absent);
+
+        if (percent < 75 && present + absent > 0) {
+          attendanceAlerts.push(course.name);
+        }
+      }
+    }
+
+    if (attendanceAlerts.length > 0) {
+      parts.push(`${attendanceAlerts.length} attendance alert${attendanceAlerts.length > 1 ? "s" : ""}`);
+    }
   }
 
-  if (attendanceAlerts.length > 0) {
-    parts.push(`${attendanceAlerts.length} attendance alert${attendanceAlerts.length > 1 ? "s" : ""}`);
+  if (sections.includes("routines")) {
+    const routines = await prisma.routine.findMany({
+      where: {
+        activeDays: { has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN" },
+      },
+    });
+    if (routines.length > 0) {
+      parts.push(`${routines.length} routines`);
+    }
+  }
+
+  if (sections.includes("deadlines")) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 7);
+    const upcomingTasks = await prisma.task.findMany({
+      where: {
+        status: "open",
+        dueDate: { gte: now, lte: tomorrow },
+      },
+    });
+    if (upcomingTasks.length > 0) {
+      parts.push(`${upcomingTasks.length} deadlines this week`);
+    }
   }
 
   if (parts.length === 0) {
@@ -405,7 +468,7 @@ export async function runNotificationScheduler(): Promise<void> {
   }
 
   if (await isTypeEnabled(userId, "daily_summary")) {
-    notifications.push(...(await generateDailySummary()));
+    notifications.push(...(await generateDailySummary(userId)));
   }
 
   // Send all notifications

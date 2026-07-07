@@ -1,6 +1,6 @@
 "use client";
 
-import { Link } from "next-view-transitions";
+import Link from "next/link";
 import type { SearchResult } from "@/features/search/lib/queries";
 import { FileText, CheckSquare, GraduationCap, Quote } from "lucide-react";
 

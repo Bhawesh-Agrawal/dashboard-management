@@ -58,7 +58,7 @@ export function CreateTaskDialog({
           <Plus className="h-4 w-4" />
           New Task
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">New Task</DialogTitle>
         </DialogHeader>

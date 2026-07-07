@@ -1,0 +1,46 @@
+import { getAllCourses } from "@/features/settings/lib/queries";
+import { PageHeader } from "@/components/shared/page-header";
+import { GradingTableEditor } from "@/features/settings/components/grading-table-editor";
+import { AttendanceTableEditor } from "@/features/settings/components/attendance-table-editor";
+import { AIProviderSettings } from "@/features/settings/components/ai-provider-settings";
+import { GoogleCalendarSettings } from "@/features/settings/components/google-calendar-settings";
+import { NotificationSettings } from "@/features/notifications/components/notification-settings";
+
+export default async function SettingsPage() {
+  const courses = await getAllCourses();
+
+  return (
+    <div>
+      <PageHeader
+        title="Settings"
+        subtitle="Configure grading, attendance, integrations, and preferences"
+      />
+
+      <div className="space-y-10">
+        {/* Grading & Attendance */}
+        <section>
+          <GradingTableEditor courses={courses} />
+        </section>
+
+        <section>
+          <AttendanceTableEditor courses={courses} />
+        </section>
+
+        {/* Integrations */}
+        <section className="border-t border-border pt-10">
+          <h2 className="page-heading text-lg mb-6">Integrations</h2>
+          <div className="space-y-6">
+            <AIProviderSettings />
+            <GoogleCalendarSettings />
+          </div>
+        </section>
+
+        {/* Notifications */}
+        <section className="border-t border-border pt-10">
+          <h2 className="page-heading text-lg mb-6">Notifications</h2>
+          <NotificationSettings />
+        </section>
+      </div>
+    </div>
+  );
+}

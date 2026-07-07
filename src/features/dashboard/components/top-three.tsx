@@ -1,0 +1,78 @@
+"use client";
+
+import Link from "next/link";
+import type { TaskWithCourse } from "@/types";
+import { toggleTaskDone, toggleTaskStarred } from "@/features/tasks/lib/actions";
+import { Star } from "lucide-react";
+import { EditTaskDialog } from "@/features/tasks/components/edit-task-dialog";
+import { TaskLinkBadge } from "@/features/tasks/components/task-link-badge";
+
+export function TopThree({ tasks }: { tasks: TaskWithCourse[] }) {
+  const emptySpots = Math.max(0, 3 - tasks.length);
+
+  return (
+    <div>
+      <p className="section-label mb-3">TOP 3 FOR TODAY</p>
+      <div className="space-y-0.5">
+        {tasks.map((task) => (
+          <div key={task.id} className="list-row items-center group">
+            <button
+              onClick={() => toggleTaskDone(task.id)}
+              className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center ${
+                task.status === "done"
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : "border-border"
+              }`}
+            >
+              {task.status === "done" && "✓"}
+            </button>
+            <div className="flex-1 min-w-0">
+              <Link
+                href={
+                  task.course
+                    ? `/courses/${task.course.id}`
+                    : task.project
+                      ? `/projects/${task.project.id}`
+                      : "/tasks"
+                }
+                className="text-sm hover:underline"
+              >
+                {task.title}
+              </Link>
+              <div className="flex items-center gap-2 mt-0.5">
+                <TaskLinkBadge task={task} />
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => toggleTaskStarred(task.id)}
+                className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              </button>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <EditTaskDialog task={task} />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Empty spots */}
+        {Array.from({ length: emptySpots }).map((_, i) => (
+          <div key={`empty-${i}`} className="list-row items-center">
+            <div className="shrink-0 h-11 w-11 rounded border border-border" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm italic text-muted-foreground">(open spot)</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {tasks.length === 0 && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Star a task below to set it as today&apos;s top 3.
+        </p>
+      )}
+    </div>
+  );
+}

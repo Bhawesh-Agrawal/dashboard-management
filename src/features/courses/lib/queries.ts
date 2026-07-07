@@ -10,7 +10,7 @@ const courseInclude = {
   notes: { orderBy: { createdAt: "desc" as const } },
   gradingConfigs: { orderBy: { minPercent: "desc" as const } },
   attendanceMarksConfigs: { orderBy: { minPercent: "desc" as const } },
-} as const;
+};
 
 export const getCourseById = cache(async (id: string) => {
   let course = await prisma.course.findUnique({

@@ -88,16 +88,17 @@ export function ContributionGraph({
       )}
 
       {/* Heatmap grid */}
-      <div className="overflow-x-auto">
-        <div className="flex gap-[3px]">
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-[2px] sm:gap-[3px] min-w-max">
           {weeks.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
+            <div key={wi} className="flex flex-col gap-[2px] sm:gap-[3px]">
               {week.map((day) => (
                 <button
                   key={day.key}
-                  className={`h-2.5 w-2.5 rounded-sm ${getIntensityClass(day.count)} transition-colors hover:ring-1 hover:ring-foreground/20`}
+                  className={`h-3 w-3 sm:h-2.5 sm:w-2.5 rounded-sm ${getIntensityClass(day.count)} transition-colors hover:ring-1 hover:ring-foreground/20 touch-manipulation`}
                   onMouseEnter={() => setHoveredDay(day.key)}
                   onMouseLeave={() => setHoveredDay(null)}
+                  onClick={() => setHoveredDay(hoveredDay === day.key ? null : day.key)}
                   aria-label={`${formatDate(day.key)}: ${day.count} activities`}
                 />
               ))}

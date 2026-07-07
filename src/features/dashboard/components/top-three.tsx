@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import type { TaskWithCourse } from "@/types";
 import { toggleTaskDone, toggleTaskStarred } from "@/features/tasks/lib/actions";
 import { Star } from "lucide-react";

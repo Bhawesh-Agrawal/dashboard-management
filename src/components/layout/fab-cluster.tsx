@@ -156,8 +156,8 @@ export function FabCluster() {
       {/* FAB button — bottom-right, safe-area aware */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40 h-12 w-12 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center hover:bg-foreground/90 transition-colors"
-        style={{ bottom: "max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))" }}
+        className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 h-12 w-12 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center hover:bg-foreground/90 transition-colors active:scale-95"
+        style={{ bottom: "max(6rem, calc(6rem + env(safe-area-inset-bottom, 0px)))" }}
       >
         <Plus className="h-5 w-5" />
       </button>
@@ -208,11 +208,11 @@ export function FabCluster() {
                     name="title"
                     required
                     autoFocus
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     placeholder="Task title..."
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="fab-dueDate" className="section-label">
                       Due Date & Time
@@ -221,7 +221,7 @@ export function FabCluster() {
                       id="fab-dueDate"
                       name="dueDate"
                       type="datetime-local"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -232,7 +232,7 @@ export function FabCluster() {
                       id="fab-priority"
                       name="priority"
                       defaultValue="2"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="1">High</option>
                       <option value="2">Medium</option>
@@ -392,13 +392,13 @@ export function FabCluster() {
 
             {activeType === "budget" && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="fab-budgetType" className="section-label">Type</label>
                     <select
                       id="fab-budgetType"
                       name="budgetType"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="expense">Expense</option>
                       <option value="income">Income</option>
@@ -414,19 +414,19 @@ export function FabCluster() {
                       min="0"
                       required
                       autoFocus
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="fab-category" className="section-label">Category</label>
                     <select
                       id="fab-category"
                       name="category"
                       required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="Food">Food</option>
                       <option value="Transport">Transport</option>
@@ -443,7 +443,7 @@ export function FabCluster() {
                       type="date"
                       required
                       defaultValue={new Date().toISOString().split("T")[0]}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export function FabCluster() {
                   <input
                     id="fab-notes"
                     name="notes"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     placeholder="Optional notes..."
                   />
                 </div>

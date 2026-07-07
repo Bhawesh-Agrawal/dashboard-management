@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { TaskLinkBadge } from "./task-link-badge";
 import type { LinkToOption } from "./link-to-picker";
+import { SwipeToReveal } from "@/components/shared/swipe-to-reveal";
 
 export function TaskList({
   tasks,
@@ -73,63 +74,77 @@ function TaskRow({
     : null;
 
   return (
-    <div className="list-row items-center group">
-      <button
-        onClick={() => toggleTaskDone(task.id)}
-        className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center ${
-          task.status === "done"
-            ? "bg-primary border-primary text-primary-foreground"
-            : "border-border"
-        }`}
-      >
-        {task.status === "done" && "✓"}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-sm ${
-              task.status === "done"
-                ? "line-through text-muted-foreground"
-                : ""
-            }`}
-          >
-            {task.title}
-          </span>
-          {isOverdue && (
-            <span className="overdue-badge">Overdue</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <TaskLinkBadge task={task} />
-          {dueDateDisplay && (
-            <span className="text-xs text-muted-foreground">
-              Due {dueDateDisplay}
-            </span>
-          )}
-          {task.priority === 1 && (
-            <span className="text-xs text-destructive font-medium">High</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => toggleTaskStarred(task.id)}
-          className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
-        >
-          <Star
-            className={`h-3.5 w-3.5 ${
-              task.starred
-                ? "fill-amber-400 text-amber-400"
-                : "text-muted-foreground"
-            }`}
-          />
-        </button>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+    <SwipeToReveal
+      actions={
+        <div className="flex items-center gap-1 px-2 h-full">
           <EditTaskDialog task={task} courses={courses} projects={projects} />
         </div>
+      }
+      className="group"
+    >
+      <div className="list-row items-center">
+        <button
+          onClick={() => toggleTaskDone(task.id)}
+          className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center ${
+            task.status === "done"
+              ? "bg-primary border-primary text-primary-foreground"
+              : "border-border"
+          }`}
+        >
+          {task.status === "done" && "✓"}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-sm ${
+                task.status === "done"
+                  ? "line-through text-muted-foreground"
+                  : ""
+              }`}
+            >
+              {task.title}
+            </span>
+            {isOverdue && (
+              <span className="overdue-badge">Overdue</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <TaskLinkBadge task={task} />
+            {dueDateDisplay && (
+              <span className="text-xs text-muted-foreground">
+                Due {dueDateDisplay}
+              </span>
+            )}
+            {task.priority === 1 && (
+              <span className="text-xs text-destructive font-medium">High</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => toggleTaskStarred(task.id)}
+            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <Star
+              className={`h-3.5 w-3.5 ${
+                task.starred
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-muted-foreground"
+              }`}
+            />
+          </button>
+          {/* Desktop: hover to reveal edit button */}
+          <div className="hidden lg:block opacity-0 group-hover:opacity-100 transition-opacity">
+            <EditTaskDialog task={task} courses={courses} projects={projects} />
+          </div>
+          {/* Mobile: edit icon always visible */}
+          <div className="lg:hidden">
+            <EditTaskDialog task={task} courses={courses} projects={projects} />
+          </div>
+        </div>
       </div>
-    </div>
+    </SwipeToReveal>
   );
 }

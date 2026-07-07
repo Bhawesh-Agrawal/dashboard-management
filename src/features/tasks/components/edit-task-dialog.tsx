@@ -74,7 +74,7 @@ export function EditTaskDialog({
               name="title"
               required
               defaultValue={task.title}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
           <div className="space-y-2">
@@ -89,7 +89,7 @@ export function EditTaskDialog({
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="edit-dueDate" className="section-label">
                 Due Date & Time
@@ -103,7 +103,7 @@ export function EditTaskDialog({
                     ? new Date(task.dueDate).toISOString().slice(0, 16)
                     : ""
                 }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -114,7 +114,7 @@ export function EditTaskDialog({
                 id="edit-priority"
                 name="priority"
                 defaultValue={task.priority}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="1">High</option>
                 <option value="2">Medium</option>

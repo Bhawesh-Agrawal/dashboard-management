@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CreateCourseDialog } from "@/features/courses/components/course-form";
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { setActiveSemester } from "@/features/semesters/lib/actions";
 import { computeCourseGrade } from "@/features/assessments/lib/queries";
 import { computeSGPA } from "@/features/assessments/lib/calculations";

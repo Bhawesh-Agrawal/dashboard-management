@@ -1,7 +1,7 @@
 import { getNoteById } from "@/features/notes/lib/queries";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 
 export default async function NoteDetailPage({
   params,

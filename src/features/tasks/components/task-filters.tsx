@@ -73,12 +73,12 @@ export function TaskFilters({
 
       {/* Project filter chips */}
       {projects.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="section-label">PROJECT</span>
+        <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+          <span className="section-label shrink-0">PROJECT</span>
           <button
             onClick={() => setFilter("project", "")}
             className={cn(
-              "px-2 py-0.5 text-xs rounded transition-colors",
+              "px-2 py-0.5 text-xs rounded transition-colors shrink-0",
               !activeProject
                 ? "bg-foreground text-background font-medium"
                 : "text-muted-foreground hover:text-foreground"
@@ -89,7 +89,7 @@ export function TaskFilters({
           <button
             onClick={() => setFilter("project", "none")}
             className={cn(
-              "px-2 py-0.5 text-xs rounded transition-colors",
+              "px-2 py-0.5 text-xs rounded transition-colors shrink-0",
               activeProject === "none"
                 ? "bg-foreground text-background font-medium"
                 : "text-muted-foreground hover:text-foreground"
@@ -102,7 +102,7 @@ export function TaskFilters({
               key={p.id}
               onClick={() => setFilter("project", p.id)}
               className={cn(
-                "px-2 py-0.5 text-xs rounded transition-colors flex items-center gap-1",
+                "px-2 py-0.5 text-xs rounded transition-colors flex items-center gap-1 shrink-0",
                 activeProject === p.id
                   ? "bg-foreground text-background font-medium"
                   : "text-muted-foreground hover:text-foreground"
@@ -115,12 +115,12 @@ export function TaskFilters({
       )}
 
       {/* Course filter chips */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="section-label">COURSE</span>
+      <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+        <span className="section-label shrink-0">COURSE</span>
         <button
           onClick={() => setFilter("course", "")}
           className={cn(
-            "px-2 py-0.5 text-xs rounded transition-colors",
+            "px-2 py-0.5 text-xs rounded transition-colors shrink-0",
             !activeCourse
               ? "bg-foreground text-background font-medium"
               : "text-muted-foreground hover:text-foreground"
@@ -133,7 +133,7 @@ export function TaskFilters({
             key={c.id}
             onClick={() => setFilter("course", c.id)}
             className={cn(
-              "px-2 py-0.5 text-xs rounded transition-colors flex items-center gap-1",
+              "px-2 py-0.5 text-xs rounded transition-colors flex items-center gap-1 shrink-0",
               activeCourse === c.id
                 ? "bg-foreground text-background font-medium"
                 : "text-muted-foreground hover:text-foreground"
@@ -144,7 +144,7 @@ export function TaskFilters({
         ))}
         <button
           onClick={toggleShowEnded}
-          className="px-2 py-0.5 text-xs rounded transition-colors text-muted-foreground hover:text-foreground"
+          className="px-2 py-0.5 text-xs rounded transition-colors text-muted-foreground hover:text-foreground shrink-0"
         >
           {showEnded ? "Hide ended" : "Show ended"}
         </button>

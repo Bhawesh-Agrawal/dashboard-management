@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { computeProjectProgress } from "@/features/projects/lib/utils";
 import { EditProjectDialog } from "./edit-project-dialog";
 

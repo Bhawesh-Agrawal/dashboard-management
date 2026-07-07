@@ -77,7 +77,7 @@ export function CalendarView() {
         {DAY_NAMES.map((day) => (
           <div
             key={day}
-            className="text-center text-[0.65rem] tracking-[0.15em] uppercase font-medium text-muted-foreground py-2"
+            className="text-center text-[0.6rem] sm:text-[0.65rem] tracking-[0.1em] sm:tracking-[0.15em] uppercase font-medium text-muted-foreground py-1.5 sm:py-2"
           >
             {day}
           </div>
@@ -88,7 +88,7 @@ export function CalendarView() {
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
         {calendarDays.map((day, idx) => {
           if (day === null) {
-            return <div key={`empty-${idx}`} className="bg-background min-h-[80px] lg:min-h-[100px]" />;
+            return <div key={`empty-${idx}`} className="bg-background min-h-[60px] sm:min-h-[80px] lg:min-h-[100px]" />;
           }
 
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -101,19 +101,19 @@ export function CalendarView() {
           return (
             <div
               key={day}
-              className={`bg-background min-h-[80px] lg:min-h-[100px] p-1.5 ${
+              className={`bg-background min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] p-1 sm:p-1.5 ${
                 isToday ? "bg-primary/5" : ""
               }`}
             >
               <div
-                className={`text-xs font-medium mb-1 ${
+                className={`text-[0.65rem] sm:text-xs font-medium mb-0.5 sm:mb-1 ${
                   isToday
                     ? "text-primary font-bold"
                     : "text-muted-foreground"
                 }`}
               >
                 {isToday ? (
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[0.6rem]">
+                  <span className="inline-flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[0.55rem] sm:text-[0.6rem]">
                     {day}
                   </span>
                 ) : (
@@ -121,10 +121,10 @@ export function CalendarView() {
                 )}
               </div>
               <div className="space-y-0.5">
-                {dayEvents.slice(0, 3).map((event) => (
+                {dayEvents.slice(0, 2).map((event) => (
                   <div
                     key={event.id}
-                    className={`text-[0.6rem] leading-tight px-1 py-0.5 rounded border ${typeColors[event.type]}`}
+                    className={`text-[0.5rem] sm:text-[0.6rem] leading-tight px-0.5 sm:px-1 py-0.5 rounded border ${typeColors[event.type]}`}
                   >
                     {event.time && (
                       <span className="font-medium">{event.time.slice(0, 5)} </span>
@@ -132,9 +132,9 @@ export function CalendarView() {
                     <span className="truncate">{event.title}</span>
                   </div>
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[0.6rem] text-muted-foreground text-center">
-                    +{dayEvents.length - 3} more
+                {dayEvents.length > 2 && (
+                  <div className="text-[0.5rem] sm:text-[0.6rem] text-muted-foreground text-center">
+                    +{dayEvents.length - 2} more
                   </div>
                 )}
               </div>

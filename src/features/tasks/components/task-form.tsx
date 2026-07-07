@@ -71,7 +71,7 @@ export function CreateTaskDialog({
               id="title"
               name="title"
               required
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               placeholder="What needs to be done?"
             />
           </div>
@@ -87,7 +87,7 @@ export function CreateTaskDialog({
               placeholder="Optional details..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="dueDate" className="section-label">
                 Due Date & Time
@@ -96,7 +96,7 @@ export function CreateTaskDialog({
                 id="dueDate"
                 name="dueDate"
                 type="datetime-local"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -107,7 +107,7 @@ export function CreateTaskDialog({
                 id="priority"
                 name="priority"
                 defaultValue="2"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="1">High</option>
                 <option value="2">Medium</option>

@@ -59,7 +59,7 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
     topTasks: dashboardData.topTasks.map(t => ({ title: t.title, due: t.dueDate })),
     classes: dashboardData.todayClasses.map(c => ({ name: c.course.name, time: c.startTime })),
     deadlines: dashboardData.upcomingDeadlines.map(d => ({ title: d.title, date: d.date, type: d.type })),
-    alerts: dashboardData.attendanceAlerts.map(a => ({ course: a.courseName, msg: a.message })),
+    alerts: dashboardData.attendanceAlerts.map(a => ({ course: a.courseName, percent: a.attendancePercent })),
   };
   
   const contextStr = JSON.stringify(minimalData, null, 2);

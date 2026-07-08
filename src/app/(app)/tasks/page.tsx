@@ -8,6 +8,8 @@ import { CreateTaskDialog } from "@/features/tasks/components/task-form";
 import { TaskFilters } from "@/features/tasks/components/task-filters";
 import { isCourseEnded } from "@/lib/course-utils";
 
+export const revalidate = 0;
+
 export default async function TasksPage({
   searchParams,
 }: {

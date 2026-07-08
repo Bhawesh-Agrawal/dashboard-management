@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_GRADING_CONFIG, DEFAULT_ATTENDANCE_MARKS_CONFIG } from "@/lib/constants";
+import { memCache, TTL } from "@/lib/mem-cache";
+
 
 /**
  * Compute attendance percentage for a course.
@@ -93,62 +95,67 @@ export function computeCGPA(
 
 /**
  * Get or create default grading config for a course.
- * First checks for course-specific config, then semester defaults, then creates course defaults.
+ * Cached in memory for 10 minutes — these rarely change.
  */
 export async function getGradingConfig(courseId: string, semesterId: string) {
-  // Try course-specific config first
-  let config = await prisma.gradingConfig.findMany({
-    where: { courseId },
-    orderBy: { minPercent: "desc" },
+  return memCache.get(`gradingConfig:${courseId}`, TTL.CONFIG, async () => {
+    // Try course-specific config first
+    let config = await prisma.gradingConfig.findMany({
+      where: { courseId },
+      orderBy: { minPercent: "desc" },
+    });
+
+    if (config.length > 0) return config;
+
+    // Try semester defaults
+    config = await prisma.gradingConfig.findMany({
+      where: { semesterId, courseId: null },
+      orderBy: { minPercent: "desc" },
+    });
+
+    if (config.length > 0) return config;
+
+    // Create course-specific defaults from built-in constants
+    const created = await Promise.all(
+      DEFAULT_GRADING_CONFIG.map((tier) =>
+        prisma.gradingConfig.create({
+          data: { courseId, minPercent: tier.minPercent, gradePoint: tier.gradePoint },
+        })
+      )
+    );
+
+    return created;
   });
-
-  if (config.length > 0) return config;
-
-  // Try semester defaults
-  config = await prisma.gradingConfig.findMany({
-    where: { semesterId, courseId: null },
-    orderBy: { minPercent: "desc" },
-  });
-
-  if (config.length > 0) return config;
-
-  // Create course-specific defaults from built-in constants
-  const created = await Promise.all(
-    DEFAULT_GRADING_CONFIG.map((tier) =>
-      prisma.gradingConfig.create({
-        data: { courseId, minPercent: tier.minPercent, gradePoint: tier.gradePoint },
-      })
-    )
-  );
-
-  return created;
 }
 
 /**
  * Get or create default attendance marks config for a course.
+ * Cached in memory for 10 minutes — these rarely change.
  */
 export async function getAttendanceMarksConfig(courseId: string, semesterId: string) {
-  let config = await prisma.attendanceMarksConfig.findMany({
-    where: { courseId },
-    orderBy: { minPercent: "desc" },
+  return memCache.get(`attMarksConfig:${courseId}`, TTL.CONFIG, async () => {
+    let config = await prisma.attendanceMarksConfig.findMany({
+      where: { courseId },
+      orderBy: { minPercent: "desc" },
+    });
+
+    if (config.length > 0) return config;
+
+    config = await prisma.attendanceMarksConfig.findMany({
+      where: { semesterId, courseId: null },
+      orderBy: { minPercent: "desc" },
+    });
+
+    if (config.length > 0) return config;
+
+    const created = await Promise.all(
+      DEFAULT_ATTENDANCE_MARKS_CONFIG.map((tier) =>
+        prisma.attendanceMarksConfig.create({
+          data: { courseId, minPercent: tier.minPercent, marks: tier.marks },
+        })
+      )
+    );
+
+    return created;
   });
-
-  if (config.length > 0) return config;
-
-  config = await prisma.attendanceMarksConfig.findMany({
-    where: { semesterId, courseId: null },
-    orderBy: { minPercent: "desc" },
-  });
-
-  if (config.length > 0) return config;
-
-  const created = await Promise.all(
-    DEFAULT_ATTENDANCE_MARKS_CONFIG.map((tier) =>
-      prisma.attendanceMarksConfig.create({
-        data: { courseId, minPercent: tier.minPercent, marks: tier.marks },
-      })
-    )
-  );
-
-  return created;
 }

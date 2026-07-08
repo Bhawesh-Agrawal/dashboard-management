@@ -7,6 +7,8 @@ import { GoogleCalendarSettings } from "@/features/settings/components/google-ca
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { NotificationTypeToggles } from "@/features/notifications/components/notification-type-toggles";
 import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
+export const revalidate = 0;
+
 import {
   getNotificationPreferences,
   getDailySummaryPreferences,

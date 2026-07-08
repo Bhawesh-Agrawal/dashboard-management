@@ -1,4 +1,5 @@
 import { getSemesterById } from "@/features/semesters/lib/queries";
+export const revalidate = 0;
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";

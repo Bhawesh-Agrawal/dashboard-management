@@ -4,6 +4,8 @@ import { BudgetList } from "@/features/budget/components/budget-list";
 import { BudgetSummary } from "@/features/budget/components/budget-summary";
 import { CreateBudgetDialog } from "@/features/budget/components/budget-form";
 
+export const revalidate = 0;
+
 export default async function BudgetPage({
   searchParams,
 }: {

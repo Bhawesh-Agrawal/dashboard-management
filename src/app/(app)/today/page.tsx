@@ -11,6 +11,10 @@ import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import dynamic from "next/dynamic";
 
+// This page reads from the database on every request.
+export const revalidate = 0;
+
+
 const ContributionGraph = dynamic(
   () => import("@/features/dashboard/components/contribution-graph").then((mod) => mod.ContributionGraph),
   { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }

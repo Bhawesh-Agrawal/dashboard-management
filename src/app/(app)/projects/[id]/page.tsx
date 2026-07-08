@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+export const revalidate = 0;
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { getProjectById } from "@/features/projects/lib/queries";

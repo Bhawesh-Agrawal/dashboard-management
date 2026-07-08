@@ -1,4 +1,5 @@
 import { getCourseById } from "@/features/courses/lib/queries";
+export const revalidate = 0;
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScheduleSection } from "@/features/schedule/components/schedule-grid";

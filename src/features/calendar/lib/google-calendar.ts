@@ -325,19 +325,22 @@ export async function fetchGoogleCalendarEvents(
 
 /**
  * Check if Google Calendar is connected.
+ * Cached for 5 minutes — this is called on every dashboard load.
  * Returns false if the table doesn't exist yet.
  */
 export async function isGoogleCalendarConnected(userId: string): Promise<boolean> {
-  try {
-    const token = await prisma.googleCalendarToken.findUnique({
-      where: { userId },
-    });
-
-    return !!token;
-  } catch {
-    // Table may not exist yet — gracefully return false
-    return false;
-  }
+  const { memCache, TTL } = await import("@/lib/mem-cache");
+  return memCache.get(`googleConnected:${userId}`, TTL.AUTH, async () => {
+    try {
+      const token = await prisma.googleCalendarToken.findUnique({
+        where: { userId },
+        select: { userId: true }, // minimal select
+      });
+      return !!token;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**

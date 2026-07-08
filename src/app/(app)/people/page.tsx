@@ -4,6 +4,8 @@ import { getPeople } from "@/features/people/lib/queries";
 import { PersonList } from "@/features/people/components/person-list";
 import { CreatePersonDialog } from "@/features/people/components/person-form";
 
+export const revalidate = 0;
+
 export default async function PeoplePage() {
   const people = await getPeople();
 

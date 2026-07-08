@@ -4,6 +4,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoutineList } from "@/features/routines/components/routine-list";
 import { CreateRoutineDialog } from "@/features/routines/components/routine-form";
 
+export const revalidate = 0;
+
 export default async function RoutinesPage() {
   const routines = await getRoutinesWithStreaks();
 

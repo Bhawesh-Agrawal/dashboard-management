@@ -4,6 +4,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { NoteList } from "@/features/notes/components/note-list";
 import { QuickCapture } from "@/features/notes/components/quick-capture";
 
+export const revalidate = 0;
+
 export default async function NotesPage() {
   const notes = await getNotes();
 

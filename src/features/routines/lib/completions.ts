@@ -6,7 +6,7 @@ export type { RoutineWithStreak };
 
 /**
  * Get all routines with streak information for today.
- * Computes current streak from consecutive completions.
+ * Uses a single bulk completions query instead of one per routine (N+1 fix).
  */
 export const getRoutinesWithStreaks = cache(
   async (): Promise<RoutineWithStreak[]> => {
@@ -21,40 +21,50 @@ export const getRoutinesWithStreaks = cache(
       orderBy: [{ timeOfDay: "asc" }, { name: "asc" }],
     });
 
-    const routinesWithStreaks: RoutineWithStreak[] = [];
+    if (routines.length === 0) return [];
 
-    for (const routine of routines) {
-      // Get recent completions (last 30 days for streak calculation)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      let completions: { date: Date; completedAt: Date }[] = [];
-      try {
-        completions = await prisma.routineCompletion.findMany({
-          where: {
-            routineId: routine.id,
-            date: { gte: thirtyDaysAgo },
-          },
-          orderBy: { date: "desc" },
-        });
-      } catch {
-        // Table may not exist yet — treat as no completions
-        completions = [];
-      }
+    // ─── SINGLE bulk query instead of N per-routine queries ───
+    let allCompletions: { routineId: string; date: Date; completedAt: Date }[] = [];
+    try {
+      allCompletions = await prisma.routineCompletion.findMany({
+        where: {
+          routineId: { in: routines.map((r) => r.id) },
+          date: { gte: thirtyDaysAgo },
+        },
+        orderBy: { date: "desc" },
+        select: { routineId: true, date: true, completedAt: true },
+      });
+    } catch {
+      // Table may not exist yet — treat as no completions
+      allCompletions = [];
+    }
 
-      // Check if completed today
+    // Group completions by routineId in memory
+    const completionsByRoutine = new Map<string, { date: Date; completedAt: Date }[]>();
+    for (const c of allCompletions) {
+      const list = completionsByRoutine.get(c.routineId) ?? [];
+      list.push({ date: c.date, completedAt: c.completedAt });
+      completionsByRoutine.set(c.routineId, list);
+    }
+
+    // Build result for each routine
+    const routinesWithStreaks: RoutineWithStreak[] = routines.map((routine) => {
+      const completions = completionsByRoutine.get(routine.id) ?? [];
+
       const completedToday = completions.some(
         (c) => normalizeDate(c.date) === normalizeDate(today)
       );
 
-      // Calculate current streak
       const currentStreak = calculateStreak(
         completions.map((c) => c.date),
         routine.activeDays,
         today
       );
 
-      routinesWithStreaks.push({
+      return {
         id: routine.id,
         name: routine.name,
         timeOfDay: routine.timeOfDay,
@@ -64,8 +74,8 @@ export const getRoutinesWithStreaks = cache(
         currentStreak,
         completedToday,
         lastCompletedAt: completions[0]?.completedAt ?? null,
-      });
-    }
+      };
+    });
 
     return routinesWithStreaks;
   }

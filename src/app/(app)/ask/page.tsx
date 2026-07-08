@@ -1,6 +1,8 @@
 import { ChatInterface } from "@/features/ask/components/chat-interface";
 import { PageHeader } from "@/components/shared/page-header";
 
+export const revalidate = 0;
+
 export default function AskPage() {
   return (
     <div>

@@ -6,6 +6,8 @@ import { CreateSemesterDialog } from "@/features/semesters/components/semester-f
 import { computeCourseGrade } from "@/features/assessments/lib/queries";
 import { computeSGPA, computeCGPA } from "@/features/assessments/lib/calculations";
 
+export const revalidate = 0;
+
 export default async function SemestersPage() {
   const semesters = await getSemesters();
 

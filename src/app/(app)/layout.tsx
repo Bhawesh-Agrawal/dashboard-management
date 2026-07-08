@@ -5,8 +5,8 @@ import { SearchOverlay } from "@/features/search/components/search-overlay";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { PageTransition } from "@/components/shared/page-transition";
 
-// All pages in this layout query the database — force dynamic rendering.
-export const dynamic = "force-dynamic";
+
+
 
 export default function AppLayout({
   children,

@@ -5,6 +5,8 @@ import { getDomains } from "@/features/domains/lib/queries";
 import { ProjectList } from "@/features/projects/components/project-list";
 import { CreateProjectDialog } from "@/features/projects/components/project-form";
 
+export const revalidate = 0;
+
 export default async function ProjectsPage() {
   const [projects, domains] = await Promise.all([getAllProjects(), getDomains()]);
 

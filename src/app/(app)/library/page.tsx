@@ -5,6 +5,8 @@ import { CreateQuoteDialog } from "@/features/library/components/quote-form";
 import { ResourceList } from "@/features/library/components/resource-list";
 import { CreateResourceDialog } from "@/features/library/components/resource-form";
 
+export const revalidate = 0;
+
 export default async function LibraryPage() {
   const { quotes, resources } = await getLibraryData();
 

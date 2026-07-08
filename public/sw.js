@@ -29,15 +29,21 @@ const APP_SHELL_FILES = [
   "/settings",
 ];
 
-// Install event — cache app shell
+// Install event — cache app shell robustly
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(APP_SHELL_CACHE).then((cache) => {
+    caches.open(APP_SHELL_CACHE).then(async (cache) => {
       console.log("Caching app shell");
-      return cache.addAll(APP_SHELL_FILES);
+      for (const file of APP_SHELL_FILES) {
+        try {
+          await cache.add(file);
+        } catch (error) {
+          console.warn(`Failed to cache ${file}:`, error);
+        }
+      }
     })
   );
-  self.skipWaiting();
 });
 
 // Activate event — clean up old caches

@@ -59,8 +59,12 @@ export async function requestPushSubscription(): Promise<{
       registration = await navigator.serviceWorker.register("/sw.js");
     }
     
-    // Ensure it's ready
-    registration = await navigator.serviceWorker.ready;
+    if (!registration) {
+      return { success: false, error: "Failed to register Service Worker." };
+    }
+    
+    // Wait briefly to allow the worker to activate if freshly registered
+    await new Promise(r => setTimeout(r, 500));
 
     // Subscribe to push
     const vapidKey = getVapidPublicKey();

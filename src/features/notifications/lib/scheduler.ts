@@ -141,7 +141,7 @@ async function generateTaskNotifications(): Promise<NotificationPayload[]> {
 
     notifications.push({
       title: isToday ? "⚠️ Task Due Today" : "📅 Task Due Tomorrow",
-      body: `${task.title}${task.course ? ` (${task.course.name})` : ""}`,
+      body: `📌 ${task.title}\n${task.course ? `📚 Course: ${task.course.name}` : ""}\n⏰ Priority: P${task.priority}`,
       tag: `task-${task.id}`,
       data: {
         url: "/tasks",

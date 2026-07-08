@@ -2,9 +2,7 @@
 
 import { askAI, type AIResult } from "@/lib/ai/openrouter";
 import { getDashboardData } from "@/features/dashboard/lib/queries";
-import fs from "fs/promises";
-import path from "path";
-import os from "os";
+import { prisma } from "@/lib/prisma";
 
 export type InsightsResponse = {
   insights: string[];
@@ -26,9 +24,7 @@ CRITICAL RULES:
 - Keep each insight to 1-2 short sentences. Be encouraging, but direct.
 - Return ONLY a valid JSON array of strings, with no markdown formatting, no backticks, and no explanation.`;
 
-const CACHE_FILE = path.join(os.tmpdir(), "academic-dashboard-insights.json");
-
-// In-memory fallback
+// In-memory fallback for instant hot reloads during dev
 const globalCache = globalThis as unknown as { __insightsCache?: InsightsResponse };
 
 export async function getCachedInsights(): Promise<InsightsResponse | null> {
@@ -36,11 +32,19 @@ export async function getCachedInsights(): Promise<InsightsResponse | null> {
     return globalCache.__insightsCache;
   }
   try {
-    const data = await fs.readFile(CACHE_FILE, "utf-8");
-    const parsed = JSON.parse(data) as InsightsResponse;
+    const record = await prisma.aiInsight.findFirst({
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record) return null;
+
+    const parsed: InsightsResponse = {
+      insights: record.insights,
+      refreshedAt: record.createdAt.toISOString(),
+    };
     globalCache.__insightsCache = parsed;
     return parsed;
-  } catch {
+  } catch (err) {
+    console.error("Failed to fetch insights from DB:", err);
     return null;
   }
 }
@@ -98,22 +102,30 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
     insights = [result.data.slice(0, 200)];
   }
 
-  const responseData = {
-    insights,
-    refreshedAt: new Date().toISOString(),
-  };
-
-  // Save to memory immediately for instant reloads
-  globalCache.__insightsCache = responseData;
-
   try {
-    await fs.writeFile(CACHE_FILE, JSON.stringify(responseData, null, 2));
-  } catch (err) {
-    console.error("Failed to save insights cache:", err);
-  }
+    const record = await prisma.aiInsight.create({
+      data: {
+        insights,
+      },
+    });
 
-  return {
-    ok: true,
-    data: responseData,
-  };
+    const responseData = {
+      insights: record.insights,
+      refreshedAt: record.createdAt.toISOString(),
+    };
+
+    // Save to memory immediately for instant reloads
+    globalCache.__insightsCache = responseData;
+
+    return {
+      ok: true,
+      data: responseData,
+    };
+  } catch (err) {
+    console.error("Failed to save insights to DB:", err);
+    return {
+      ok: false,
+      error: "Failed to save insights",
+    };
+  }
 }

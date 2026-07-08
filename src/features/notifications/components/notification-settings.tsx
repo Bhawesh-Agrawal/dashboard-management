@@ -7,6 +7,7 @@ import {
   getPushStatus,
 } from "@/features/notifications/lib/push-client";
 import { Bell, BellOff, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function NotificationSettings() {
   const [status, setStatus] = useState<{
@@ -26,14 +27,26 @@ export function NotificationSettings() {
         await unsubscribePush();
         const newStatus = await getPushStatus();
         setStatus(newStatus);
+        toast.success("Push notifications disabled.");
       });
     } else {
       // Must be called synchronously outside transition for iOS Safari
-      await requestPushSubscription();
-      startTransition(async () => {
-        const newStatus = await getPushStatus();
-        setStatus(newStatus);
-      });
+      try {
+        const res = await requestPushSubscription();
+        if (!res.success) {
+          toast.error("Permission denied or service worker unavailable. Check your browser settings.");
+          return;
+        }
+        
+        startTransition(async () => {
+          const newStatus = await getPushStatus();
+          setStatus(newStatus);
+          toast.success("Successfully enabled push notifications!");
+        });
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to enable push notifications.");
+      }
     }
   }
 

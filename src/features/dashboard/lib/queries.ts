@@ -134,7 +134,10 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     getCurrentUserId(),
   ]);
 
-  const allOpenTasks: TaskWithCourse[] = allOpenTasksRaw.slice(0, 10);
+  const topTaskIds = new Set(topTasks.map((t) => t.id));
+  const allOpenTasks: TaskWithCourse[] = allOpenTasksRaw
+    .filter((t) => !topTaskIds.has(t.id))
+    .slice(0, 10);
 
   // ─── Phase 2: Google Calendar (depends on userId) ─────────────────────────
   const googleConnected = await isGoogleCalendarConnected(userId);

@@ -9,6 +9,7 @@ import { SemesterSnapshot } from "@/features/dashboard/components/semester-snaps
 import { TomorrowRoutines } from "@/features/dashboard/components/tomorrow-routines";
 import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
+import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import dynamic from "next/dynamic";
 
 // This page reads from the database on every request.
@@ -47,17 +48,21 @@ export default async function TodayPage() {
         {/* Main column (2/3 width on desktop) */}
         <div className="md:col-span-2 lg:col-span-2 space-y-6 md:space-y-8">
           <TopThree tasks={data.topTasks} />
+          <DailyTimeline 
+            classes={data.todayClasses} 
+            deadlines={data.upcomingDeadlines} 
+            routines={data.routines} 
+          />
           <AllOpenTasks tasks={data.allOpenTasks} />
-          <TodaysClasses classes={data.todayClasses} />
-          <UpNext deadlines={data.upcomingDeadlines} />
           <OngoingProjects projects={data.activeProjects} />
         </div>
 
         {/* Right sidebar (1/3 width on desktop) */}
         <div className="space-y-6 md:space-y-8">
           <AttendanceAlerts alerts={data.attendanceAlerts} />
-          <RoutinesWidget routines={data.routines} />
-          <TomorrowRoutines routines={data.tomorrowRoutines} />
+          <TomorrowRoutines 
+            routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 
+          />
           <DailyQuote quotes={data.quotes} />
           <AiInsights />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />

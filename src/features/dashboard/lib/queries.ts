@@ -271,12 +271,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   let sgpa: number | null = null;
   let cgpa: number | null = null;
 
-  if (activeSemester && semesterCoursesForGrades.length > 0) {
-    const courseGrades = await Promise.all(
-      semesterCoursesForGrades.map((course) => computeCourseGrade(course))
-    );
-    sgpa = computeSGPA(courseGrades);
-
+  if (allSemesters.length > 0) {
     const semData = await Promise.all(
       allSemesters.map(async (sem) => {
         const semCourses = await prisma.course.findMany({
@@ -284,8 +279,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
         });
         const totalCredits = semCourses.reduce((sum, c) => sum + c.credits, 0);
 
-        if (sem.id === activeSemester.id) {
-          return { sgpa, totalCredits };
+        if (semCourses.length === 0) {
+          return { sgpa: null, totalCredits: 0 };
         }
 
         const grades = await Promise.all(
@@ -295,7 +290,13 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
       })
     );
 
-    cgpa = computeCGPA(semData);
+    const completedSems = semData.filter((s) => s.sgpa !== null && s.totalCredits > 0);
+
+    cgpa = computeCGPA(completedSems);
+
+    if (completedSems.length > 0) {
+      sgpa = completedSems[completedSems.length - 1].sgpa;
+    }
   }
 
   return {

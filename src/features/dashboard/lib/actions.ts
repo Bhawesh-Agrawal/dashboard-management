@@ -4,6 +4,7 @@ import { askAI, type AIResult } from "@/lib/ai/openrouter";
 import { getDashboardData } from "@/features/dashboard/lib/queries";
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 
 export type InsightsResponse = {
   insights: string[];
@@ -25,7 +26,7 @@ CRITICAL RULES:
 - Keep each insight to 1-2 short sentences. Be encouraging, but direct.
 - Return ONLY a valid JSON array of strings, with no markdown formatting, no backticks, and no explanation.`;
 
-const CACHE_FILE = path.join(process.cwd(), ".insights.json");
+const CACHE_FILE = path.join(os.tmpdir(), "academic-dashboard-insights.json");
 
 // In-memory fallback
 const globalCache = globalThis as unknown as { __insightsCache?: InsightsResponse };

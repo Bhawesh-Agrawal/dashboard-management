@@ -151,7 +151,11 @@
 }
 
 /* ─── Mobile optimizations ───────────────────────────────── */
-/* Improve touch targets on mobile */
+/* Eliminate 300ms tap delay globally on all interactive elements */
+button, a, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], label[for] {
+  touch-action: manipulation;
+}
+
 @media (hover: none) and (pointer: coarse) {
   /* Make edit buttons always visible on touch devices */
   .touch-edit {

@@ -1,16 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useOptimistic, useTransition } from "react";
 import type { TaskWithCourse } from "@/types";
 import { toggleTaskDone, toggleTaskStarred } from "@/features/tasks/lib/actions";
 import { Star } from "lucide-react";
 import { TaskLinkBadge } from "@/features/tasks/components/task-link-badge";
 
 export function AllOpenTasks({ tasks }: { tasks: TaskWithCourse[] }) {
+  const [optimisticTasks, updateOptimistic] = useOptimistic(
+    tasks,
+    (state, { id, field }: { id: string; field: "status" | "starred" }) =>
+      state.map((t) =>
+        t.id === id
+          ? field === "status"
+            ? { ...t, status: t.status === "done" ? ("open" as const) : ("done" as const) }
+            : { ...t, starred: !t.starred }
+          : t
+      )
+  );
+
+  const [, startTransition] = useTransition();
+
+  function handleToggleDone(id: string) {
+    startTransition(() => {
+      updateOptimistic({ id, field: "status" });
+      toggleTaskDone(id);
+    });
+  }
+
+  function handleToggleStar(id: string) {
+    startTransition(() => {
+      updateOptimistic({ id, field: "starred" });
+      toggleTaskStarred(id);
+    });
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <p className="section-label">ALL OPEN TASKS · {tasks.length}</p>
+        <p className="section-label">ALL OPEN TASKS · {optimisticTasks.filter(t => t.status === "open").length}</p>
         <Link
           href="/tasks"
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -19,11 +48,11 @@ export function AllOpenTasks({ tasks }: { tasks: TaskWithCourse[] }) {
         </Link>
       </div>
       <div className="space-y-0.5">
-        {tasks.map((task) => (
+        {optimisticTasks.map((task) => (
           <div key={task.id} className="list-row items-center group">
             <button
-              onClick={() => toggleTaskDone(task.id)}
-              className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center ${
+              onClick={() => handleToggleDone(task.id)}
+              className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center touch-manipulation ${
                 task.status === "done"
                   ? "bg-primary border-primary text-primary-foreground"
                   : "border-border"
@@ -49,8 +78,8 @@ export function AllOpenTasks({ tasks }: { tasks: TaskWithCourse[] }) {
               </div>
             </div>
             <button
-              onClick={() => toggleTaskStarred(task.id)}
-              className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              onClick={() => handleToggleStar(task.id)}
+              className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
             >
               <Star
                 className={`h-3.5 w-3.5 ${

@@ -37,7 +37,7 @@ export function MobileTabs() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-2 min-w-[56px] min-h-[48px] text-[0.6rem] sm:text-[0.65rem] transition-colors",
+                "flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-2 min-w-[56px] min-h-[48px] text-[0.6rem] sm:text-[0.65rem] transition-colors touch-manipulation",
                 isActive
                   ? "text-foreground font-medium"
                   : "text-muted-foreground"
@@ -49,11 +49,11 @@ export function MobileTabs() {
           );
         })}
 
-        {/* More tab - opens sheet */}
+        {/* More tab — SheetTrigger asChild renders this button directly */}
         <MobileNavSheet open={moreOpen} onOpenChange={setMoreOpen}>
           <button
             className={cn(
-              "flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-2 min-w-[56px] min-h-[48px] text-[0.6rem] sm:text-[0.65rem] transition-colors",
+              "flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-2 min-w-[56px] min-h-[48px] text-[0.6rem] sm:text-[0.65rem] transition-colors touch-manipulation",
               !isMainTab && pathname !== "/search"
                 ? "text-foreground font-medium"
                 : "text-muted-foreground"

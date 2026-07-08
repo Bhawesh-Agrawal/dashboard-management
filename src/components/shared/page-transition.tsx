@@ -7,13 +7,13 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={pathname}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.15, ease: "easeInOut" }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.1, ease: "easeOut" }}
       >
         {children}
       </motion.div>

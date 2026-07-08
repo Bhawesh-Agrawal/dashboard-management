@@ -2,7 +2,7 @@
 
 import { toggleMilestoneDone, deleteMilestone } from "@/features/projects/lib/actions";
 import { Pencil } from "lucide-react";
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { updateMilestone } from "@/features/projects/lib/actions";
 
 type MilestoneData = {
@@ -47,6 +47,11 @@ function MilestoneRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(milestone.name);
   const [weight, setWeight] = useState(milestone.weight);
+  const [, startTransition] = useTransition();
+  const [optimisticDone, updateOptimisticDone] = useOptimistic(
+    milestone.isDone,
+    (_, next: boolean) => next
+  );
 
   async function handleSave() {
     await updateMilestone(milestone.id, { name, weight }, projectId);
@@ -89,19 +94,24 @@ function MilestoneRow({
   return (
     <div className="list-row items-center group">
       <button
-        onClick={() => toggleMilestoneDone(milestone.id, projectId)}
-        className={`shrink-0 h-4 w-4 rounded border transition-colors ${
-          milestone.isDone
+        onClick={() => {
+          startTransition(() => {
+            updateOptimisticDone(!optimisticDone);
+            toggleMilestoneDone(milestone.id, projectId);
+          });
+        }}
+        className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation ${
+          optimisticDone
             ? "bg-primary border-primary text-primary-foreground"
             : "border-border"
         }`}
       >
-        {milestone.isDone && "✓"}
+        {optimisticDone && "✓"}
       </button>
 
       <span
         className={`flex-1 text-sm ${
-          milestone.isDone ? "line-through text-muted-foreground" : ""
+          optimisticDone ? "line-through text-muted-foreground" : ""
         }`}
       >
         {milestone.name}

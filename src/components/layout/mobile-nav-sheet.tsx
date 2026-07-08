@@ -13,7 +13,7 @@ import {
   BookOpen,
   Search,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const moreSections = [
@@ -56,10 +56,10 @@ export function MobileNavSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* Trigger is the children (the More tab button) */}
-      <button onClick={() => onOpenChange(true)}>
-        {children}
-      </button>
+      {/* Use SheetTrigger with render prop so it renders the children (button)
+          directly as the trigger element — no extra wrapper button nesting.
+          Double-button nesting is invalid HTML and breaks iOS tap events. */}
+      <SheetTrigger render={children as React.ReactElement} />
 
       <SheetContent side="bottom" className="h-[70vh] rounded-t-xl">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
@@ -78,7 +78,7 @@ export function MobileNavSheet({
                       href={item.href}
                       onClick={() => onOpenChange(false)}
                       className={cn(
-                        "flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors min-h-[44px]",
+                        "flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors min-h-[44px] touch-manipulation",
                         isActive
                           ? "bg-accent text-foreground font-medium"
                           : "text-foreground hover:bg-accent/50"

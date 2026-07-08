@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { toggleTaskDone, toggleTaskStarred, deleteTask } from "@/features/tasks/lib/actions";
 import type { TaskWithCourse } from "@/types";
 import { Star } from "lucide-react";
@@ -58,15 +58,22 @@ function TaskRow({
   projects?: LinkToOption[];
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // Optimistic local state — UI reflects changes immediately
+  const [optimisticTask, updateOptimistic] = useOptimistic(
+    task,
+    (current, update: Partial<TaskWithCourse>) => ({ ...current, ...update })
+  );
 
   const isOverdue =
-    task.status === "open" &&
-    task.dueDate &&
-    new Date(task.dueDate) < new Date();
+    optimisticTask.status === "open" &&
+    optimisticTask.dueDate &&
+    new Date(optimisticTask.dueDate) < new Date();
 
-  const dueDateDisplay = task.dueDate
+  const dueDateDisplay = optimisticTask.dueDate
     ? (() => {
-        const d = new Date(task.dueDate);
+        const d = new Date(optimisticTask.dueDate!);
         const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
         return hasTime
           ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
@@ -75,6 +82,20 @@ function TaskRow({
           : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       })()
     : null;
+
+  function handleToggleDone() {
+    startTransition(() => {
+      updateOptimistic({ status: optimisticTask.status === "done" ? "open" : "done" });
+      toggleTaskDone(task.id);
+    });
+  }
+
+  function handleToggleStar() {
+    startTransition(() => {
+      updateOptimistic({ starred: !optimisticTask.starred });
+      toggleTaskStarred(task.id);
+    });
+  }
 
   function handleDelete() {
     if (confirm("Delete this task?")) {
@@ -90,26 +111,26 @@ function TaskRow({
       >
         <div className="list-row items-center">
           <button
-            onClick={() => toggleTaskDone(task.id)}
-            className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center ${
-              task.status === "done"
+            onClick={handleToggleDone}
+            className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center touch-manipulation ${
+              optimisticTask.status === "done"
                 ? "bg-primary border-primary text-primary-foreground"
                 : "border-border"
             }`}
           >
-            {task.status === "done" && "✓"}
+            {optimisticTask.status === "done" && "✓"}
           </button>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span
                 className={`text-sm ${
-                  task.status === "done"
+                  optimisticTask.status === "done"
                     ? "line-through text-muted-foreground"
                     : ""
                 }`}
               >
-                {task.title}
+                {optimisticTask.title}
               </span>
               {isOverdue && (
                 <span className="overdue-badge">Overdue</span>
@@ -122,19 +143,19 @@ function TaskRow({
                   Due {dueDateDisplay}
                 </span>
               )}
-              {task.priority === 1 && (
+              {optimisticTask.priority === 1 && (
                 <span className="text-xs text-destructive font-medium">High</span>
               )}
             </div>
           </div>
 
           <button
-            onClick={() => toggleTaskStarred(task.id)}
-            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+            onClick={handleToggleStar}
+            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation"
           >
             <Star
               className={`h-3.5 w-3.5 ${
-                task.starred
+                optimisticTask.starred
                   ? "fill-amber-400 text-amber-400"
                   : "text-muted-foreground"
               }`}

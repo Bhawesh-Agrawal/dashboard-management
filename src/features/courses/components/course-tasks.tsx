@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { createTask } from "@/features/tasks/lib/actions";
 import type { Task } from "@prisma/client";
 import { toggleTaskDone } from "@/features/tasks/lib/actions";
@@ -33,32 +33,7 @@ export function CourseTasksSection({
       {tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tasks for this course.</p>
       ) : (
-        <div className="space-y-0.5">
-          {tasks.map((task) => (
-            <div key={task.id} className="list-row items-center">
-              <button
-                onClick={() => toggleTaskDone(task.id)}
-                className={`shrink-0 h-4 w-4 rounded border transition-colors ${
-                  task.status === "done"
-                    ? "bg-primary border-primary text-primary-foreground"
-                    : "border-border"
-                }`}
-              >
-                {task.status === "done" && "✓"}
-              </button>
-              <div className="flex-1 min-w-0">
-                <span className={`text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
-                  {task.title}
-                </span>
-                {task.dueDate && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    Due {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <CourseTaskList tasks={tasks} />
       )}
     </div>
   );
@@ -108,10 +83,59 @@ function AddTaskForm({
       <button
         type="submit"
         disabled={loading}
-        className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+        className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 touch-manipulation"
       >
         {loading ? "..." : "Add"}
       </button>
     </form>
+  );
+}
+
+function CourseTaskList({ tasks }: { tasks: Task[] }) {
+  const [optimisticTasks, updateOptimistic] = useOptimistic(
+    tasks,
+    (state, { id }: { id: string }) =>
+      state.map((t) =>
+        t.id === id
+          ? { ...t, status: t.status === "done" ? "open" : "done" }
+          : t
+      )
+  );
+  const [, startTransition] = useTransition();
+
+  function handleToggle(id: string) {
+    startTransition(() => {
+      updateOptimistic({ id });
+      toggleTaskDone(id);
+    });
+  }
+
+  return (
+    <div className="space-y-0.5">
+      {optimisticTasks.map((task) => (
+        <div key={task.id} className="list-row items-center">
+          <button
+            onClick={() => handleToggle(task.id)}
+            className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation ${
+              task.status === "done"
+                ? "bg-primary border-primary text-primary-foreground"
+                : "border-border"
+            }`}
+          >
+            {task.status === "done" && "✓"}
+          </button>
+          <div className="flex-1 min-w-0">
+            <span className={`text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+              {task.title}
+            </span>
+            {task.dueDate && (
+              <span className="text-xs text-muted-foreground ml-2">
+                Due {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

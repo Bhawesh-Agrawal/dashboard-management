@@ -431,3 +431,12 @@ model GoogleCalendarToken {
   @@unique([userId])
   @@map("google_calendar_tokens")
 }
+
+// ─── AI Insights ───────────────────────────────────────────
+model AiInsight {
+  id          String   @id @default(uuid())
+  insights    String[]
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ai_insights")
+}

@@ -71,7 +71,7 @@ export async function requestPushSubscription(): Promise<{
 
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: vapidKey,
+      applicationServerKey: vapidKey as any,
     });
 
     // Store subscription in database via server action

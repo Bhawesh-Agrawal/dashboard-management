@@ -27,10 +27,18 @@ CRITICAL RULES:
 
 const CACHE_FILE = path.join(process.cwd(), ".insights.json");
 
+// In-memory fallback
+const globalCache = globalThis as unknown as { __insightsCache?: InsightsResponse };
+
 export async function getCachedInsights(): Promise<InsightsResponse | null> {
+  if (globalCache.__insightsCache) {
+    return globalCache.__insightsCache;
+  }
   try {
     const data = await fs.readFile(CACHE_FILE, "utf-8");
-    return JSON.parse(data) as InsightsResponse;
+    const parsed = JSON.parse(data) as InsightsResponse;
+    globalCache.__insightsCache = parsed;
+    return parsed;
   } catch {
     return null;
   }
@@ -45,7 +53,16 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
   // Use the active dashboard data to ensure we only look at the current semester
   // and currently relevant tasks/routines.
   const dashboardData = await getDashboardData();
-  const contextStr = JSON.stringify(dashboardData, null, 2);
+  
+  // Minimize data to prevent token limits and truncation
+  const minimalData = {
+    topTasks: dashboardData.topTasks.map(t => ({ title: t.title, due: t.dueDate })),
+    classes: dashboardData.todayClasses.map(c => ({ name: c.course.name, time: c.startTime })),
+    deadlines: dashboardData.upcomingDeadlines.map(d => ({ title: d.title, date: d.date, type: d.type })),
+    alerts: dashboardData.attendanceAlerts.map(a => ({ course: a.courseName, msg: a.message })),
+  };
+  
+  const contextStr = JSON.stringify(minimalData, null, 2);
 
   const result = await askAI(
     [
@@ -56,7 +73,7 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
       },
     ],
     "dashboard-insights",
-    { temperature: 0.4, maxTokens: 512 }
+    { temperature: 0.4, maxTokens: 1024 }
   );
 
   if (!result.ok) {
@@ -84,6 +101,9 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
     insights,
     refreshedAt: new Date().toISOString(),
   };
+
+  // Save to memory immediately for instant reloads
+  globalCache.__insightsCache = responseData;
 
   try {
     await fs.writeFile(CACHE_FILE, JSON.stringify(responseData, null, 2));

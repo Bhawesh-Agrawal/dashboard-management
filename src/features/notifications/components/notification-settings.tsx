@@ -34,7 +34,7 @@ export function NotificationSettings() {
       try {
         const res = await requestPushSubscription();
         if (!res.success) {
-          toast.error("Permission denied or service worker unavailable. Check your browser settings.");
+          toast.error(res.error || "Permission denied or service worker unavailable.");
           return;
         }
         

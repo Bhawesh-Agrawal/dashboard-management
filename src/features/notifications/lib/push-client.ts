@@ -44,6 +44,7 @@ export async function getPushStatus(): Promise<{
 export async function requestPushSubscription(): Promise<{
   success: boolean;
   subscription?: PushSubscription;
+  error?: string;
 }> {
   try {
     // Request permission
@@ -52,13 +53,25 @@ export async function requestPushSubscription(): Promise<{
       return { success: false };
     }
 
-    // Get service worker registration
-    const registration = await navigator.serviceWorker.ready;
+    let registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      console.log("No Service Worker found. Registering...");
+      registration = await navigator.serviceWorker.register("/sw.js");
+    }
+    
+    // Ensure it's ready
+    registration = await navigator.serviceWorker.ready;
 
     // Subscribe to push
+    const vapidKey = getVapidPublicKey();
+    if (!vapidKey) {
+      console.error("No VAPID key found in environment variables.");
+      return { success: false, error: "VAPID configuration missing." };
+    }
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: getVapidPublicKey(),
+      applicationServerKey: vapidKey,
     });
 
     // Store subscription in database via server action
@@ -82,10 +95,10 @@ export async function requestPushSubscription(): Promise<{
       return { success: true, subscription };
     }
 
-    return { success: false };
+    return { success: false, error: "Server failed to save subscription." };
   } catch (error) {
     console.error("Failed to subscribe to push:", error);
-    return { success: false };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
@@ -112,8 +125,22 @@ export async function unsubscribePush(): Promise<{ success: boolean }> {
 }
 
 /**
- * Get the VAPID public key from environment.
+ * Get the VAPID public key from environment and convert to Uint8Array.
  */
-function getVapidPublicKey(): string {
-  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+function getVapidPublicKey(): Uint8Array | undefined {
+  const base64String = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+  if (!base64String) return undefined;
+  
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }

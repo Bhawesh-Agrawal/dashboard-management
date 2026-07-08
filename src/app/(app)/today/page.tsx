@@ -55,6 +55,9 @@ export default async function TodayPage() {
             deadlines={data.upcomingDeadlines} 
             routines={data.routines} 
           />
+          <UpNext 
+            deadlines={data.upcomingDeadlines.filter(d => new Date(d.date).toDateString() !== today.toDateString())} 
+          />
           <AllOpenTasks tasks={data.allOpenTasks} />
           <OngoingProjects projects={data.activeProjects} />
         </div>

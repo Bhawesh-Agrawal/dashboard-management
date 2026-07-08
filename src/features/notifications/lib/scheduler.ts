@@ -89,15 +89,16 @@ async function generateRoutineReminders(): Promise<NotificationPayload[]> {
     const diffMinutes =
       (routineHour * 60 + routineMinutes) - (currentHour * 60 + currentMinutes);
 
-    if (diffMinutes >= 0 && diffMinutes <= 5) {
+    if (diffMinutes >= 0 && diffMinutes < 5) {
       notifications.push({
-        title: "Routine Reminder",
+        title: "🔄 Routine Reminder",
         body: `Time for: ${routine.name}`,
         tag: `routine-${routine.id}`,
         data: {
           url: "/routines",
           type: "routine_reminder",
         },
+        actions: [{ action: "view", title: "View Routines" }],
         requireInteraction: true,
       });
     }
@@ -111,6 +112,12 @@ async function generateRoutineReminders(): Promise<NotificationPayload[]> {
  */
 async function generateTaskNotifications(): Promise<NotificationPayload[]> {
   const now = new Date();
+
+  // Only trigger task summaries at 9:00 AM (between 09:00 and 09:04)
+  if (now.getHours() !== 9 || now.getMinutes() >= 5) {
+    return [];
+  }
+
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -133,14 +140,14 @@ async function generateTaskNotifications(): Promise<NotificationPayload[]> {
     const isToday = dueDate.toDateString() === now.toDateString();
 
     notifications.push({
-      title: isToday ? "Task Due Today" : "Task Due Tomorrow",
+      title: isToday ? "⚠️ Task Due Today" : "📅 Task Due Tomorrow",
       body: `${task.title}${task.course ? ` (${task.course.name})` : ""}`,
       tag: `task-${task.id}`,
       data: {
         url: "/tasks",
         type: "task_due",
       },
-      actions: [{ action: "done", title: "Mark Done" }],
+      actions: [{ action: "done", title: "Mark Done" }, { action: "view", title: "View" }],
       requireInteraction: true,
     });
   }
@@ -175,15 +182,17 @@ async function generateClassNotifications(): Promise<NotificationPayload[]> {
     const diffMinutes =
       (classHour * 60 + classMinutes) - (currentHour * 60 + currentMinutes);
 
-    if (diffMinutes >= 0 && diffMinutes <= 10) {
+    // Trigger exactly once, 5-9 minutes before class starts
+    if (diffMinutes >= 5 && diffMinutes < 10) {
       notifications.push({
-        title: "Class Starting Soon",
+        title: "📚 Class Starting Soon",
         body: `${schedule.course.name} at ${schedule.startTime}${schedule.location ? ` in ${schedule.location}` : ""}`,
         tag: `class-${schedule.id}`,
         data: {
           url: `/courses/${schedule.courseId}`,
           type: "class_start",
         },
+        actions: [{ action: "view", title: "View Course" }],
         requireInteraction: true,
       });
     }
@@ -199,6 +208,12 @@ async function generateAssessmentNotifications(): Promise<
   NotificationPayload[]
 > {
   const now = new Date();
+
+  // Only trigger assessment summaries at 9:00 AM (09:00 to 09:04)
+  if (now.getHours() !== 9 || now.getMinutes() >= 5) {
+    return [];
+  }
+
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -217,7 +232,7 @@ async function generateAssessmentNotifications(): Promise<
     const isToday = dueDate.toDateString() === now.toDateString();
 
     notifications.push({
-      title: isToday ? "Assessment Today" : "Assessment Tomorrow",
+      title: isToday ? "📝 Assessment Today" : "📝 Assessment Tomorrow",
       body: `${assessment.componentType.replace("_", "/")} — ${assessment.course.name}`,
       tag: `assessment-${assessment.id}`,
       data: {
@@ -271,7 +286,8 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   const diffMinutes =
     (prefHours * 60 + prefMinutes) - (currentHour * 60 + currentMinutes);
 
-  if (diffMinutes < 0 || diffMinutes > 5) {
+  // Strictly < 5 to prevent duplicate sends on the next 5-minute cron mark
+  if (diffMinutes < 0 || diffMinutes >= 5) {
     // Not within the time window — skip daily summary
     return [];
   }
@@ -364,7 +380,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
 
   return [
     {
-      title: "Daily Summary",
+      title: "📊 Daily Summary",
       body: parts.join(", "),
       tag: "daily-summary",
       data: {

@@ -21,17 +21,20 @@ export function NotificationSettings() {
   }, []);
 
   async function handleToggle() {
-    startTransition(async () => {
-      if (status?.subscribed) {
+    if (status?.subscribed) {
+      startTransition(async () => {
         await unsubscribePush();
-      } else {
-        await requestPushSubscription();
-      }
-
-      // Refresh status
-      const newStatus = await getPushStatus();
-      setStatus(newStatus);
-    });
+        const newStatus = await getPushStatus();
+        setStatus(newStatus);
+      });
+    } else {
+      // Must be called synchronously outside transition for iOS Safari
+      await requestPushSubscription();
+      startTransition(async () => {
+        const newStatus = await getPushStatus();
+        setStatus(newStatus);
+      });
+    }
   }
 
   if (!status) {

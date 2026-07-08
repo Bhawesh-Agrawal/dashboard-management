@@ -2,6 +2,8 @@
 
 import { askAI, type AIResult } from "@/lib/ai/openrouter";
 import { searchEntitiesForContext, formatGraphContext } from "@/features/knowledge-graph/lib/traversal";
+import fs from "fs/promises";
+import path from "path";
 
 export type InsightsResponse = {
   insights: string[];
@@ -14,6 +16,17 @@ Focus on: upcoming deadlines with no preparation, courses where attendance is sl
 notes not reviewed recently, tasks close to their due date with no progress, patterns worth noting.
 Be specific, actionable, and concise. Each insight should be one or two sentences.
 Return ONLY a JSON array of strings, no markdown, no explanation.`;
+
+const CACHE_FILE = path.join(process.cwd(), ".insights.json");
+
+export async function getCachedInsights(): Promise<InsightsResponse | null> {
+  try {
+    const data = await fs.readFile(CACHE_FILE, "utf-8");
+    return JSON.parse(data) as InsightsResponse;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Generate AI insights from the student's academic data.
@@ -59,11 +72,19 @@ export async function refreshInsights(): Promise<AIResult<InsightsResponse>> {
     insights = [result.data.slice(0, 200)];
   }
 
+  const responseData = {
+    insights,
+    refreshedAt: new Date().toISOString(),
+  };
+
+  try {
+    await fs.writeFile(CACHE_FILE, JSON.stringify(responseData, null, 2));
+  } catch (err) {
+    console.error("Failed to save insights cache:", err);
+  }
+
   return {
     ok: true,
-    data: {
-      insights,
-      refreshedAt: new Date().toISOString(),
-    },
+    data: responseData,
   };
 }

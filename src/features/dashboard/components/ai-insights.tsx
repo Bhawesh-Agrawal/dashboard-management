@@ -14,9 +14,13 @@ function timeAgo(isoString: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function AiInsights() {
-  const [insights, setInsights] = useState<string[]>([]);
-  const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
+export function AiInsights({
+  initialInsights
+}: {
+  initialInsights?: { insights: string[]; refreshedAt: string } | null;
+}) {
+  const [insights, setInsights] = useState<string[]>(initialInsights?.insights || []);
+  const [refreshedAt, setRefreshedAt] = useState<string | null>(initialInsights?.refreshedAt || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

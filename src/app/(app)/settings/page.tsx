@@ -4,6 +4,7 @@ import { GradingTableEditor } from "@/features/settings/components/grading-table
 import { AttendanceTableEditor } from "@/features/settings/components/attendance-table-editor";
 import { AIProviderSettings } from "@/features/settings/components/ai-provider-settings";
 import { GoogleCalendarSettings } from "@/features/settings/components/google-calendar-settings";
+import { WidgetAccessSettings } from "@/features/settings/components/widget-access-settings";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { NotificationTypeToggles } from "@/features/notifications/components/notification-type-toggles";
 import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
           <div className="space-y-6">
             <AIProviderSettings />
             <GoogleCalendarSettings />
+            <WidgetAccessSettings />
           </div>
         </section>
 

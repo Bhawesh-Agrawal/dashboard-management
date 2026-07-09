@@ -440,3 +440,16 @@ model AiInsight {
 
   @@map("ai_insights")
 }
+
+// ─── Widget Token ──────────────────────────────────────────
+// API tokens for external callers (Tasker/KWGT widget).
+// Single active token at a time — generating a new one revokes the old.
+model WidgetToken {
+  id           String    @id @default(uuid())
+  tokenHash    String    @map("token_hash") // SHA-256 hash, never store plaintext
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastUsedAt   DateTime? @map("last_used_at") // updated on each successful widget API call
+  revokedAt    DateTime? @map("revoked_at")    // set when revoked
+
+  @@map("widget_tokens")
+}

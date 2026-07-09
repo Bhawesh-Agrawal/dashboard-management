@@ -174,6 +174,8 @@ self.addEventListener("push", (event) => {
       data: data.data || {},
       actions: data.actions || [],
       requireInteraction: data.requireInteraction || false,
+      renotify: true, // Re-alert even if a notification with the same tag exists
+      vibrate: [200, 100, 200], // Vibration pattern for mobile devices
     };
 
     event.waitUntil(self.registration.showNotification(title, options));

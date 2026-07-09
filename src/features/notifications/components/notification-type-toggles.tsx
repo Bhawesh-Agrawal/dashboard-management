@@ -4,9 +4,20 @@ import { useState, useTransition } from "react";
 import { toggleNotificationType } from "@/features/notifications/lib/actions";
 import { Loader2 } from "lucide-react";
 
-type NotificationType = "routine_reminder" | "task_due" | "class_start" | "assessment" | "daily_summary";
+type NotificationType =
+  | "routine_reminder"
+  | "task_due"
+  | "class_start"
+  | "assessment"
+  | "daily_summary"
+  | "missed_routine"
+  | "overdue_task";
 
-const NOTIFICATION_TYPES: { type: NotificationType; label: string; description: string }[] = [
+const NOTIFICATION_TYPES: {
+  type: NotificationType;
+  label: string;
+  description: string;
+}[] = [
   {
     type: "routine_reminder",
     label: "Routine Reminders",
@@ -30,7 +41,17 @@ const NOTIFICATION_TYPES: { type: NotificationType; label: string; description: 
   {
     type: "daily_summary",
     label: "Daily Summary",
-    description: "End-of-day digest with your schedule overview",
+    description: "Detailed digest with schedule, tasks, routines, and attendance",
+  },
+  {
+    type: "missed_routine",
+    label: "Missed Routines",
+    description: "Evening alert for routines you haven't completed today",
+  },
+  {
+    type: "overdue_task",
+    label: "Overdue Tasks",
+    description: "Morning alert for tasks past their due date",
   },
 ];
 

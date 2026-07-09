@@ -306,10 +306,11 @@ model PushSubscription {
 model NotificationPreference {
   id                   String   @id @default(uuid())
   userId               String   @map("user_id")
-  type                 String   // 'routine_reminder' | 'task_due' | 'class_start' | 'assessment' | 'daily_summary'
+  type                 String   // 'routine_reminder' | 'task_due' | 'class_start' | 'assessment' | 'daily_summary' | 'missed_routine' | 'overdue_task'
   enabled              Boolean  @default(true)
-  dailySummaryTime     String?  @map("daily_summary_time") // "HH:mm" for daily summary
-  dailySummarySections String[] @map("daily_summary_sections") // ['classes', 'tasks', 'routines', 'deadlines', 'attendance']
+  dailySummaryTime     String?  @map("daily_summary_time") // "HH:mm" for daily summary (user's local time)
+  dailySummarySections String[] @map("daily_summary_sections") // ['classes', 'tasks', 'routines', 'deadlines', 'attendance', 'tomorrow_classes']
+  timezone             String?  // IANA timezone identifier, e.g. "Asia/Kathmandu"
 
   @@unique([userId, type])
   @@map("notification_preferences")

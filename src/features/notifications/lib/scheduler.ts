@@ -13,7 +13,9 @@ export type NotificationType =
   | "task_due"
   | "class_start"
   | "assessment"
-  | "daily_summary";
+  | "daily_summary"
+  | "missed_routine"
+  | "overdue_task";
 
 /**
  * Notification data structure for push messages.
@@ -59,40 +61,106 @@ async function isTypeEnabled(
   return pref?.enabled ?? true; // Default to enabled
 }
 
+// ─── Time-of-day window defaults ───────────────────────────
+// Used for routines that have a timeOfDay but no specificTime.
+const TIME_OF_DAY_DEFAULTS: Record<string, string> = {
+  morning: "07:00",
+  afternoon: "13:00",
+  evening: "18:00",
+  anytime: "09:00",
+};
+
+/**
+ * Get the user's current time based on their timezone preference.
+ * Falls back to server time if no timezone is configured.
+ */
+function getUserLocalTime(timezone: string | null | undefined): Date {
+  if (!timezone) return new Date();
+
+  try {
+    const now = new Date();
+    // Format current UTC time in the user's timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(now);
+    const get = (type: string) =>
+      parts.find((p) => p.type === type)?.value || "0";
+
+    const localDate = new Date(
+      parseInt(get("year")),
+      parseInt(get("month")) - 1,
+      parseInt(get("day")),
+      parseInt(get("hour")),
+      parseInt(get("minute")),
+      parseInt(get("second"))
+    );
+    return localDate;
+  } catch {
+    return new Date();
+  }
+}
+
+/**
+ * Check if current time is within a window of a target time (in minutes).
+ * Returns true if currentTime is within [targetTime, targetTime + windowMinutes).
+ */
+function isWithinTimeWindow(
+  currentHour: number,
+  currentMinutes: number,
+  targetTime: string,
+  windowMinutes: number = 5
+): boolean {
+  const [targetHour, targetMin] = targetTime.split(":").map(Number);
+  const currentTotal = currentHour * 60 + currentMinutes;
+  const targetTotal = targetHour * 60 + targetMin;
+  const diff = currentTotal - targetTotal;
+  return diff >= 0 && diff < windowMinutes;
+}
+
 /**
  * Generate routine reminder notifications for the current time window.
+ * Handles both routines with specificTime and routines with only timeOfDay.
  */
-async function generateRoutineReminders(): Promise<NotificationPayload[]> {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
-  const dayOfWeek = getDayOfWeekEnum(now.getDay()) as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+async function generateRoutineReminders(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  const currentHour = userLocalTime.getHours();
+  const currentMinutes = userLocalTime.getMinutes();
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay()) as
+    | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 
   const notifications: NotificationPayload[] = [];
 
-  // Find routines that should trigger at the current time
+  // Find all routines active today
   const routines = await prisma.routine.findMany({
     where: {
       activeDays: { has: dayOfWeek },
-      specificTime: { not: null },
     },
   });
 
   for (const routine of routines) {
-    if (!routine.specificTime) continue;
+    // Determine the effective trigger time
+    const triggerTime = routine.specificTime
+      || TIME_OF_DAY_DEFAULTS[routine.timeOfDay]
+      || "09:00";
 
-    const [hours, minutes] = routine.specificTime.split(":").map(Number);
-    const routineHour = hours;
-    const routineMinutes = minutes;
+    if (isWithinTimeWindow(currentHour, currentMinutes, triggerTime)) {
+      const timeLabel = routine.specificTime
+        ? `Scheduled for ${routine.specificTime}`
+        : `${routine.timeOfDay.charAt(0).toUpperCase() + routine.timeOfDay.slice(1)} routine`;
 
-    // Trigger if within 5 minutes of the scheduled time
-    const diffMinutes =
-      (routineHour * 60 + routineMinutes) - (currentHour * 60 + currentMinutes);
-
-    if (diffMinutes >= 0 && diffMinutes < 5) {
       notifications.push({
-        title: "🔄 Routine Reminder",
-        body: `Time for: ${routine.name}`,
+        title: "Routine Reminder",
+        body: `${routine.name} — ${timeLabel}`,
         tag: `routine-${routine.id}`,
         data: {
           url: "/routines",
@@ -109,17 +177,23 @@ async function generateRoutineReminders(): Promise<NotificationPayload[]> {
 
 /**
  * Generate task due-date notifications.
+ * Triggers at 09:00 in the user's local time.
  */
-async function generateTaskNotifications(): Promise<NotificationPayload[]> {
-  const now = new Date();
-
-  // Only trigger task summaries at 9:00 AM (between 09:00 and 09:04)
-  if (now.getHours() !== 9 || now.getMinutes() >= 5) {
+async function generateTaskNotifications(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  // Only trigger at 09:00
+  if (!isWithinTimeWindow(userLocalTime.getHours(), userLocalTime.getMinutes(), "09:00")) {
     return [];
   }
 
+  const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 59, 999);
+
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
 
   const notifications: NotificationPayload[] = [];
 
@@ -133,21 +207,26 @@ async function generateTaskNotifications(): Promise<NotificationPayload[]> {
       },
     },
     include: { course: { select: { name: true } } },
+    orderBy: { priority: "asc" },
   });
 
   for (const task of tasks) {
     const dueDate = new Date(task.dueDate!);
     const isToday = dueDate.toDateString() === now.toDateString();
+    const coursePart = task.course ? ` | ${task.course.name}` : "";
 
     notifications.push({
-      title: isToday ? "⚠️ Task Due Today" : "📅 Task Due Tomorrow",
-      body: `📌 ${task.title}\n${task.course ? `📚 Course: ${task.course.name}` : ""}\n⏰ Priority: P${task.priority}`,
+      title: isToday ? "Task Due Today" : "Task Due Tomorrow",
+      body: `${task.title}${coursePart} | Priority P${task.priority}`,
       tag: `task-${task.id}`,
       data: {
         url: "/tasks",
         type: "task_due",
       },
-      actions: [{ action: "done", title: "Mark Done" }, { action: "view", title: "View" }],
+      actions: [
+        { action: "done", title: "Mark Done" },
+        { action: "view", title: "View" },
+      ],
       requireInteraction: true,
     });
   }
@@ -158,15 +237,16 @@ async function generateTaskNotifications(): Promise<NotificationPayload[]> {
 /**
  * Generate class start notifications.
  */
-async function generateClassNotifications(): Promise<NotificationPayload[]> {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
-  const dayOfWeek = getDayOfWeekEnum(now.getDay());
+async function generateClassNotifications(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  const currentHour = userLocalTime.getHours();
+  const currentMinutes = userLocalTime.getMinutes();
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
 
   const notifications: NotificationPayload[] = [];
 
-  // Find classes that should start in the next 10 minutes
+  // Find classes scheduled today
   const schedules = await prisma.classSchedule.findMany({
     where: {
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
@@ -176,17 +256,16 @@ async function generateClassNotifications(): Promise<NotificationPayload[]> {
 
   for (const schedule of schedules) {
     const [hours, minutes] = schedule.startTime.split(":").map(Number);
-    const classHour = hours;
-    const classMinutes = minutes;
-
     const diffMinutes =
-      (classHour * 60 + classMinutes) - (currentHour * 60 + currentMinutes);
+      (hours * 60 + minutes) - (currentHour * 60 + currentMinutes);
 
     // Trigger exactly once, 5-9 minutes before class starts
     if (diffMinutes >= 5 && diffMinutes < 10) {
+      const locationPart = schedule.location ? ` | ${schedule.location}` : "";
+
       notifications.push({
-        title: "📚 Class Starting Soon",
-        body: `${schedule.course.name} at ${schedule.startTime}${schedule.location ? ` in ${schedule.location}` : ""}`,
+        title: "Class Starting Soon",
+        body: `${schedule.course.name} at ${schedule.startTime}${locationPart}`,
         tag: `class-${schedule.id}`,
         data: {
           url: `/courses/${schedule.courseId}`,
@@ -203,19 +282,20 @@ async function generateClassNotifications(): Promise<NotificationPayload[]> {
 
 /**
  * Generate assessment reminder notifications.
+ * Triggers at 09:00 in the user's local time.
  */
-async function generateAssessmentNotifications(): Promise<
-  NotificationPayload[]
-> {
-  const now = new Date();
-
-  // Only trigger assessment summaries at 9:00 AM (09:00 to 09:04)
-  if (now.getHours() !== 9 || now.getMinutes() >= 5) {
+async function generateAssessmentNotifications(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  // Only trigger at 09:00
+  if (!isWithinTimeWindow(userLocalTime.getHours(), userLocalTime.getMinutes(), "09:00")) {
     return [];
   }
 
+  const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 59, 999);
 
   const notifications: NotificationPayload[] = [];
 
@@ -232,7 +312,7 @@ async function generateAssessmentNotifications(): Promise<
     const isToday = dueDate.toDateString() === now.toDateString();
 
     notifications.push({
-      title: isToday ? "📝 Assessment Today" : "📝 Assessment Tomorrow",
+      title: isToday ? "Assessment Today" : "Assessment Tomorrow",
       body: `${assessment.componentType.replace("_", "/")} — ${assessment.course.name}`,
       tag: `assessment-${assessment.id}`,
       data: {
@@ -247,19 +327,175 @@ async function generateAssessmentNotifications(): Promise<
   return notifications;
 }
 
-type DailySummarySection = "classes" | "tasks" | "routines" | "deadlines" | "attendance";
+/**
+ * Generate missed routine notifications.
+ * Runs at 21:00 — checks for routines active today that were never completed.
+ */
+async function generateMissedRoutineNotifications(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  // Only trigger at 21:00
+  if (!isWithinTimeWindow(userLocalTime.getHours(), userLocalTime.getMinutes(), "21:00")) {
+    return [];
+  }
+
+  const today = new Date(userLocalTime);
+  today.setHours(0, 0, 0, 0);
+
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay()) as
+    | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+
+  // Get all routines active today
+  const routines = await prisma.routine.findMany({
+    where: {
+      activeDays: { has: dayOfWeek },
+    },
+  });
+
+  if (routines.length === 0) return [];
+
+  // Get today's completions for these routines
+  const todayStart = new Date(today);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  let completions: { routineId: string }[] = [];
+  try {
+    completions = await prisma.routineCompletion.findMany({
+      where: {
+        routineId: { in: routines.map((r) => r.id) },
+        date: { gte: todayStart, lte: todayEnd },
+      },
+      select: { routineId: true },
+    });
+  } catch {
+    completions = [];
+  }
+
+  const completedIds = new Set(completions.map((c) => c.routineId));
+  const missedRoutines = routines.filter((r) => !completedIds.has(r.id));
+
+  if (missedRoutines.length === 0) return [];
+
+  // Get streak info for context
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  let streakCompletions: { routineId: string; date: Date }[] = [];
+  try {
+    streakCompletions = await prisma.routineCompletion.findMany({
+      where: {
+        routineId: { in: missedRoutines.map((r) => r.id) },
+        date: { gte: thirtyDaysAgo },
+      },
+      select: { routineId: true, date: true },
+      orderBy: { date: "desc" },
+    });
+  } catch {
+    streakCompletions = [];
+  }
+
+  // Count recent completions per routine as rough streak indicator
+  const streakCounts = new Map<string, number>();
+  for (const c of streakCompletions) {
+    streakCounts.set(c.routineId, (streakCounts.get(c.routineId) || 0) + 1);
+  }
+
+  // Build detailed body
+  const lines: string[] = [];
+  for (const routine of missedRoutines) {
+    const streak = streakCounts.get(routine.id) || 0;
+    const timeLabel = routine.specificTime || routine.timeOfDay;
+    const streakPart = streak > 0 ? ` (${streak}-day streak at risk)` : "";
+    lines.push(`- ${routine.name} [${timeLabel}]${streakPart}`);
+  }
+
+  return [
+    {
+      title: `${missedRoutines.length} Routine${missedRoutines.length > 1 ? "s" : ""} Incomplete Today`,
+      body: lines.join("\n"),
+      tag: "missed-routines",
+      data: {
+        url: "/routines",
+        type: "missed_routine",
+      },
+      actions: [{ action: "view", title: "Complete Now" }],
+      requireInteraction: true,
+    },
+  ];
+}
+
+/**
+ * Generate overdue task notifications.
+ * Runs at 10:00 — lists open tasks whose due date has already passed.
+ */
+async function generateOverdueTaskNotifications(
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  // Only trigger at 10:00
+  if (!isWithinTimeWindow(userLocalTime.getHours(), userLocalTime.getMinutes(), "10:00")) {
+    return [];
+  }
+
+  const now = new Date();
+
+  const overdueTasks = await prisma.task.findMany({
+    where: {
+      status: "open",
+      dueDate: { lt: now },
+    },
+    include: { course: { select: { name: true } } },
+    orderBy: { dueDate: "asc" },
+    take: 10, // Cap to avoid overly long notifications
+  });
+
+  if (overdueTasks.length === 0) return [];
+
+  const lines: string[] = [];
+  for (const task of overdueTasks) {
+    const daysOverdue = Math.ceil(
+      (now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const coursePart = task.course ? ` | ${task.course.name}` : "";
+    const daysLabel = daysOverdue === 1 ? "1 day overdue" : `${daysOverdue} days overdue`;
+    lines.push(`- ${task.title} (${daysLabel}${coursePart})`);
+  }
+
+  return [
+    {
+      title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? "s" : ""}`,
+      body: lines.join("\n"),
+      tag: "overdue-tasks",
+      data: {
+        url: "/tasks",
+        type: "overdue_task",
+      },
+      actions: [{ action: "view", title: "View Tasks" }],
+      requireInteraction: true,
+    },
+  ];
+}
+
+type DailySummarySection =
+  | "classes"
+  | "tasks"
+  | "routines"
+  | "deadlines"
+  | "attendance"
+  | "tomorrow_classes";
 
 /**
  * Generate the daily summary digest.
- * Respects user's dailySummaryTime and dailySummarySections preferences.
+ * Respects user's dailySummaryTime, timezone, and dailySummarySections preferences.
+ * Produces a detailed, multi-line notification with actionable content.
  */
 async function generateDailySummary(userId: string): Promise<NotificationPayload[]> {
-  const now = new Date();
-  const dayOfWeek = getDayOfWeekEnum(now.getDay());
-
   // Fetch user's daily summary preferences
   let preferredTime = "19:00";
-  let sections: DailySummarySection[] = ["classes", "tasks", "routines", "deadlines", "attendance"];
+  let sections: DailySummarySection[] = [
+    "classes", "tasks", "routines", "deadlines", "attendance", "tomorrow_classes",
+  ];
+  let timezone: string | null = null;
 
   try {
     const pref = await prisma.notificationPreference.findUnique({
@@ -274,61 +510,152 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
     if (pref) {
       preferredTime = pref.dailySummaryTime || "19:00";
       sections = (pref.dailySummarySections as DailySummarySection[]) || sections;
+      timezone = pref.timezone || null;
     }
   } catch {
     // Table may not exist yet — use defaults
   }
 
-  // Check if current time is within 5 minutes of preferred time
-  const [prefHours, prefMinutes] = preferredTime.split(":").map(Number);
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
-  const diffMinutes =
-    (prefHours * 60 + prefMinutes) - (currentHour * 60 + currentMinutes);
+  // Use timezone-aware local time for the time window check
+  const userLocalTime = getUserLocalTime(timezone);
+  const currentHour = userLocalTime.getHours();
+  const currentMinutes = userLocalTime.getMinutes();
 
-  // Strictly < 5 to prevent duplicate sends on the next 5-minute cron mark
-  if (diffMinutes < 0 || diffMinutes >= 5) {
-    // Not within the time window — skip daily summary
+  if (!isWithinTimeWindow(currentHour, currentMinutes, preferredTime)) {
     return [];
   }
 
-  // Build summary body based on selected sections
-  const parts: string[] = [];
+  const now = new Date();
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
 
+  // Build detailed summary body section by section
+  const blocks: string[] = [];
+
+  // ─── Today's Classes ─────────────────────────────────────
   if (sections.includes("classes")) {
     const classes = await prisma.classSchedule.findMany({
       where: {
         dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       },
       include: { course: { select: { name: true } } },
+      orderBy: { startTime: "asc" },
     });
     if (classes.length > 0) {
-      parts.push(`${classes.length} classes today`);
+      const header = `Today's Classes (${classes.length})`;
+      const items = classes.map((c) => {
+        const loc = c.location ? `, ${c.location}` : "";
+        return `  ${c.course.name} at ${c.startTime}${loc}`;
+      });
+      blocks.push([header, ...items].join("\n"));
     }
   }
 
+  // ─── Pending Tasks ───────────────────────────────────────
   if (sections.includes("tasks")) {
-    const starredTasks = await prisma.task.findMany({
-      where: { starred: true, status: "open" },
-      take: 3,
+    const tasks = await prisma.task.findMany({
+      where: { status: "open", starred: true },
+      include: { course: { select: { name: true } } },
+      orderBy: { priority: "asc" },
+      take: 5,
     });
-    if (starredTasks.length > 0) {
-      parts.push(`${starredTasks.length} top tasks`);
+
+    // Also get total open count
+    const totalOpen = await prisma.task.count({
+      where: { status: "open" },
+    });
+
+    if (tasks.length > 0 || totalOpen > 0) {
+      const header = `Pending Tasks (${totalOpen} open, ${tasks.length} starred)`;
+      const items = tasks.map((t) => {
+        const duePart = t.dueDate
+          ? `, due ${formatShortDate(new Date(t.dueDate))}`
+          : "";
+        const coursePart = t.course ? ` | ${t.course.name}` : "";
+        return `  ${t.title} (P${t.priority}${duePart}${coursePart})`;
+      });
+      blocks.push([header, ...items].join("\n"));
     }
   }
 
+  // ─── Routines ────────────────────────────────────────────
+  if (sections.includes("routines")) {
+    const routines = await prisma.routine.findMany({
+      where: {
+        activeDays: {
+          has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+        },
+      },
+      orderBy: { timeOfDay: "asc" },
+    });
+
+    if (routines.length > 0) {
+      // Check today's completions
+      const todayStart = new Date(userLocalTime);
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(userLocalTime);
+      todayEnd.setHours(23, 59, 59, 999);
+
+      let completions: { routineId: string }[] = [];
+      try {
+        completions = await prisma.routineCompletion.findMany({
+          where: {
+            routineId: { in: routines.map((r) => r.id) },
+            date: { gte: todayStart, lte: todayEnd },
+          },
+          select: { routineId: true },
+        });
+      } catch {
+        completions = [];
+      }
+
+      const completedIds = new Set(completions.map((c) => c.routineId));
+
+      // Get streak data
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      let streakCompletions: { routineId: string }[] = [];
+      try {
+        streakCompletions = await prisma.routineCompletion.findMany({
+          where: {
+            routineId: { in: routines.map((r) => r.id) },
+            date: { gte: thirtyDaysAgo },
+          },
+          select: { routineId: true },
+        });
+      } catch {
+        streakCompletions = [];
+      }
+      const streakCounts = new Map<string, number>();
+      for (const c of streakCompletions) {
+        streakCounts.set(c.routineId, (streakCounts.get(c.routineId) || 0) + 1);
+      }
+
+      const completed = routines.filter((r) => completedIds.has(r.id)).length;
+      const header = `Routines (${completed}/${routines.length} done)`;
+      const items = routines.map((r) => {
+        const status = completedIds.has(r.id) ? "[done]" : "[pending]";
+        const time = r.specificTime || r.timeOfDay;
+        const streak = streakCounts.get(r.id) || 0;
+        const streakPart = streak > 0 ? ` — ${streak}-day streak` : "";
+        return `  ${r.name} (${time}) ${status}${streakPart}`;
+      });
+      blocks.push([header, ...items].join("\n"));
+    }
+  }
+
+  // ─── Attendance Alerts ───────────────────────────────────
   if (sections.includes("attendance")) {
     const activeSemester = await prisma.semester.findFirst({
       where: { isActive: true },
     });
 
-    const attendanceAlerts: string[] = [];
     if (activeSemester) {
       const courses = await prisma.course.findMany({
         where: { semesterId: activeSemester.id },
         include: { attendanceRecords: true },
       });
 
+      const alerts: string[] = [];
       for (const course of courses) {
         const present = course.attendanceRecords.filter(
           (r) => r.status === "present"
@@ -339,54 +666,84 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
         const percent = computeAttendancePercent(present, absent);
 
         if (percent < 75 && present + absent > 0) {
-          attendanceAlerts.push(course.name);
+          alerts.push(`  ${course.name}: ${percent.toFixed(1)}% (below 75%)`);
         }
       }
-    }
 
-    if (attendanceAlerts.length > 0) {
-      parts.push(`${attendanceAlerts.length} attendance alert${attendanceAlerts.length > 1 ? "s" : ""}`);
-    }
-  }
-
-  if (sections.includes("routines")) {
-    const routines = await prisma.routine.findMany({
-      where: {
-        activeDays: { has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN" },
-      },
-    });
-    if (routines.length > 0) {
-      parts.push(`${routines.length} routines`);
+      if (alerts.length > 0) {
+        const header = `Attendance Alerts (${alerts.length})`;
+        blocks.push([header, ...alerts].join("\n"));
+      }
     }
   }
 
+  // ─── Upcoming Deadlines ──────────────────────────────────
   if (sections.includes("deadlines")) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 7);
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
     const upcomingTasks = await prisma.task.findMany({
       where: {
         status: "open",
-        dueDate: { gte: now, lte: tomorrow },
+        dueDate: { gte: now, lte: nextWeek },
       },
+      include: { course: { select: { name: true } } },
+      orderBy: { dueDate: "asc" },
+      take: 8,
     });
+
     if (upcomingTasks.length > 0) {
-      parts.push(`${upcomingTasks.length} deadlines this week`);
+      const header = `Deadlines This Week (${upcomingTasks.length})`;
+      const items = upcomingTasks.map((t) => {
+        const coursePart = t.course ? ` | ${t.course.name}` : "";
+        return `  ${t.title} — due ${formatShortDate(new Date(t.dueDate!))}${coursePart}`;
+      });
+      blocks.push([header, ...items].join("\n"));
     }
   }
 
-  if (parts.length === 0) {
+  // ─── Tomorrow's Classes ──────────────────────────────────
+  if (sections.includes("tomorrow_classes")) {
+    const tomorrowDate = new Date(userLocalTime);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowDay = getDayOfWeekEnum(tomorrowDate.getDay());
+
+    const tomorrowClasses = await prisma.classSchedule.findMany({
+      where: {
+        dayOfWeek: tomorrowDay as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+      },
+      include: { course: { select: { name: true } } },
+      orderBy: { startTime: "asc" },
+    });
+
+    if (tomorrowClasses.length > 0) {
+      const dayLabel = tomorrowDate.toLocaleDateString("en-US", { weekday: "long" });
+      const header = `Tomorrow's Classes — ${dayLabel} (${tomorrowClasses.length})`;
+      const items = tomorrowClasses.map((c) => {
+        const loc = c.location ? `, ${c.location}` : "";
+        return `  ${c.course.name} at ${c.startTime}${loc}`;
+      });
+      blocks.push([header, ...items].join("\n"));
+    } else {
+      const dayLabel = tomorrowDate.toLocaleDateString("en-US", { weekday: "long" });
+      blocks.push(`Tomorrow's Classes — ${dayLabel}\n  No classes scheduled`);
+    }
+  }
+
+  if (blocks.length === 0) {
     return [];
   }
 
   return [
     {
-      title: "📊 Daily Summary",
-      body: parts.join(", "),
+      title: "Daily Summary",
+      body: blocks.join("\n\n"),
       tag: "daily-summary",
       data: {
         url: "/today",
         type: "daily_summary",
       },
+      requireInteraction: true,
     },
   ];
 }
@@ -464,27 +821,52 @@ export async function runNotificationScheduler(): Promise<void> {
     // Fall back to default-user if auth fails
   }
 
+  // Get user's timezone for time-aware scheduling
+  let timezone: string | null = null;
+  try {
+    const pref = await prisma.notificationPreference.findFirst({
+      where: { userId, timezone: { not: null } },
+      select: { timezone: true },
+    });
+    timezone = pref?.timezone || null;
+  } catch {
+    // No timezone set — use server time
+  }
+
+  const userLocalTime = getUserLocalTime(timezone);
   const notifications: NotificationPayload[] = [];
 
   // Check each notification type
   if (await isTypeEnabled(userId, "routine_reminder")) {
-    notifications.push(...(await generateRoutineReminders()));
+    notifications.push(...(await generateRoutineReminders(userLocalTime)));
   }
 
   if (await isTypeEnabled(userId, "task_due")) {
-    notifications.push(...(await generateTaskNotifications()));
+    notifications.push(...(await generateTaskNotifications(userLocalTime)));
   }
 
   if (await isTypeEnabled(userId, "class_start")) {
-    notifications.push(...(await generateClassNotifications()));
+    notifications.push(...(await generateClassNotifications(userLocalTime)));
   }
 
   if (await isTypeEnabled(userId, "assessment")) {
-    notifications.push(...(await generateAssessmentNotifications()));
+    notifications.push(...(await generateAssessmentNotifications(userLocalTime)));
   }
 
   if (await isTypeEnabled(userId, "daily_summary")) {
     notifications.push(...(await generateDailySummary(userId)));
+  }
+
+  if (await isTypeEnabled(userId, "missed_routine")) {
+    notifications.push(
+      ...(await generateMissedRoutineNotifications(userLocalTime))
+    );
+  }
+
+  if (await isTypeEnabled(userId, "overdue_task")) {
+    notifications.push(
+      ...(await generateOverdueTaskNotifications(userLocalTime))
+    );
   }
 
   // Send all notifications
@@ -499,4 +881,14 @@ export async function runNotificationScheduler(): Promise<void> {
 function getDayOfWeekEnum(day: number): string {
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   return map[day];
+}
+
+/**
+ * Format a date as a short readable string (e.g., "Jul 10").
+ */
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }

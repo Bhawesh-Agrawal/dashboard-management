@@ -4,7 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/features/auth/lib/supabase-server";
 
-type DailySummarySection = "classes" | "tasks" | "routines" | "deadlines" | "attendance";
+type DailySummarySection =
+  | "classes"
+  | "tasks"
+  | "routines"
+  | "deadlines"
+  | "attendance"
+  | "tomorrow_classes";
 
 /**
  * Get the current user's ID from Supabase auth.
@@ -21,11 +27,12 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 /**
- * Save daily summary preferences.
+ * Save daily summary preferences including timezone.
  */
 export async function saveDailySummaryPreferences(
   time: string,
-  sections: DailySummarySection[]
+  sections: DailySummarySection[],
+  timezone: string
 ): Promise<{ success: boolean }> {
   try {
     const userId = await getCurrentUserId();
@@ -43,10 +50,12 @@ export async function saveDailySummaryPreferences(
         enabled: true,
         dailySummaryTime: time,
         dailySummarySections: sections,
+        timezone,
       },
       update: {
         dailySummaryTime: time,
         dailySummarySections: sections,
+        timezone,
       },
     });
 
@@ -59,12 +68,13 @@ export async function saveDailySummaryPreferences(
 }
 
 /**
- * Get daily summary preferences.
+ * Get daily summary preferences including timezone.
  * Returns defaults if table doesn't exist.
  */
 export async function getDailySummaryPreferences(): Promise<{
   time: string;
   sections: DailySummarySection[];
+  timezone: string;
 } | null> {
   try {
     const userId = await getCurrentUserId();
@@ -81,7 +91,15 @@ export async function getDailySummaryPreferences(): Promise<{
     if (!pref) {
       return {
         time: "19:00", // Default: 7:00 PM
-        sections: ["classes", "tasks", "routines", "deadlines", "attendance"],
+        sections: [
+          "classes",
+          "tasks",
+          "routines",
+          "deadlines",
+          "attendance",
+          "tomorrow_classes",
+        ],
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
     }
 
@@ -93,13 +111,23 @@ export async function getDailySummaryPreferences(): Promise<{
         "routines",
         "deadlines",
         "attendance",
+        "tomorrow_classes",
       ],
+      timezone: pref.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
   } catch {
     // Table may not exist yet — return defaults
     return {
       time: "19:00",
-      sections: ["classes", "tasks", "routines", "deadlines", "attendance"],
+      sections: [
+        "classes",
+        "tasks",
+        "routines",
+        "deadlines",
+        "attendance",
+        "tomorrow_classes",
+      ],
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
   }
 }

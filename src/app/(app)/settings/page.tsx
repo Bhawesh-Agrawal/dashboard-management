@@ -59,6 +59,7 @@ export default async function SettingsPage() {
               <DailySummarySettings
                 initialTime={dailySummaryPrefs.time}
                 initialSections={dailySummaryPrefs.sections}
+                initialTimezone={dailySummaryPrefs.timezone}
               />
             )}
           </div>

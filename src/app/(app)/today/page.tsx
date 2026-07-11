@@ -27,6 +27,11 @@ const AiInsights = dynamic(
   { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
 );
 
+const InsightFeed = dynamic(
+  () => import("@/features/insights/components/InsightFeed").then((mod) => mod.InsightFeed),
+  { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }
+);
+
 export default async function TodayPage() {
   const data = await getDashboardData();
   const cachedInsights = await getCachedInsights();
@@ -69,6 +74,7 @@ export default async function TodayPage() {
             routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 
           />
           <DailyQuote quotes={data.quotes} />
+          <InsightFeed />
           <AiInsights initialInsights={cachedInsights} />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />
           <ContributionGraph streakData={data.streakData} />

@@ -54,8 +54,9 @@ export const getRoutinesWithStreaks = cache(
     const routinesWithStreaks: RoutineWithStreak[] = routines.map((routine) => {
       const completions = completionsByRoutine.get(routine.id) ?? [];
 
+      const todayTime = normalizeDate(today).getTime();
       const completedToday = completions.some(
-        (c) => normalizeDate(c.date) === normalizeDate(today)
+        (c) => normalizeDate(c.date).getTime() === todayTime
       );
 
       const currentStreak = calculateStreak(

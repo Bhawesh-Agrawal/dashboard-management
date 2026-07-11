@@ -1,6 +1,7 @@
 "use server";
 
 import { completeRoutine, uncompleteRoutine } from "@/features/routines/lib/completions";
+import { revalidatePath } from "next/cache";
 
 /**
  * Mark a routine as completed for today.
@@ -11,6 +12,8 @@ export async function completeRoutineAction(
 ): Promise<{ success: boolean }> {
   try {
     await completeRoutine(routineId);
+    revalidatePath("/routines");
+    revalidatePath("/today");
     return { success: true };
   } catch (error) {
     console.error("Failed to complete routine:", error);
@@ -27,6 +30,8 @@ export async function uncompleteRoutineAction(
 ): Promise<{ success: boolean }> {
   try {
     await uncompleteRoutine(routineId);
+    revalidatePath("/routines");
+    revalidatePath("/today");
     return { success: true };
   } catch (error) {
     console.error("Failed to uncomplete routine:", error);

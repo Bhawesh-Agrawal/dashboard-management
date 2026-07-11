@@ -11,7 +11,10 @@ type NotificationType =
   | "assessment"
   | "daily_summary"
   | "missed_routine"
-  | "overdue_task";
+  | "overdue_task"
+  | "review_daily"
+  | "review_weekly"
+  | "review_monthly";
 
 const NOTIFICATION_TYPES: {
   type: NotificationType;
@@ -52,6 +55,21 @@ const NOTIFICATION_TYPES: {
     type: "overdue_task",
     label: "Overdue Tasks",
     description: "Morning alert for tasks past their due date",
+  },
+  {
+    type: "review_daily",
+    label: "Daily Review",
+    description: "Morning alert when your daily brief is ready",
+  },
+  {
+    type: "review_weekly",
+    label: "Weekly Review",
+    description: "Sunday evening alert for your weekly review",
+  },
+  {
+    type: "review_monthly",
+    label: "Monthly Review",
+    description: "End-of-month alert for your strategic review",
   },
 ];
 

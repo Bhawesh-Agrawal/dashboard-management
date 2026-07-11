@@ -264,3 +264,106 @@ button, a, [role="button"], input[type="button"], input[type="submit"], input[ty
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Print-friendly styles for review export ────────────── */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  .page-heading {
+    font-size: 24pt;
+    color: black !important;
+    margin-bottom: 12pt;
+  }
+
+  .section-label {
+    font-size: 8pt;
+    color: #666 !important;
+  }
+
+  /* Hide navigation, widgets, and non-essential UI */
+  aside,
+  nav,
+  .fab-cluster,
+  .offline-banner,
+  [data-slot="search-overlay"],
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Main content full-width for print */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Review editorial styles for print */
+  article {
+    max-width: 100% !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  article .font-serif {
+    font-size: 18pt;
+    line-height: 1.4;
+  }
+
+  /* Ensure borders print */
+  * {
+    border-color: #ccc !important;
+  }
+
+  /* Prevent page breaks inside sections */
+  section, .rounded-lg {
+    page-break-inside: avoid;
+  }
+
+  /* Links show URL after text */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
+  }
+
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+}
+
+/* ─── Review editorial utilities ──────────────────────────── */
+.review-pullquote {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  color: var(--foreground);
+  opacity: 0.9;
+}
+
+.review-metrics-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+/* Unviewed review subtle glow */
+.review-unviewed {
+  position: relative;
+}
+
+.review-unviewed::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.05), rgba(26, 26, 26, 0.02));
+  z-index: -1;
+}

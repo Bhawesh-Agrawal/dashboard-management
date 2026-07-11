@@ -12,6 +12,7 @@ import {
   Users,
   BookOpen,
   Search,
+  Newspaper,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const moreSections = [
   {
     label: "Academics",
     items: [
+      { label: "Reviews", href: "/reviews", icon: Newspaper },
       { label: "Semesters", href: "/semesters", icon: GraduationCap },
       { label: "Routines", href: "/routines", icon: Repeat },
       { label: "Notes", href: "/notes", icon: FileText },

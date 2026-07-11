@@ -15,7 +15,10 @@ export type NotificationType =
   | "assessment"
   | "daily_summary"
   | "missed_routine"
-  | "overdue_task";
+  | "overdue_task"
+  | "review_daily"
+  | "review_weekly"
+  | "review_monthly";
 
 /**
  * Notification data structure for push messages.
@@ -811,6 +814,99 @@ async function sendPushNotifications(
   }
 }
 
+// ─── Review Notifications ────────────────────────────────
+
+/**
+ * Generate a notification for unread daily reviews.
+ * Fires in the morning (7-9 AM) if there's an unread daily review.
+ */
+async function generateDailyReviewAlert(
+  userId: string,
+  now: Date
+): Promise<NotificationPayload[]> {
+  const hour = now.getHours();
+  if (hour < 7 || hour > 9) return [];
+
+  const review = await prisma.review.findFirst({
+    where: { userId, type: "daily", status: "generated" },
+    orderBy: { periodEnd: "desc" },
+  });
+
+  if (!review) return [];
+
+  return [
+    {
+      title: "Morning Brief Ready",
+      body: "Your daily review is ready to read.",
+      tag: "review-daily",
+      data: { url: `/reviews/${review.id}`, type: "review_daily" },
+    },
+  ];
+}
+
+/**
+ * Generate a notification for unread weekly reviews.
+ * Fires on Sunday evening (6-8 PM) if there's an unread weekly review.
+ */
+async function generateWeeklyReviewAlert(
+  userId: string,
+  now: Date
+): Promise<NotificationPayload[]> {
+  const day = now.getDay(); // 0 = Sunday
+  const hour = now.getHours();
+  if (day !== 0 || hour < 18 || hour > 20) return [];
+
+  const review = await prisma.review.findFirst({
+    where: { userId, type: "weekly", status: "generated" },
+    orderBy: { periodEnd: "desc" },
+  });
+
+  if (!review) return [];
+
+  return [
+    {
+      title: "Weekly Review Ready",
+      body: "Your weekly review is ready to read.",
+      tag: "review-weekly",
+      data: { url: `/reviews/${review.id}`, type: "review_weekly" },
+    },
+  ];
+}
+
+/**
+ * Generate a notification for unread monthly reviews.
+ * Fires on the last day of the month (6-8 PM) if there's an unread monthly review.
+ */
+async function generateMonthlyReviewAlert(
+  userId: string,
+  now: Date
+): Promise<NotificationPayload[]> {
+  const hour = now.getHours();
+  if (hour < 18 || hour > 20) return [];
+
+  // Check if today is the last day of the month
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isLastDay = now.getMonth() !== tomorrow.getMonth();
+  if (!isLastDay) return [];
+
+  const review = await prisma.review.findFirst({
+    where: { userId, type: "monthly", status: "generated" },
+    orderBy: { periodEnd: "desc" },
+  });
+
+  if (!review) return [];
+
+  return [
+    {
+      title: "Monthly Review Ready",
+      body: "Your monthly strategic review is available.",
+      tag: "review-monthly",
+      data: { url: `/reviews/${review.id}`, type: "review_monthly" },
+    },
+  ];
+}
+
 /**
  * Run the notification scheduler.
  * Call this periodically (e.g., via cron or app load).
@@ -863,6 +959,24 @@ export async function runNotificationScheduler(): Promise<void> {
   if (await isTypeEnabled(userId, "overdue_task")) {
     notifications.push(
       ...(await generateOverdueTaskNotifications(userLocalTime))
+    );
+  }
+
+  if (await isTypeEnabled(userId, "review_daily")) {
+    notifications.push(
+      ...(await generateDailyReviewAlert(userId, userLocalTime))
+    );
+  }
+
+  if (await isTypeEnabled(userId, "review_weekly")) {
+    notifications.push(
+      ...(await generateWeeklyReviewAlert(userId, userLocalTime))
+    );
+  }
+
+  if (await isTypeEnabled(userId, "review_monthly")) {
+    notifications.push(
+      ...(await generateMonthlyReviewAlert(userId, userLocalTime))
     );
   }
 

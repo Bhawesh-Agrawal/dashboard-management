@@ -57,6 +57,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     streakData,
     quotes,
     activeProjectsRaw,
+    latestReview,
+    unviewedReviewCount,
   ] = await Promise.all([
     // Active semester + courses in one query
     prisma.semester.findFirst({
@@ -117,6 +119,15 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
       include: { milestones: { select: { isDone: true, weight: true } } },
       take: 5,
       orderBy: { updatedAt: "desc" },
+    }),
+    // Latest review for dashboard widget
+    prisma.review.findFirst({
+      where: { userId, status: { not: "archived" } },
+      orderBy: { periodEnd: "desc" },
+    }),
+    // Unviewed review count
+    prisma.review.count({
+      where: { userId, status: "generated" },
     }),
   ]);
 
@@ -298,5 +309,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     activeProjects,
     sgpa,
     cgpa,
+    latestReview,
+    unviewedReviewCount,
   };
 });

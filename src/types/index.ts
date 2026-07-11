@@ -88,6 +88,15 @@ export type DashboardData = {
   }[];
   sgpa: number | null;
   cgpa: number | null;
+  latestReview: {
+    id: string;
+    type: "daily" | "weekly" | "monthly" | "quarterly";
+    periodStart: Date;
+    periodEnd: Date;
+    status: "generated" | "viewed" | "archived";
+    summary: string;
+  } | null;
+  unviewedReviewCount: number;
 };
 
 // ─── Calendar event (merged view) ───────────────────────────

@@ -19,12 +19,14 @@ import {
   MessageSquare,
   Settings,
   LogOut,
+  Newspaper,
 } from "lucide-react";
 
 const navItems = [
   { label: "Today", href: "/today", icon: Calendar },
   { label: "Tasks", href: "/tasks", icon: CheckSquare },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
+  { label: "Reviews", href: "/reviews", icon: Newspaper },
   { label: "Semesters", href: "/semesters", icon: GraduationCap },
   { label: "Routines", href: "/routines", icon: Repeat },
   { label: "Notes", href: "/notes", icon: FileText },

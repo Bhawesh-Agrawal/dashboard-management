@@ -36,6 +36,11 @@ const EnergyMap = dynamic(
   { loading: () => <div className="h-40 bg-muted animate-pulse rounded-md" /> }
 );
 
+const ReviewPreviewWidget = dynamic(
+  () => import("@/features/reviews/components/review-preview-widget").then((mod) => mod.ReviewPreviewWidget),
+  { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
+);
+
 export default async function TodayPage() {
   const data = await getDashboardData();
 
@@ -72,6 +77,10 @@ export default async function TodayPage() {
 
         {/* Right sidebar (1/3 width on desktop) */}
         <div className="space-y-6 md:space-y-8">
+          <ReviewPreviewWidget
+            review={data.latestReview}
+            unviewedCount={data.unviewedReviewCount}
+          />
           <AttendanceAlerts alerts={data.attendanceAlerts} />
           <TomorrowRoutines 
             routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 

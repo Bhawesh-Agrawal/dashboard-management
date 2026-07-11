@@ -3,6 +3,7 @@ import { requireWidgetAuth } from "@/features/widget/lib/middleware";
 import { parseQuickCapture, getActiveCourses } from "@/features/notes/lib/nlp-parsing";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const auth = await requireWidgetAuth(request);
@@ -20,12 +21,14 @@ export async function POST(request: Request) {
   const parsed = await parseQuickCapture(body.text.trim(), courses);
 
   if (parsed.type === "task") {
+    const userId = await getCurrentUserId();
     const task = await prisma.task.create({
       data: {
         title: parsed.title || body.text.trim(),
         notes: parsed.content,
         dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
         courseId: parsed.courseId || null,
+        userId,
       },
     });
 

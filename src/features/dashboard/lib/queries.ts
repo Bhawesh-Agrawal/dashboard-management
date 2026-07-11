@@ -15,20 +15,7 @@ import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
-import { createClient } from "@/features/auth/lib/supabase-server";
-import { memCache, TTL } from "@/lib/mem-cache";
-
-async function getCurrentUserId(): Promise<string> {
-  return memCache.get("auth:userId", TTL.AUTH, async () => {
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      return user?.id || "default-user";
-    } catch {
-      return "default-user";
-    }
-  });
-}
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Aggregate all data needed for the /today dashboard.
@@ -56,6 +43,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const windowEnd = new Date(today);
   windowEnd.setDate(windowEnd.getDate() + 7);
 
+  const userId = await getCurrentUserId();
+
   const [
     activeSemester,
     topTasks,
@@ -68,7 +57,6 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     streakData,
     quotes,
     activeProjectsRaw,
-    userId,
   ] = await Promise.all([
     // Active semester + courses in one query
     prisma.semester.findFirst({
@@ -77,7 +65,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     }),
     // Top 3 starred tasks
     prisma.task.findMany({
-      where: { starred: true, status: "open" },
+      where: { starred: true, status: "open", OR: [{ userId }, { userId: null }] },
       orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
       take: 3,
       include: {
@@ -86,7 +74,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
       },
     }) as Promise<TaskWithCourse[]>,
     // All open tasks
-    getOpenTasks(),
+    getOpenTasks(userId),
     // Upcoming events (non-birthday)
     prisma.event.findMany({
       where: {
@@ -130,8 +118,6 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
       take: 5,
       orderBy: { updatedAt: "desc" },
     }),
-    // User ID (cached 5min)
-    getCurrentUserId(),
   ]);
 
   const topTaskIds = new Set(topTasks.map((t) => t.id));

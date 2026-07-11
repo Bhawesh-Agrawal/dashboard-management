@@ -3,7 +3,7 @@ import { getActiveSubscriptions } from "./subscription";
 import {
   computeAttendancePercent,
 } from "@/features/assessments/lib/calculations";
-import { createClient } from "@/features/auth/lib/supabase-server";
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Notification types that can be scheduled.
@@ -187,6 +187,7 @@ async function generateTaskNotifications(
     return [];
   }
 
+  const userId = await getCurrentUserId();
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -205,6 +206,7 @@ async function generateTaskNotifications(
         gte: now,
         lte: tomorrow,
       },
+      OR: [{ userId }, { userId: null }],
     },
     include: { course: { select: { name: true } } },
     orderBy: { priority: "asc" },
@@ -437,12 +439,14 @@ async function generateOverdueTaskNotifications(
     return [];
   }
 
+  const userId = await getCurrentUserId();
   const now = new Date();
 
   const overdueTasks = await prisma.task.findMany({
     where: {
       status: "open",
       dueDate: { lt: now },
+      OR: [{ userId }, { userId: null }],
     },
     include: { course: { select: { name: true } } },
     orderBy: { dueDate: "asc" },
@@ -553,7 +557,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   // ─── Pending Tasks ───────────────────────────────────────
   if (sections.includes("tasks")) {
     const tasks = await prisma.task.findMany({
-      where: { status: "open", starred: true },
+      where: { status: "open", starred: true, OR: [{ userId }, { userId: null }] },
       include: { course: { select: { name: true } } },
       orderBy: { priority: "asc" },
       take: 5,
@@ -561,7 +565,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
 
     // Also get total open count
     const totalOpen = await prisma.task.count({
-      where: { status: "open" },
+      where: { status: "open", OR: [{ userId }, { userId: null }] },
     });
 
     if (tasks.length > 0 || totalOpen > 0) {
@@ -686,6 +690,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
       where: {
         status: "open",
         dueDate: { gte: now, lte: nextWeek },
+        OR: [{ userId }, { userId: null }],
       },
       include: { course: { select: { name: true } } },
       orderBy: { dueDate: "asc" },
@@ -811,15 +816,7 @@ async function sendPushNotifications(
  * Call this periodically (e.g., via cron or app load).
  */
 export async function runNotificationScheduler(): Promise<void> {
-  // Get the actual user ID from Supabase auth
-  let userId = "default-user";
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) userId = user.id;
-  } catch {
-    // Fall back to default-user if auth fails
-  }
+  const userId = await getCurrentUserId();
 
   // Get user's timezone for time-aware scheduling
   let timezone: string | null = null;

@@ -66,6 +66,7 @@ describe("Knowledge Graph Traversal", () => {
         courseId,
         dueDate: new Date("2026-07-15"),
         priority: 1,
+        userId: "default-user",
       },
     });
     taskId = task.id;

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Lightweight course list for the Link-to picker (called from client components).
@@ -57,6 +58,7 @@ export async function createTask(data: {
   }
   // If courseId is set, domain is implicit "Academics" — no domainId needed
 
+  const userId = await getCurrentUserId();
   const task = await prisma.task.create({
     data: {
       title: data.title,
@@ -70,6 +72,7 @@ export async function createTask(data: {
       energyRequirement: data.energyRequirement || null,
       estimatedDuration: data.estimatedDuration ?? null,
       optimalTimeOfDay: data.optimalTimeOfDay || null,
+      userId,
     },
   });
 
@@ -96,6 +99,8 @@ export async function updateTask(
     optimalTimeOfDay?: string | null;
   }
 ) {
+  const userId = await getCurrentUserId();
+
   // Compute domain_id server-side from courseId/projectId
   let domainId: string | null = null;
   if (data.projectId) {
@@ -115,7 +120,10 @@ export async function updateTask(
         : {};
 
   const task = await prisma.task.update({
-    where: { id },
+    where: {
+      id,
+      OR: [{ userId }, { userId: null }],
+    },
     data: {
       title: data.title,
       notes: data.notes,
@@ -141,8 +149,12 @@ export async function updateTask(
 }
 
 export async function deleteTask(id: string) {
+  const userId = await getCurrentUserId();
   const task = await prisma.task.delete({
-    where: { id },
+    where: {
+      id,
+      OR: [{ userId }, { userId: null }],
+    },
     select: { courseId: true, projectId: true },
   });
 
@@ -153,7 +165,13 @@ export async function deleteTask(id: string) {
 }
 
 export async function toggleTaskDone(id: string) {
-  const task = await prisma.task.findUnique({ where: { id } });
+  const userId = await getCurrentUserId();
+  const task = await prisma.task.findUnique({
+    where: {
+      id,
+      OR: [{ userId }, { userId: null }],
+    },
+  });
   if (!task) throw new Error("Task not found");
 
   const newStatus = task.status === "done" ? "open" : "done";
@@ -171,7 +189,13 @@ export async function toggleTaskDone(id: string) {
 }
 
 export async function toggleTaskStarred(id: string) {
-  const task = await prisma.task.findUnique({ where: { id } });
+  const userId = await getCurrentUserId();
+  const task = await prisma.task.findUnique({
+    where: {
+      id,
+      OR: [{ userId }, { userId: null }],
+    },
+  });
   if (!task) throw new Error("Task not found");
 
   await prisma.task.update({ where: { id }, data: { starred: !task.starred } });

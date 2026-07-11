@@ -4,6 +4,11 @@ import { useMemo, useState } from "react";
 import { Battery, Zap, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RoutineWithStreak } from "@/features/routines/types";
+import {
+  computeEnergyCurve,
+  formatHour,
+  type RoutineEnergy,
+} from "@/lib/energy-curve";
 
 // ─── Constants ──────────────────────────────────────────────
 
@@ -28,11 +33,6 @@ function minutesFromStart(minutes: number): number {
   return minutes - START_HOUR * 60;
 }
 
-function formatHour(hour: number): string {
-  if (hour === 0 || hour === 12) return hour === 0 ? "12AM" : "12PM";
-  return hour > 12 ? `${hour - 12}PM` : `${hour}AM`;
-}
-
 function getRoutinePosition(routine: RoutineWithStreak): number {
   if (routine.specificTime) {
     const mins = timeToMinutes(routine.specificTime);
@@ -48,57 +48,12 @@ function getRoutinePosition(routine: RoutineWithStreak): number {
   return minutesFromStart(hour * 60);
 }
 
-// ─── Energy Curve Calculation ───────────────────────────────
-
-function computeEnergyCurve(routines: RoutineWithStreak[]): number[] {
-  // One point per 30 minutes from 6 AM to 10 PM = 32 points
-  const points = 32;
-  const curve: number[] = new Array(points).fill(60); // baseline 60
-
-  // Sort routines by position
-  const sorted = [...routines]
-    .map((r) => ({ routine: r, pos: getRoutinePosition(r) }))
-    .sort((a, b) => a.pos - b.pos);
-
-  // Apply routine energy effects
-  for (const { routine, pos } of sorted) {
-    const idx = Math.floor((pos / (HOURS * 60)) * (points - 1));
-    if (idx < 0 || idx >= points) continue;
-
-    const effect =
-      routine.energyImpact === "charging"
-        ? 15
-        : routine.energyImpact === "draining"
-          ? -15
-          : 0;
-
-    // Spread effect over ~2 hours (4 indices)
-    for (let j = Math.max(0, idx - 1); j <= Math.min(points - 1, idx + 2); j++) {
-      const decay = 1 - Math.abs(j - idx) * 0.25;
-      curve[j] += effect * decay;
-    }
-  }
-
-  // Apply natural circadian decay (slight dip after lunch, evening wind-down)
-  for (let i = 0; i < points; i++) {
-    const hour = START_HOUR + (i / (points - 1)) * HOURS;
-    // Post-lunch dip (1-3 PM)
-    if (hour >= 13 && hour <= 15) {
-      curve[i] -= 8;
-    }
-    // Evening wind-down (after 7 PM)
-    if (hour >= 19) {
-      curve[i] -= (hour - 19) * 5;
-    }
-    // Morning ramp (6-8 AM)
-    if (hour >= 6 && hour <= 8) {
-      curve[i] += (hour - 6) * 5;
-    }
-    // Clamp
-    curve[i] = Math.max(0, Math.min(100, curve[i]));
-  }
-
-  return curve;
+function toRoutineEnergy(routines: RoutineWithStreak[]): RoutineEnergy[] {
+  return routines.map((r) => ({
+    timeOfDay: r.timeOfDay,
+    specificTime: r.specificTime,
+    energyImpact: r.energyImpact,
+  }));
 }
 
 function getInsights(
@@ -280,7 +235,7 @@ export function EnergyMap({
 }) {
   const [hoveredRoutine, setHoveredRoutine] = useState<RoutineWithStreak | null>(null);
 
-  const curve = useMemo(() => computeEnergyCurve(routines), [routines]);
+  const curve = useMemo(() => computeEnergyCurve(toRoutineEnergy(routines)), [routines]);
   const insights = useMemo(() => getInsights(routines, curve), [routines, curve]);
 
   if (routines.length === 0) {

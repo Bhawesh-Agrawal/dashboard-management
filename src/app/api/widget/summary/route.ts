@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireWidgetAuth } from "@/features/widget/lib/middleware";
 import { prisma } from "@/lib/prisma";
 import { computeActivityStreak } from "@/features/routines/lib/streaks";
+import { getCurrentUserId } from "@/lib/auth";
 
 type DayOfWeek = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 
@@ -19,10 +20,12 @@ export async function GET(request: Request) {
   const windowEnd = new Date(today);
   windowEnd.setDate(windowEnd.getDate() + 7);
 
+  const userId = await getCurrentUserId();
+
   const [topTasks, routinesData, upcomingEvents, birthdayEvents, streakData] =
     await Promise.all([
       prisma.task.findMany({
-        where: { starred: true, status: "open" },
+        where: { starred: true, status: "open", OR: [{ userId }, { userId: null }] },
         orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
         take: 3,
         include: {

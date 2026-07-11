@@ -1,20 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { CalendarEvent } from "@/types";
 import { fetchGoogleCalendarEvents, isGoogleCalendarConnected } from "./google-calendar";
-import { createClient } from "@/features/auth/lib/supabase-server";
-
-/**
- * Get the current user's ID from Supabase auth.
- */
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id || "default-user";
-  } catch {
-    return "default-user";
-  }
-}
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Merge class schedules, assessments, tasks, events, and (optionally) Google Calendar events
@@ -36,6 +23,7 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
       where: {
         dueDate: { gte: startDate, lte: endDate },
         status: "open",
+        OR: [{ userId }, { userId: null }],
       },
       include: { course: { select: { id: true, name: true, color: true } } },
     }),

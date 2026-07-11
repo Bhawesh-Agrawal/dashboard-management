@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { GraphNode, GraphEdge, GraphResult, GraphNodeType } from "@/types";
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Knowledge Graph traversal function.
@@ -28,6 +29,7 @@ type TraverseOptions = {
  */
 export async function traverseGraph(options: TraverseOptions): Promise<GraphResult> {
   const { sourceType, sourceId, maxHops = 2, nodeTypes } = options;
+  const userId = await getCurrentUserId();
 
   const visited = new Set<string>();
   const nodes: GraphNode[] = [];
@@ -45,7 +47,7 @@ export async function traverseGraph(options: TraverseOptions): Promise<GraphResu
     visited.add(nodeKey);
 
     // Fetch the entity
-    const entity = await fetchEntity(entityType, entityId);
+    const entity = await fetchEntity(entityType, entityId, userId);
     if (!entity) return;
 
     // Add node if it passes the filter
@@ -54,7 +56,7 @@ export async function traverseGraph(options: TraverseOptions): Promise<GraphResu
     }
 
     // Get connected entities for this node type
-    const connections = await getConnections(entityType, entityId);
+    const connections = await getConnections(entityType, entityId, userId);
 
     for (const conn of connections) {
       const targetKey = `${conn.type}:${conn.id}`;
@@ -80,7 +82,8 @@ export async function traverseGraph(options: TraverseOptions): Promise<GraphResu
  */
 async function fetchEntity(
   type: GraphNodeType,
-  id: string
+  id: string,
+  userId: string
 ): Promise<Record<string, unknown> | null> {
   switch (type) {
     case "semester":
@@ -88,7 +91,7 @@ async function fetchEntity(
     case "course":
       return prisma.course.findUnique({ where: { id } });
     case "task":
-      return prisma.task.findUnique({ where: { id } });
+      return prisma.task.findUnique({ where: { id, OR: [{ userId }, { userId: null }] } });
     case "note":
       return prisma.note.findUnique({ where: { id } });
     case "assessment":
@@ -132,13 +135,14 @@ type Connection = {
  */
 async function getConnections(
   type: GraphNodeType,
-  id: string
+  id: string,
+  userId: string
 ): Promise<Connection[]> {
   switch (type) {
     case "semester":
       return getSemesterConnections(id);
     case "course":
-      return getCourseConnections(id);
+      return getCourseConnections(id, userId);
     case "task":
       return getTaskConnections(id);
     case "note":
@@ -158,7 +162,7 @@ async function getConnections(
     case "domain":
       return getDomainConnections(id);
     case "project":
-      return getProjectConnections(id);
+      return getProjectConnections(id, userId);
     case "milestone":
       return getMilestoneConnections(id);
     case "budgetEntry":
@@ -185,9 +189,9 @@ async function getSemesterConnections(semesterId: string): Promise<Connection[]>
   }));
 }
 
-async function getCourseConnections(courseId: string): Promise<Connection[]> {
+async function getCourseConnections(courseId: string, userId: string): Promise<Connection[]> {
   const [tasks, notes, assessments, schedules, attendanceRecords] = await Promise.all([
-    prisma.task.findMany({ where: { courseId }, select: { id: true } }),
+    prisma.task.findMany({ where: { courseId, OR: [{ userId }, { userId: null }] }, select: { id: true } }),
     prisma.note.findMany({ where: { courseId }, select: { id: true } }),
     prisma.assessment.findMany({ where: { courseId }, select: { id: true } }),
     prisma.classSchedule.findMany({ where: { courseId }, select: { id: true } }),
@@ -316,14 +320,14 @@ async function getDomainConnections(domainId: string): Promise<Connection[]> {
   }));
 }
 
-async function getProjectConnections(projectId: string): Promise<Connection[]> {
+async function getProjectConnections(projectId: string, userId: string): Promise<Connection[]> {
   const [project, milestones, tasks] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: { domainId: true },
     }),
     prisma.milestone.findMany({ where: { projectId }, select: { id: true } }),
-    prisma.task.findMany({ where: { projectId }, select: { id: true } }),
+    prisma.task.findMany({ where: { projectId, OR: [{ userId }, { userId: null }] }, select: { id: true } }),
   ]);
 
   const connections: Connection[] = [];
@@ -383,6 +387,7 @@ export async function searchEntitiesForContext(
   query: string
 ): Promise<GraphResult> {
   const results: GraphResult = { nodes: [], edges: [] };
+  const userId = await getCurrentUserId();
 
   // Search courses by name or code
   const courses = await prisma.course.findMany({
@@ -403,9 +408,14 @@ export async function searchEntitiesForContext(
   // Search tasks by title (include unlinked tasks)
   const tasks = await prisma.task.findMany({
     where: {
-      OR: [
-        { title: { contains: query, mode: "insensitive" } },
-        { notes: { contains: query, mode: "insensitive" } },
+      AND: [
+        { OR: [{ userId }, { userId: null }] },
+        {
+          OR: [
+            { title: { contains: query, mode: "insensitive" } },
+            { notes: { contains: query, mode: "insensitive" } },
+          ],
+        },
       ],
     },
     take: 5,
@@ -527,7 +537,7 @@ export async function searchEntitiesForContext(
 
   // Add global context: all open tasks (if not already included)
   const openTasks = await prisma.task.findMany({
-    where: { status: "open" },
+    where: { status: "open", OR: [{ userId }, { userId: null }] },
     take: 10,
     orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
   });

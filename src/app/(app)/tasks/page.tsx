@@ -7,12 +7,7 @@ import { TaskList } from "@/features/tasks/components/task-list";
 import { CreateTaskDialog } from "@/features/tasks/components/task-form";
 import { TaskFilters } from "@/features/tasks/components/task-filters";
 import { isCourseEnded } from "@/lib/course-utils";
-import dynamic from "next/dynamic";
-
-const EnergyTaskSorter = dynamic(
-  () => import("@/features/tasks/components/EnergyTaskSorter").then((mod) => mod.EnergyTaskSorter),
-  { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
-);
+import { getCurrentUserId } from "@/lib/auth";
 
 export const revalidate = 0;
 
@@ -25,11 +20,14 @@ export default async function TasksPage({
   const status = params.status || "open";
   const showEnded = params.showEnded === "true";
 
+  const userId = await getCurrentUserId();
+
   const [tasks, projects, allCourses] = await Promise.all([
     getTasks({
       projectId: params.project || undefined,
       courseId: params.course || undefined,
       status: status as "open" | "done" | "all",
+      userId,
     }),
     getAllProjects(),
     prisma.course.findMany({
@@ -76,28 +74,6 @@ export default async function TasksPage({
         courses={filterCourses}
         showEnded={showEnded}
       />
-
-      {tasks.length > 0 && status === "open" && (
-        <div className="mb-6">
-          <EnergyTaskSorter
-            userId="default-user"
-            initialTasks={tasks
-              .filter((t) => t.status === "open")
-              .map((t) => ({
-                id: t.id,
-                title: t.title,
-                priority: t.priority,
-                dueDate: t.dueDate,
-                energyRequirement: t.energyRequirement,
-                estimatedDuration: t.estimatedDuration,
-                optimalTimeOfDay: t.optimalTimeOfDay,
-                sortPriority: t.sortPriority,
-                course: t.course,
-                project: t.project,
-              }))}
-          />
-        </div>
-      )}
 
       {tasks.length === 0 ? (
         <EmptyState

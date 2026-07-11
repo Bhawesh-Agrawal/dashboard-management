@@ -8,6 +8,7 @@ export const getTasks = cache(async (filters?: {
   starred?: boolean;
   dueAfter?: Date;
   dueBefore?: Date;
+  userId?: string;
 }) => {
   return prisma.task.findMany({
     where: {
@@ -19,6 +20,9 @@ export const getTasks = cache(async (filters?: {
         gte: filters?.dueAfter,
         lte: filters?.dueBefore,
       },
+      ...(filters?.userId ? {
+        OR: [{ userId: filters.userId }, { userId: null }],
+      } : {}),
     },
     orderBy: [
       { sortPriority: { sort: "asc", nulls: "last" } },
@@ -32,9 +36,14 @@ export const getTasks = cache(async (filters?: {
   });
 });
 
-export const getTaskById = cache(async (id: string) => {
+export const getTaskById = cache(async (id: string, userId?: string) => {
   return prisma.task.findUnique({
-    where: { id },
+    where: {
+      id,
+      ...(userId ? {
+        OR: [{ userId }, { userId: null }],
+      } : {}),
+    },
     include: {
       course: { select: { id: true, name: true, color: true } },
       project: { select: { id: true, name: true, color: true } },
@@ -42,9 +51,15 @@ export const getTaskById = cache(async (id: string) => {
   });
 });
 
-export const getStarredTasks = cache(async () => {
+export const getStarredTasks = cache(async (userId?: string) => {
   return prisma.task.findMany({
-    where: { starred: true, status: "open" },
+    where: {
+      starred: true,
+      status: "open",
+      ...(userId ? {
+        OR: [{ userId }, { userId: null }],
+      } : {}),
+    },
     orderBy: [
       { sortPriority: { sort: "asc", nulls: "last" } },
       { priority: "asc" },
@@ -58,9 +73,14 @@ export const getStarredTasks = cache(async () => {
   });
 });
 
-export const getOpenTasks = cache(async () => {
+export const getOpenTasks = cache(async (userId?: string) => {
   return prisma.task.findMany({
-    where: { status: "open" },
+    where: {
+      status: "open",
+      ...(userId ? {
+        OR: [{ userId }, { userId: null }],
+      } : {}),
+    },
     orderBy: [
       { sortPriority: { sort: "asc", nulls: "last" } },
       { priority: "asc" },

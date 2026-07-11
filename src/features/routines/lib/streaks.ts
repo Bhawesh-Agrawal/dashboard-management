@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { memCache, TTL } from "@/lib/mem-cache";
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Shared streak computation — single source of truth for all streak-related features.
@@ -28,6 +29,8 @@ export async function computeActivityStreak(
     const since = new Date(today);
     since.setDate(since.getDate() - days);
 
+    const userId = await getCurrentUserId();
+
     const [routineCompletions, completedTasks] = await Promise.all([
       prisma.routineCompletion.findMany({
         where: { date: { gte: since } },
@@ -37,6 +40,7 @@ export async function computeActivityStreak(
         where: {
           completedAt: { gte: since },
           status: "done",
+          OR: [{ userId }, { userId: null }],
         },
         select: { completedAt: true },
       }),

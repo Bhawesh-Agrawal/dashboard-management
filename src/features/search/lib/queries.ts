@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
+import { getCurrentUserId } from "@/lib/auth";
 
 export type SearchResult = {
   id: string;
@@ -22,6 +23,7 @@ export const globalSearch = cache(
 
     const searchTerm = query.trim();
     const results: SearchResult[] = [];
+    const userId = await getCurrentUserId();
 
     // Search Notes
     const notes = await prisma.note.findMany({
@@ -51,9 +53,14 @@ export const globalSearch = cache(
     // Search Tasks
     const tasks = await prisma.task.findMany({
       where: {
-        OR: [
-          { title: { contains: searchTerm, mode: "insensitive" } },
-          { notes: { contains: searchTerm, mode: "insensitive" } },
+        AND: [
+          { OR: [{ userId }, { userId: null }] },
+          {
+            OR: [
+              { title: { contains: searchTerm, mode: "insensitive" } },
+              { notes: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
         ],
       },
       take: 10,

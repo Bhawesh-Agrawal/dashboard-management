@@ -74,6 +74,19 @@ self.addEventListener("fetch", (event) => {
   // Skip external requests
   if (url.origin !== location.origin) return;
 
+  // Skip HMR and RSC streaming requests — cloning them detaches the
+  // underlying ArrayBuffer and crashes the dev server's HMR stream.
+  if (
+    url.pathname.startsWith("/_next/webpack-hmr") ||
+    url.pathname.startsWith("/_next/static/chunks/webpack") ||
+    url.searchParams.has("_rsc") ||
+    request.headers.get("accept") === "text/x-component" ||
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-Prefetch") === "1"
+  ) {
+    return;
+  }
+
   // API requests — network-first with cache fallback
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(

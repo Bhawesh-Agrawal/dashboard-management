@@ -96,30 +96,38 @@ export function computeCGPA(
 /**
  * Get or create default grading config for a course.
  * Cached in memory for 10 minutes — these rarely change.
+ *
+ * Returns plain objects `{ minPercent, gradePoint }` — never raw Prisma
+ * model instances — so the cache is safe for structuredClone transfer.
  */
 export async function getGradingConfig(courseId: string, semesterId: string) {
   return memCache.get(`gradingConfig:${courseId}`, TTL.CONFIG, async () => {
+    const sel = { select: { minPercent: true, gradePoint: true } } as const;
+
     // Try course-specific config first
-    let config = await prisma.gradingConfig.findMany({
+    let rows = await prisma.gradingConfig.findMany({
       where: { courseId },
       orderBy: { minPercent: "desc" },
+      ...sel,
     });
 
-    if (config.length > 0) return config;
+    if (rows.length > 0) return rows;
 
     // Try semester defaults
-    config = await prisma.gradingConfig.findMany({
+    rows = await prisma.gradingConfig.findMany({
       where: { semesterId, courseId: null },
       orderBy: { minPercent: "desc" },
+      ...sel,
     });
 
-    if (config.length > 0) return config;
+    if (rows.length > 0) return rows;
 
     // Create course-specific defaults from built-in constants
     const created = await Promise.all(
       DEFAULT_GRADING_CONFIG.map((tier) =>
         prisma.gradingConfig.create({
           data: { courseId, minPercent: tier.minPercent, gradePoint: tier.gradePoint },
+          ...sel,
         })
       )
     );
@@ -131,27 +139,35 @@ export async function getGradingConfig(courseId: string, semesterId: string) {
 /**
  * Get or create default attendance marks config for a course.
  * Cached in memory for 10 minutes — these rarely change.
+ *
+ * Returns plain objects `{ minPercent, marks }` — never raw Prisma
+ * model instances — so the cache is safe for structuredClone transfer.
  */
 export async function getAttendanceMarksConfig(courseId: string, semesterId: string) {
   return memCache.get(`attMarksConfig:${courseId}`, TTL.CONFIG, async () => {
-    let config = await prisma.attendanceMarksConfig.findMany({
+    const sel = { select: { minPercent: true, marks: true } } as const;
+
+    let rows = await prisma.attendanceMarksConfig.findMany({
       where: { courseId },
       orderBy: { minPercent: "desc" },
+      ...sel,
     });
 
-    if (config.length > 0) return config;
+    if (rows.length > 0) return rows;
 
-    config = await prisma.attendanceMarksConfig.findMany({
+    rows = await prisma.attendanceMarksConfig.findMany({
       where: { semesterId, courseId: null },
       orderBy: { minPercent: "desc" },
+      ...sel,
     });
 
-    if (config.length > 0) return config;
+    if (rows.length > 0) return rows;
 
     const created = await Promise.all(
       DEFAULT_ATTENDANCE_MARKS_CONFIG.map((tier) =>
         prisma.attendanceMarksConfig.create({
           data: { courseId, minPercent: tier.minPercent, marks: tier.marks },
+          ...sel,
         })
       )
     );

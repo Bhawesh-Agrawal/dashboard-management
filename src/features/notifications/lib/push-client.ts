@@ -55,10 +55,13 @@ export async function requestPushSubscription(): Promise<{
 
     let registration = await navigator.serviceWorker.getRegistration();
     if (!registration) {
+      if (process.env.NODE_ENV !== "production") {
+        return { success: false, error: "Service Worker not available in development." };
+      }
       console.log("No Service Worker found. Registering...");
       registration = await navigator.serviceWorker.register("/sw.js");
     }
-    
+
     if (!registration) {
       return { success: false, error: "Failed to register Service Worker." };
     }

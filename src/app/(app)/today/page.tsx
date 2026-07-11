@@ -1,5 +1,4 @@
 import { getDashboardData } from "@/features/dashboard/lib/queries";
-import { getCachedInsights } from "@/features/dashboard/lib/actions";
 import { TopThree } from "@/features/dashboard/components/top-three";
 import { AllOpenTasks } from "@/features/dashboard/components/all-open-tasks";
 import { TodaysClasses } from "@/features/dashboard/components/todays-classes";
@@ -22,19 +21,13 @@ const ContributionGraph = dynamic(
   { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }
 );
 
-const AiInsights = dynamic(
-  () => import("@/features/dashboard/components/ai-insights").then((mod) => mod.AiInsights),
-  { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
-);
-
-const InsightFeed = dynamic(
-  () => import("@/features/insights/components/InsightFeed").then((mod) => mod.InsightFeed),
+const UnifiedInsights = dynamic(
+  () => import("@/features/insights/components/UnifiedInsights").then((mod) => mod.UnifiedInsights),
   { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }
 );
 
 export default async function TodayPage() {
   const data = await getDashboardData();
-  const cachedInsights = await getCachedInsights();
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -74,8 +67,7 @@ export default async function TodayPage() {
             routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 
           />
           <DailyQuote quotes={data.quotes} />
-          <InsightFeed />
-          <AiInsights initialInsights={cachedInsights} />
+          <UnifiedInsights />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />
           <ContributionGraph streakData={data.streakData} />
         </div>

@@ -501,7 +501,9 @@ model GoogleCalendarToken {
   @@map("google_calendar_tokens")
 }
 
-// ─── AI Insights ───────────────────────────────────────────
+// ─── AI Insights (deprecated — kept for data retention) ────
+// Table preserved but no longer used by the application.
+// Unified into ignored_insights via generateAIInsights().
 model AiInsight {
   id          String   @id @default(uuid())
   userId      String?  @map("user_id")
@@ -510,6 +512,7 @@ model AiInsight {
 
   @@index([userId])
   @@map("ai_insights")
+  @@ignore
 }
 
 // ─── Widget Token ──────────────────────────────────────────

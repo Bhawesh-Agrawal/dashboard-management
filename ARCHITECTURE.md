@@ -232,7 +232,7 @@ Prisma ^7.8.0 with `@prisma/adapter-pg` (PostgreSQL driver adapter, library engi
 | `Resource` | `resources` | Saved readings/links for the Library |
 | `Person` | `people` | Light CRM (name, birthday, notes) |
 | `GoogleCalendarToken` | `google_calendar_tokens` | OAuth tokens for Google Calendar sync |
-| `AiInsight` | `ai_insights` | Cached AI-generated insights |
+| `AiInsight` | `ai_insights` | **Deprecated** — kept for data retention, no longer used by app |
 | `WidgetToken` | `widget_tokens` | API tokens for external widgets (Tasker/KWGT) |
 
 ### Enums (12 total)
@@ -392,9 +392,8 @@ Custom visual language defined in `globals.css`:
 
 ### 7.8 Dashboard
 - **Path:** `src/features/dashboard/`
-- **Components:** `TopThree`, `AllOpenTasks`, `TodaysClasses`, `UpNext`, `AttendanceAlerts`, `RoutinesWidget`, `SemesterSnapshot`, `TomorrowRoutines`, `DailyQuote`, `OngoingProjects`, `DailyTimeline`, `AiInsights`, `ContributionGraph`
+- **Components:** `TopThree`, `AllOpenTasks`, `TodaysClasses`, `UpNext`, `AttendanceAlerts`, `RoutinesWidget`, `SemesterSnapshot`, `TomorrowRoutines`, `DailyQuote`, `OngoingProjects`, `DailyTimeline`, `ContributionGraph`
 - **Lib:** `queries.ts` (316 lines) — Aggregates all dashboard data in optimized parallel query phases using `Promise.all`
-- **Actions:** `getCachedInsights()`, `refreshInsights()`
 
 ### 7.9 Domains
 - **Path:** `src/features/domains/`
@@ -495,7 +494,6 @@ type AIResult<T> = { ok: true; data: T } | { ok: false; error: string };
 | Feature | File | Purpose |
 |---------|------|---------|
 | Ask AI | `features/ask/lib/actions.ts` | Q&A about academic data using Knowledge Graph context |
-| Dashboard Insights | `features/dashboard/lib/actions.ts` | Generates 2-3 actionable insights; cached in `AiInsight` table |
 | NLP Quick Capture | `features/notes/lib/nlp-parsing.ts` | Parses freeform text into structured tasks/notes |
 | OCR | `features/notes/lib/ocr.ts` | Tesseract.js image-to-text (client-side) |
 
@@ -558,7 +556,6 @@ All mutations use Next.js Server Actions (`"use server"` functions) instead of R
 | Schedule | `features/schedule/lib/actions.ts` | Schedule management |
 | Calendar | `features/calendar/lib/google-actions.ts` | Google Calendar connection |
 | Settings | `features/settings/lib/actions.ts` | Settings updates |
-| Dashboard | `features/dashboard/lib/actions.ts` | `getCachedInsights()`, `refreshInsights()` |
 | Ask | `features/ask/lib/actions.ts` | `askQuestion()` |
 | Search | `features/search/lib/actions.ts` | Search actions |
 | Widget | `features/widget/lib/actions.ts` | Widget token management |

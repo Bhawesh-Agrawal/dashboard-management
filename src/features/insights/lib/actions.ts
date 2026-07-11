@@ -3,6 +3,10 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { generateAllInsights } from "@/features/insights/lib/detection";
+import {
+  generateAIInsights,
+  combineInsights,
+} from "@/features/insights/lib/ai-insights";
 
 export async function getInsights(userId: string) {
   await generateAllInsights(userId);
@@ -33,4 +37,24 @@ export async function dismissInsight(id: string) {
   });
   revalidatePath("/today");
   return insight;
+}
+
+export async function refreshAllInsights() {
+  try {
+    const [ruleBased, aiBased] = await Promise.all([
+      generateAllInsights("default-user"),
+      generateAIInsights("default-user"),
+    ]);
+
+    const combined = combineInsights(ruleBased, aiBased);
+    revalidatePath("/today");
+
+    return { ok: true as const, insights: combined };
+  } catch (err) {
+    console.error("refreshAllInsights failed:", err);
+    return {
+      ok: false as const,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
 }

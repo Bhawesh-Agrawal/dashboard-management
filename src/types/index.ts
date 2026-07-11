@@ -9,6 +9,8 @@ import type {
   GradingConfig,
   AttendanceMarksConfig,
   Project,
+  InsightType,
+  InsightSeverity,
 } from "@prisma/client";
 import type { RoutineWithStreak } from "@/features/routines/types";
 
@@ -156,3 +158,20 @@ export type DailySummarySection =
   | "routines"
   | "deadlines"
   | "attendance";
+
+// ─── Ignored Insights ──────────────────────────────────────
+export interface InsightEvidence {
+  metric: string;
+  value: number | string;
+  threshold: number | string;
+  context: string;
+}
+
+export interface InsightInput {
+  userId: string;
+  type: InsightType;
+  title: string;
+  description: string;
+  severity: InsightSeverity;
+  evidence: InsightEvidence[];
+}

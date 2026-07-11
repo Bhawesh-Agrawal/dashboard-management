@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -11,18 +11,20 @@ datasource db {
 // Top-level container for an academic term.
 model Semester {
   id            String        @id @default(uuid())
+  userId        String?       @map("user_id")
   name          String        // e.g. "Fall 2026"
-  startDate     DateTime      @map("start_date")
-  endDate       DateTime      @map("end_date")
-  gradingScale  GradingScale  @default(ten_point) @map("grading_scale")
-  isActive      Boolean       @default(false) @map("is_active")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  startDate    DateTime     @map("start_date")
+  endDate      DateTime     @map("end_date")
+  gradingScale GradingScale @default(ten_point) @map("grading_scale")
+  isActive     Boolean      @default(false) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  courses       Course[]
-  gradingConfigs      GradingConfig[]
+  courses                Course[]
+  gradingConfigs         GradingConfig[]
   attendanceMarksConfigs AttendanceMarksConfig[]
 
+  @@index([userId])
   @@map("semesters")
 }
 
@@ -32,34 +34,34 @@ enum GradingScale {
 }
 
 enum AttendanceMode {
-  auto     // compute from AttendanceRecord rows
-  manual   // use manualPresent / manualTotalClasses
+  auto // compute from AttendanceRecord rows
+  manual // use manualPresent / manualTotalClasses
 }
 
 // ─── Course ─────────────────────────────────────────────────
 // A single course within a semester.
 model Course {
-  id              String          @id @default(uuid())
-  semesterId      String          @map("semester_id")
-  name            String
-  code            String?         // e.g. "CS301"
-  credits         Int             // used in SGPA/CGPA weighting
-  instructor      String?
-  color           String?         // for calendar/UI tagging
-  targetGrade     String?         @map("target_grade") // aspirational grade
-  attendanceMode  AttendanceMode? @default(auto) @map("attendance_mode")
-  manualPresent   Int?            @map("manual_present")      // classes attended (manual mode)
-  manualTotalClasses Int?         @map("manual_total_classes") // total classes held (manual mode)
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id                 String          @id @default(uuid())
+  semesterId         String          @map("semester_id")
+  name               String
+  code               String? // e.g. "CS301"
+  credits            Int // used in SGPA/CGPA weighting
+  instructor         String?
+  color              String? // for calendar/UI tagging
+  targetGrade        String?         @map("target_grade") // aspirational grade
+  attendanceMode     AttendanceMode? @default(auto) @map("attendance_mode")
+  manualPresent      Int?            @map("manual_present") // classes attended (manual mode)
+  manualTotalClasses Int?            @map("manual_total_classes") // total classes held (manual mode)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
-  semester          Semester            @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  classSchedules    ClassSchedule[]
-  attendanceRecords AttendanceRecord[]
-  assessments       Assessment[]
-  tasks             Task[]
-  notes             Note[]
-  gradingConfigs    GradingConfig[]
+  semester               Semester                @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  classSchedules         ClassSchedule[]
+  attendanceRecords      AttendanceRecord[]
+  assessments            Assessment[]
+  tasks                  Task[]
+  notes                  Note[]
+  gradingConfigs         GradingConfig[]
   attendanceMarksConfigs AttendanceMarksConfig[]
 
   @@map("courses")
@@ -68,12 +70,12 @@ model Course {
 // ─── Class Schedule ────────────────────────────────────────
 // Recurring weekly time slots for a course.
 model ClassSchedule {
-  id          String   @id @default(uuid())
-  courseId     String   @map("course_id")
-  dayOfWeek   DayOfWeek @map("day_of_week")
-  startTime   String   @map("start_time") // "HH:mm" format
-  endTime     String   @map("end_time")   // "HH:mm" format
-  location    String?
+  id        String    @id @default(uuid())
+  courseId  String    @map("course_id")
+  dayOfWeek DayOfWeek @map("day_of_week")
+  startTime String    @map("start_time") // "HH:mm" format
+  endTime   String    @map("end_time") // "HH:mm" format
+  location  String?
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -93,10 +95,10 @@ enum DayOfWeek {
 // ─── Attendance Record ─────────────────────────────────────
 // One row per actual class occurrence.
 model AttendanceRecord {
-  id          String           @id @default(uuid())
-  courseId     String           @map("course_id")
-  date        DateTime         @db.Date
-  status      AttendanceStatus @default(not_marked)
+  id       String           @id @default(uuid())
+  courseId String           @map("course_id")
+  date     DateTime         @db.Date
+  status   AttendanceStatus @default(not_marked)
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -114,12 +116,12 @@ enum AttendanceStatus {
 // ─── Assessment ────────────────────────────────────────────
 // A gradable component within a course (minor, mid-sem, end-sem).
 model Assessment {
-  id              String           @id @default(uuid())
-  courseId         String           @map("course_id")
-  componentType   AssessmentType   @map("component_type")
-  maxMarks        Int              @map("max_marks")
-  obtainedMarks   Int?             @map("obtained_marks") // null until graded
-  date            DateTime?        @db.Date
+  id            String         @id @default(uuid())
+  courseId      String         @map("course_id")
+  componentType AssessmentType @map("component_type")
+  maxMarks      Int            @map("max_marks")
+  obtainedMarks Int?           @map("obtained_marks") // null until graded
+  date          DateTime?      @db.Date
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -128,23 +130,23 @@ model Assessment {
 
 enum AssessmentType {
   minor_assignment // Minor + Assignment component (max 15 typically)
-  attendance       // Auto-calculated from attendance records (max 5)
-  mid_sem          // Mid-semester exam (max 30)
-  end_sem          // End-semester exam (max 50)
+  attendance // Auto-calculated from attendance records (max 5)
+  mid_sem // Mid-semester exam (max 30)
+  end_sem // End-semester exam (max 50)
 }
 
 // ─── Grading Config ────────────────────────────────────────
 // Editable marks-to-grade-point conversion table per course.
 // Default: 90-100=10, 80-89=9, 70-79=8, 60-69=7, 50-59=6, 40-49=5, <40=0
 model GradingConfig {
-  id          String  @id @default(uuid())
-  courseId     String? @map("course_id")
-  semesterId  String? @map("semester_id")
-  minPercent  Float   @map("min_percent") // e.g. 90.0
-  gradePoint  Int     @map("grade_point") // e.g. 10
+  id         String  @id @default(uuid())
+  courseId   String? @map("course_id")
+  semesterId String? @map("semester_id")
+  minPercent Float   @map("min_percent") // e.g. 90.0
+  gradePoint Int     @map("grade_point") // e.g. 10
 
-  course    Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  semester  Semester?  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  course   Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester Semester? @relation(fields: [semesterId], references: [id], onDelete: Cascade)
 
   @@map("grading_configs")
 }
@@ -153,14 +155,14 @@ model GradingConfig {
 // Editable attendance-percentage-to-marks table per course.
 // Default: ≥95%→5, 90-94.99%→3, 85-89.99%→2, 80-84.99%→1, <80%→0
 model AttendanceMarksConfig {
-  id          String  @id @default(uuid())
-  courseId     String? @map("course_id")
-  semesterId  String? @map("semester_id")
-  minPercent  Float   @map("min_percent") // e.g. 95.0
-  marks       Int     // e.g. 5
+  id         String  @id @default(uuid())
+  courseId   String? @map("course_id")
+  semesterId String? @map("semester_id")
+  minPercent Float   @map("min_percent") // e.g. 95.0
+  marks      Int // e.g. 5
 
-  course    Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  semester  Semester?  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  course   Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester Semester? @relation(fields: [semesterId], references: [id], onDelete: Cascade)
 
   @@map("attendance_marks_configs")
 }
@@ -169,23 +171,25 @@ model AttendanceMarksConfig {
 // Global task list, optionally linked to a course or project.
 model Task {
   id          String    @id @default(uuid())
+  userId      String?   @map("user_id")
   title       String
   notes       String?
-  dueDate     DateTime? @map("due_date")
-  priority    Int       @default(2) // 1=high, 2=medium, 3=low, 4=lowest
+  dueDate     DateTime?  @map("due_date")
+  priority    Int        @default(2) // 1=high, 2=medium, 3=low, 4=lowest
   status      TaskStatus @default(open)
-  courseId     String?   @map("course_id")
-  projectId   String?   @map("project_id")
-  domainId    String?   @map("domain_id")
-  starred     Boolean   @default(false)
-  completedAt DateTime? @map("completed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  courseId    String?    @map("course_id")
+  projectId   String?    @map("project_id")
+  domainId    String?    @map("domain_id")
+  starred     Boolean    @default(false)
+  completedAt DateTime?  @map("completed_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
-  course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  domain   Domain?   @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  domain  Domain?  @relation(fields: [domainId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
   @@map("tasks")
 }
 
@@ -198,16 +202,18 @@ enum TaskStatus {
 // Quick notes, optionally linked to a course.
 model Note {
   id          String    @id @default(uuid())
+  userId      String?   @map("user_id")
   content     String
-  sourceType  SourceType @default(typed) @map("source_type")
-  sourceLink  String?   @map("source_link") // OneDrive share link
-  tags        String[]  // free-form tags
-  courseId     String?   @map("course_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  sourceType SourceType @default(typed) @map("source_type")
+  sourceLink String?    @map("source_link") // OneDrive share link
+  tags       String[] // free-form tags
+  courseId   String?    @map("course_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
 
-  course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
   @@map("notes")
 }
 
@@ -215,6 +221,9 @@ enum SourceType {
   typed
   ocr_photo
   voice
+  uploaded_pdf
+  uploaded_pptx
+  uploaded_doc
 }
 
 enum EventType {
@@ -228,6 +237,7 @@ enum EventType {
 // Manually created events for the calendar.
 model Event {
   id        String     @id @default(uuid())
+  userId    String?    @map("user_id")
   title     String
   dateTime  DateTime   @map("date_time")
   location  String?
@@ -235,6 +245,7 @@ model Event {
   eventType EventType? @default(general) @map("event_type")
   createdAt DateTime   @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("events")
 }
 
@@ -242,11 +253,13 @@ model Event {
 // For the Library / Resurfacing feature.
 model Quote {
   id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
   text      String
   source    String?
   tags      String[]
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("quotes")
 }
 
@@ -254,16 +267,21 @@ model Quote {
 // Daily/weekly habits, separate from Tasks.
 model Routine {
   id            String      @id @default(uuid())
+  userId        String?     @map("user_id")
   name          String
-  timeOfDay     TimeOfDay   @map("time_of_day")
-  specificTime  String?     @map("specific_time") // "HH:mm" format, nullable
-  streakGoal    Int?        @map("streak_goal")   // null = ongoing
-  activeDays    DayOfWeek[] @map("active_days")   // which days it applies
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  timeOfDay    TimeOfDay    @map("time_of_day")
+  specificTime String?      @map("specific_time") // "HH:mm" format, nullable
+  streakGoal   Int?         @map("streak_goal") // null = ongoing
+  activeDays   DayOfWeek[]  @map("active_days") // which days it applies
+  energyImpact EnergyImpact @default(neutral) @map("energy_impact")
+  category     String?      @map("category") // deep_work, admin, creative, social, health, rest
+  flowTrigger  String?      @map("flow_trigger") // e.g. "after_morning_coffee"
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  completions   RoutineCompletion[]
+  completions RoutineCompletion[]
 
+  @@index([userId])
   @@map("routines")
 }
 
@@ -298,6 +316,7 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("push_subscriptions")
 }
 
@@ -306,13 +325,14 @@ model PushSubscription {
 model NotificationPreference {
   id                   String   @id @default(uuid())
   userId               String   @map("user_id")
-  type                 String   // 'routine_reminder' | 'task_due' | 'class_start' | 'assessment' | 'daily_summary' | 'missed_routine' | 'overdue_task'
+  type                 String // 'routine_reminder' | 'task_due' | 'class_start' | 'assessment' | 'daily_summary' | 'missed_routine' | 'overdue_task'
   enabled              Boolean  @default(true)
   dailySummaryTime     String?  @map("daily_summary_time") // "HH:mm" for daily summary (user's local time)
   dailySummarySections String[] @map("daily_summary_sections") // ['classes', 'tasks', 'routines', 'deadlines', 'attendance', 'tomorrow_classes']
-  timezone             String?  // IANA timezone identifier, e.g. "Asia/Kathmandu"
+  timezone             String? // IANA timezone identifier, e.g. "Asia/Kathmandu"
 
   @@unique([userId, type])
+  @@index([userId])
   @@map("notification_preferences")
 }
 
@@ -321,6 +341,7 @@ model NotificationPreference {
 // Non-academic domains (Personal, Finances, etc.) get explicit rows.
 model Domain {
   id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
   name      String
   color     String?
   isDefault Boolean  @default(false) @map("is_default")
@@ -330,6 +351,7 @@ model Domain {
   projects Project[]
   tasks    Task[]
 
+  @@index([userId])
   @@map("domains")
 }
 
@@ -364,7 +386,7 @@ model Milestone {
   id        String   @id @default(uuid())
   projectId String   @map("project_id")
   name      String
-  weight    Int      // percentage weight for completion calculation
+  weight    Int // percentage weight for completion calculation
   isDone    Boolean  @default(false) @map("is_done")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -377,13 +399,15 @@ model Milestone {
 // Simple income/expense tracking. No forecasting or envelopes in MVP.
 model BudgetEntry {
   id        String      @id @default(uuid())
+  userId    String?     @map("user_id")
   type      BudgetType
-  amount    Decimal     @db.Decimal(10, 2)
+  amount    Decimal    @db.Decimal(10, 2)
   category  String
-  date      DateTime    @db.Date
+  date      DateTime   @db.Date
   notes     String?
-  createdAt DateTime    @default(now()) @map("created_at")
+  createdAt DateTime   @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("budget_entries")
 }
 
@@ -392,29 +416,72 @@ enum BudgetType {
   expense
 }
 
+// ─── Insight Enums ─────────────────────────────────────────
+enum InsightSeverity {
+  info
+  warning
+  critical
+}
+
+enum InsightType {
+  declining_skill
+  burnout_risk
+  missed_opportunity
+  relationship_drift
+  energy_mismatch
+  budget_anomaly
+  knowledge_gap
+  focus_fragmentation
+}
+
+enum PatternType {
+  procrastination_spike
+  energy_crash
+  social_isolation
+  overspending
+  learning_decay
+  attendance_decline
+  task_avoidance
+}
+
+enum EnergyImpact {
+  charging
+  draining
+  neutral
+}
+
 // ─── Resource ─────────────────────────────────────────────
 // Saved readings/links for the Library.
 model Resource {
   id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
   title     String
   url       String?
   notes     String?
   tags      String[]
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("resources")
 }
 
 // ─── Person ───────────────────────────────────────────────
 // Light CRM — name, birthday, freeform notes (facts + interactions).
 model Person {
-  id        String    @id @default(uuid())
-  name      String
-  birthday  DateTime? @db.Date
-  notes     String?   // freeform: facts, interaction log appended manually
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id              String          @id @default(uuid())
+  userId          String?         @map("user_id")
+  name            String
+  birthday         DateTime?    @db.Date
+  notes            String? // freeform: facts, interaction log appended manually
+  lastContact      DateTime?    @map("last_contact")
+  contactFrequency String?      @map("contact_frequency") // daily, weekly, monthly, quarterly
+  relationshipType String?      @map("relationship_type") // mentor, peer, family, network, colleague
+  energyImpact     EnergyImpact @default(neutral) @map("energy_impact")
+  importanceScore  Float?       @map("importance_score") // 0-1
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
+  @@index([userId])
   @@map("people")
 }
 
@@ -430,15 +497,18 @@ model GoogleCalendarToken {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@unique([userId])
+  @@index([userId])
   @@map("google_calendar_tokens")
 }
 
 // ─── AI Insights ───────────────────────────────────────────
 model AiInsight {
   id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
   insights    String[]
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("ai_insights")
 }
 
@@ -447,10 +517,70 @@ model AiInsight {
 // Single active token at a time — generating a new one revokes the old.
 model WidgetToken {
   id           String    @id @default(uuid())
+  userId       String?   @map("user_id")
   tokenHash    String    @map("token_hash") // SHA-256 hash, never store plaintext
-  createdAt    DateTime  @default(now()) @map("created_at")
-  lastUsedAt   DateTime? @map("last_used_at") // updated on each successful widget API call
-  revokedAt    DateTime? @map("revoked_at")    // set when revoked
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at") // updated on each successful widget API call
+  revokedAt  DateTime? @map("revoked_at") // set when revoked
 
+  @@index([userId])
   @@map("widget_tokens")
+}
+
+// ─── Ignored Insight ──────────────────────────────────────
+// Insights the system generated but the user dismissed or ignored.
+model IgnoredInsight {
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  type        InsightType
+  title       String
+  description String
+  severity    InsightSeverity
+  evidence    Json? // supporting data points as JSON
+  dismissedAt DateTime?       @map("dismissed_at")
+  actedOn     Boolean         @default(false) @map("acted_on")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([actedOn, dismissedAt])
+  @@map("ignored_insights")
+}
+
+// ─── Behavioral Pattern ───────────────────────────────────
+// Detected recurring behavioral patterns (procrastination, energy crashes, etc.).
+model BehavioralPattern {
+  id         String          @id @default(uuid())
+  userId     String          @map("user_id")
+  pattern    PatternType
+  detectedAt DateTime        @map("detected_at")
+  severity   InsightSeverity
+  evidence   Json // supporting data points
+  resolvedAt DateTime?       @map("resolved_at")
+  resolution String? // how it was resolved
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([detectedAt])
+  @@index([resolvedAt])
+  @@map("behavioral_patterns")
+}
+
+// ─── Life Metric ──────────────────────────────────────────
+// Quantified self data: sleep, mood, energy, social, creativity, focus, stress.
+model LifeMetric {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  category   String // sleep, mood, energy, social, creativity, focus, stress
+  value      Float
+  recordedAt DateTime @map("recorded_at")
+  source     String // manual, wearable, inferred, ai_detected
+  confidence Float // 0-1, for inferred metrics
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, category])
+  @@index([recordedAt])
+  @@map("life_metrics")
 }

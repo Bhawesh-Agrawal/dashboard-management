@@ -485,6 +485,19 @@ enum IdentityStatus {
   neglected
 }
 
+enum ReviewType {
+  daily
+  weekly
+  monthly
+  quarterly
+}
+
+enum ReviewStatus {
+  generated
+  viewed
+  archived
+}
+
 // ─── Resource ─────────────────────────────────────────────
 // Saved readings/links for the Library.
 model Resource {
@@ -621,4 +634,26 @@ model LifeMetric {
   @@index([userId, category])
   @@index([recordedAt])
   @@map("life_metrics")
+}
+
+// ─── Review ──────────────────────────────────────────────
+// AI-generated reviews: daily briefs, weekly audits, monthly strategic reviews, quarterly vision checks.
+model Review {
+  id          String       @id @default(cuid())
+  userId      String       @map("user_id")
+  type        ReviewType
+  periodStart DateTime     @map("period_start")
+  periodEnd   DateTime     @map("period_end")
+  status      ReviewStatus @default(generated)
+  summary     String // AI-generated executive summary
+  sections    Json // structured report sections
+  actions     Json // extracted action items
+  metrics     Json // key metrics snapshot
+  createdAt   DateTime     @default(now()) @map("created_at")
+  viewedAt    DateTime?    @map("viewed_at")
+
+  @@index([userId, type])
+  @@index([periodEnd])
+  @@index([status])
+  @@map("reviews")
 }

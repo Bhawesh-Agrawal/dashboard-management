@@ -3,15 +3,18 @@ import {
   generateAIInsights,
   combineInsights,
 } from "@/features/insights/lib/ai-insights";
+import { generateReview } from "@/features/reviews/lib/generator";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
 
 /**
- * Combined insights cron endpoint.
- * Runs rule-based detection, AI-powered generation, and merges results.
+ * Combined insights + daily review cron endpoint.
+ * Runs rule-based detection, AI-powered generation, merges results,
+ * and generates a daily morning brief review.
  *
+ * External cron schedule: 0 7 * * * (daily at 7:00 AM UTC)
  * GET /api/cron/insights?secret=YOUR_CRON_SECRET
  */
 export async function GET(request: Request) {
@@ -29,10 +32,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Run both pipelines in parallel
-    const [ruleBased, aiBased] = await Promise.all([
+    // Run insights and daily review in parallel
+    const [ruleBased, aiBased, dailyReview] = await Promise.all([
       generateAllInsights("default-user"),
       generateAIInsights("default-user"),
+      generateReview("default-user", "daily", new Date()),
     ]);
 
     const combined = combineInsights(ruleBased, aiBased);
@@ -40,7 +44,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       insights: combined,
-      count: combined.length,
+      insightCount: combined.length,
+      dailyReview: {
+        id: dailyReview.id,
+        summary: dailyReview.summary.slice(0, 200),
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (err) {

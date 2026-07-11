@@ -276,10 +276,12 @@ model Routine {
   energyImpact EnergyImpact @default(neutral) @map("energy_impact")
   category     String?      @map("category") // deep_work, admin, creative, social, health, rest
   flowTrigger  String?      @map("flow_trigger") // e.g. "after_morning_coffee"
+  identityId   String?      @map("identity_id")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
   completions RoutineCompletion[]
+  identity    Identity?    @relation(fields: [identityId], references: [id])
 
   @@index([userId])
   @@map("routines")
@@ -297,6 +299,27 @@ model RoutineCompletion {
 
   @@unique([routineId, date])
   @@map("routine_completions")
+}
+
+// ─── Identity ─────────────────────────────────────────────
+// Identity-first habits: "I am a disciplined researcher".
+// Routines reinforce identity, not just outcomes.
+model Identity {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  statement   String         // "I am a disciplined researcher"
+  description String?        // Optional elaboration
+  status      IdentityStatus @default(aspirational)
+  color       String?        // hex color for UI
+  icon        String?        // lucide icon name
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  routines Routine[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("identities")
 }
 
 enum TimeOfDay {
@@ -448,6 +471,13 @@ enum EnergyImpact {
   charging
   draining
   neutral
+}
+
+enum IdentityStatus {
+  aspirational
+  developing
+  integrated
+  neglected
 }
 
 // ─── Resource ─────────────────────────────────────────────

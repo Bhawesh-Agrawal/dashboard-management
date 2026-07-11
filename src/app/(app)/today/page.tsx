@@ -26,6 +26,11 @@ const UnifiedInsights = dynamic(
   { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }
 );
 
+const IdentityHealthWidget = dynamic(
+  () => import("@/features/identities/components/IdentityHealthWidget").then((mod) => mod.IdentityHealthWidget),
+  { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
+);
+
 export default async function TodayPage() {
   const data = await getDashboardData();
 
@@ -67,6 +72,7 @@ export default async function TodayPage() {
             routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 
           />
           <DailyQuote quotes={data.quotes} />
+          <IdentityHealthWidget userId="default-user" />
           <UnifiedInsights />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />
           <ContributionGraph streakData={data.streakData} />

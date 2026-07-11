@@ -3,8 +3,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoutineList } from "@/features/routines/components/routine-list";
 import { CreateRoutineDialog } from "@/features/routines/components/routine-form";
+import { IdentityGrid } from "@/features/identities/components/IdentityGrid";
+import { IdentityForm } from "@/features/identities/components/IdentityForm";
 
 export const revalidate = 0;
+
+const USER_ID = "default-user";
 
 export default async function RoutinesPage() {
   const routines = await getRoutinesWithStreaks();
@@ -17,6 +21,16 @@ export default async function RoutinesPage() {
         action={<CreateRoutineDialog />}
       />
 
+      {/* Identities section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <p className="section-label">IDENTITIES</p>
+          <IdentityForm userId={USER_ID} />
+        </div>
+        <IdentityGrid userId={USER_ID} />
+      </div>
+
+      {/* Routines section */}
       {routines.length === 0 ? (
         <EmptyState
           title="No routines yet"

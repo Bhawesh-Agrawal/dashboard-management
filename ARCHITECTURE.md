@@ -223,6 +223,7 @@ Prisma ^7.8.0 with `@prisma/adapter-pg` (PostgreSQL driver adapter, library engi
 | `Quote` | `quotes` | Library quotes with tags |
 | `Routine` | `routines` | Daily/weekly habits with time-of-day, active days, streak goal |
 | `RoutineCompletion` | `routine_completions` | Daily habit completion records |
+| `Identity` | `identities` | Identity-first habit statements (aspirational/developing/integrated/neglected) |
 | `PushSubscription` | `push_subscriptions` | Web Push subscription endpoints and keys |
 | `NotificationPreference` | `notification_preferences` | Per-user notification type toggles + daily summary config |
 | `Domain` | `domains` | Life categories (Personal, Finances, etc.) |
@@ -235,8 +236,8 @@ Prisma ^7.8.0 with `@prisma/adapter-pg` (PostgreSQL driver adapter, library engi
 | `AiInsight` | `ai_insights` | **Deprecated** — kept for data retention, no longer used by app |
 | `WidgetToken` | `widget_tokens` | API tokens for external widgets (Tasker/KWGT) |
 
-### Enums (12 total)
-`GradingScale`, `AttendanceMode`, `DayOfWeek`, `AttendanceStatus`, `AssessmentType`, `TaskStatus`, `SourceType`, `EventType`, `TimeOfDay`, `ProjectStatus`, `BudgetType`
+### Enums (15 total)
+`GradingScale`, `AttendanceMode`, `DayOfWeek`, `AttendanceStatus`, `AssessmentType`, `TaskStatus`, `SourceType`, `EventType`, `TimeOfDay`, `ProjectStatus`, `BudgetType`, `InsightSeverity`, `InsightType`, `PatternType`, `EnergyImpact`, `IdentityStatus`
 
 ### Key Relationships
 ```
@@ -443,6 +444,14 @@ Custom visual language defined in `globals.css`:
 - **Components:** `RoutineList`, `RoutineForm`, `EditRoutineDialog`
 - **Lib:** `streaks.ts` — Merges RoutineCompletion + Task.completedAt into activity map, computes consecutive day streak (180-day window, cached 60s)
 - **Actions:** `actions.ts` (CRUD), `actions-completions.ts` (completion toggling)
+
+### 7.17a Identities (Identity-First Habit Design)
+- **Path:** `src/features/identities/`
+- **Philosophy:** Habits reinforce identity, not just outcomes. "I am a disciplined researcher" > "Read 30 pages daily"
+- **Components:** `IdentityCard` (progress ring + status badge), `IdentityGrid` (2-col grid), `IdentityForm` (create/edit dialog with color + icon pickers), `IdentityDetail` (drill-down with routines, 30-day history, suggestions), `IdentityHealthWidget` (Today sidebar: top 3 + neglected)
+- **Actions:** `actions.ts` — CRUD + `getIdentityProgress()` (calculates strength 0-100 from routine adherence 50%, task completion 30%, note activity 20%; trend via 14-day comparison)
+- **Schema:** `Identity` model (statement, status enum, color, icon), `IdentityStatus` enum (aspirational/developing/integrated/neglected), Routine.identityId FK
+- **Routes:** `/routines` (grid + form), `/routines/identities/[id]` (detail page)
 
 ### 7.18 Schedule
 - **Path:** `src/features/schedule/`

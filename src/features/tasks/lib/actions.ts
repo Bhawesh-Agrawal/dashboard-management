@@ -42,6 +42,9 @@ export async function createTask(data: {
   courseId?: string;
   projectId?: string;
   starred?: boolean;
+  energyRequirement?: string;
+  estimatedDuration?: number;
+  optimalTimeOfDay?: string;
 }) {
   // Compute domain_id server-side from courseId/projectId
   let domainId: string | null = null;
@@ -64,6 +67,9 @@ export async function createTask(data: {
       projectId: data.projectId || null,
       domainId,
       starred: data.starred ?? false,
+      energyRequirement: data.energyRequirement || null,
+      estimatedDuration: data.estimatedDuration ?? null,
+      optimalTimeOfDay: data.optimalTimeOfDay || null,
     },
   });
 
@@ -85,6 +91,9 @@ export async function updateTask(
     courseId?: string | null;
     projectId?: string | null;
     starred?: boolean;
+    energyRequirement?: string | null;
+    estimatedDuration?: number | null;
+    optimalTimeOfDay?: string | null;
   }
 ) {
   // Compute domain_id server-side from courseId/projectId
@@ -116,6 +125,9 @@ export async function updateTask(
       projectId: data.projectId,
       domainId,
       starred: data.starred,
+      energyRequirement: data.energyRequirement,
+      estimatedDuration: data.estimatedDuration,
+      optimalTimeOfDay: data.optimalTimeOfDay,
       ...completedAtUpdate,
       dueDate: data.dueDate === null ? null : data.dueDate ? new Date(data.dueDate) : undefined,
     },

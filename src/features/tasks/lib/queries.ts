@@ -20,7 +20,11 @@ export const getTasks = cache(async (filters?: {
         lte: filters?.dueBefore,
       },
     },
-    orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
+    orderBy: [
+      { sortPriority: { sort: "asc", nulls: "last" } },
+      { priority: "asc" },
+      { dueDate: "asc" },
+    ],
     include: {
       course: { select: { id: true, name: true, color: true } },
       project: { select: { id: true, name: true, color: true } },
@@ -41,7 +45,11 @@ export const getTaskById = cache(async (id: string) => {
 export const getStarredTasks = cache(async () => {
   return prisma.task.findMany({
     where: { starred: true, status: "open" },
-    orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
+    orderBy: [
+      { sortPriority: { sort: "asc", nulls: "last" } },
+      { priority: "asc" },
+      { dueDate: "asc" },
+    ],
     take: 3,
     include: {
       course: { select: { id: true, name: true, color: true } },
@@ -53,7 +61,11 @@ export const getStarredTasks = cache(async () => {
 export const getOpenTasks = cache(async () => {
   return prisma.task.findMany({
     where: { status: "open" },
-    orderBy: [{ priority: "asc" }, { dueDate: "asc" }],
+    orderBy: [
+      { sortPriority: { sort: "asc", nulls: "last" } },
+      { priority: "asc" },
+      { dueDate: "asc" },
+    ],
     include: {
       course: { select: { id: true, name: true, color: true } },
       project: { select: { id: true, name: true, color: true } },

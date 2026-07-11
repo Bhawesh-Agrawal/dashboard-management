@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
+import type { Identity } from "@prisma/client";
 
 type RoutineData = {
   id: string;
@@ -19,12 +20,15 @@ type RoutineData = {
   specificTime: string | null;
   streakGoal: number | null;
   activeDays: ("MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN")[];
+  identityId: string | null;
 };
 
 export function EditRoutineDialog({
   routine,
+  identities,
 }: {
   routine: RoutineData;
+  identities?: Identity[];
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,6 +47,7 @@ export function EditRoutineDialog({
         ? parseInt(formData.get("streakGoal") as string)
         : null,
       activeDays,
+      identityId: (formData.get("identityId") as string) || null,
     });
 
     setLoading(false);
@@ -117,6 +122,29 @@ export function EditRoutineDialog({
               />
             </div>
           </div>
+          {identities && identities.length > 0 && (
+            <div className="space-y-2">
+              <label htmlFor="edit-identityId" className="section-label">
+                Reinforces Identity
+              </label>
+              <select
+                id="edit-identityId"
+                name="identityId"
+                defaultValue={routine.identityId || ""}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">None</option>
+                {identities.map((identity) => (
+                  <option key={identity.id} value={identity.id}>
+                    {identity.statement}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[0.6rem] text-muted-foreground uppercase">
+                Who does this make you become?
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="section-label">Active Days</label>
             <div className="flex flex-wrap gap-2">

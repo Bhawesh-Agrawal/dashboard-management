@@ -217,7 +217,7 @@ Prisma ^7.8.0 with `@prisma/adapter-pg` (PostgreSQL driver adapter, library engi
 | `Assessment` | `assessments` | Grading components (minor, mid-sem, end-sem, attendance) |
 | `GradingConfig` | `grading_configs` | Marks%-to-grade-point conversion table (per course/semester) |
 | `AttendanceMarksConfig` | `attendance_marks_configs` | Attendance%-to-marks table (per course/semester) |
-| `Task` | `tasks` | Tasks with priority, status, due date, linked to course/project/domain |
+| `Task` | `tasks` | Tasks with priority, status, due date, energy fields (requirement, duration, optimal time, sort order), linked to course/project/domain |
 | `Note` | `notes` | Quick notes with tags, source type (typed/ocr_photo/voice) |
 | `Event` | `events` | Calendar events (general, birthday, class, assessment) |
 | `Quote` | `quotes` | Library quotes with tags |
@@ -477,8 +477,15 @@ Custom visual language defined in `globals.css`:
 
 ### 7.22 Tasks
 - **Path:** `src/features/tasks/`
-- **Components:** `TaskList`, `TaskForm`, `TaskFilters`, `TaskLinkBadge`, `LinkToPicker`, `EditTaskDialog`
-- **Actions:** CRUD for tasks with priority, status, due dates
+- **Components:** `TaskList`, `TaskForm`, `TaskFilters`, `TaskLinkBadge`, `LinkToPicker`, `EditTaskDialog`, `EnergyTaskSorter`
+- **Actions:** CRUD for tasks with priority, status, due dates, energy fields (energyRequirement, estimatedDuration, optimalTimeOfDay, sortPriority)
+- **Energy Sequencing:** `actions-energy.ts` — `suggestTaskOrder()` matches high-energy tasks to peak energy windows from routines; `applyTaskOrder()` persists sort order via sortPriority field
+
+### 7.22a Energy Map (Routines)
+- **Path:** `src/features/routines/components/EnergyMap.tsx`
+- **Purpose:** Visual timeline of daily routines with energy impact coloring (green=charging, red=draining, gray=neutral)
+- **Features:** SVG energy curve, insight badges (optimal deep work window, energy crash predictions), hover tooltips
+- **Integration:** Today page sidebar
 
 ### 7.23 Widget
 - **Path:** `src/features/widget/`

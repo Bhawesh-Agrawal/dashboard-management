@@ -5,6 +5,7 @@ import { completeRoutineAction, uncompleteRoutineAction } from "@/features/routi
 import type { RoutineWithStreak } from "@/features/routines/types";
 import { Check, Flame } from "lucide-react";
 import { EditRoutineDialog } from "./edit-routine-dialog";
+import type { Identity } from "@prisma/client";
 
 const timeLabels: Record<string, string> = {
   morning: "Morning",
@@ -13,7 +14,7 @@ const timeLabels: Record<string, string> = {
   anytime: "Anytime",
 };
 
-export function RoutineList({ routines }: { routines: RoutineWithStreak[] }) {
+export function RoutineList({ routines, identities }: { routines: RoutineWithStreak[]; identities?: Identity[] }) {
   const [optimisticRoutines, setOptimisticRoutines] = useState(routines);
   const [pending, startTransition] = useTransition();
 
@@ -158,7 +159,9 @@ export function RoutineList({ routines }: { routines: RoutineWithStreak[] }) {
                         specificTime: routine.specificTime,
                         streakGoal: routine.streakGoal,
                         activeDays: routine.activeDays as ("MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN")[],
+                        identityId: routine.identityId,
                       }}
+                      identities={identities}
                     />
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IdentityForm } from "./IdentityForm";
+import { LinkRoutineDialog } from "@/features/routines/components/LinkRoutineDialog";
 import type { Identity, Routine, RoutineCompletion } from "@prisma/client";
 
 type RoutineWithCompletions = Routine & {
@@ -12,6 +13,12 @@ type RoutineWithCompletions = Routine & {
 
 type IdentityWithRoutines = Identity & {
   routines: RoutineWithCompletions[];
+};
+
+type RoutineBasic = {
+  id: string;
+  name: string;
+  timeOfDay: string;
 };
 
 const statusStyles: Record<string, string> = {
@@ -113,10 +120,12 @@ export function IdentityDetail({
   identity,
   strength,
   trend,
+  unlinkedRoutines = [],
 }: {
   identity: IdentityWithRoutines;
   strength: number;
   trend: "up" | "down" | "stable";
+  unlinkedRoutines?: RoutineBasic[];
 }) {
   const last30Days = 30;
   const suggestionsList = suggestions[identity.status] ?? suggestions.aspirational;
@@ -166,7 +175,13 @@ export function IdentityDetail({
 
       {/* Related Routines */}
       <div>
-        <p className="section-label mb-3">LINKED ROUTINES</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="section-label">LINKED ROUTINES</p>
+          <LinkRoutineDialog
+            identityId={identity.id}
+            routines={unlinkedRoutines}
+          />
+        </div>
         {identity.routines.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No routines linked yet. Edit this identity to link routines.

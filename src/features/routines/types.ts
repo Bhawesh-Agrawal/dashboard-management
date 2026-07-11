@@ -10,6 +10,8 @@ export type RoutineWithStreak = {
   specificTime: string | null;
   streakGoal: number | null;
   activeDays: string[];
+  energyImpact: "charging" | "draining" | "neutral";
+  identityId: string | null;
   currentStreak: number;
   completedToday: boolean;
   lastCompletedAt: Date | null;

@@ -182,6 +182,11 @@ model Task {
   domainId    String?    @map("domain_id")
   starred     Boolean    @default(false)
   completedAt DateTime?  @map("completed_at")
+  // Energy sequencing fields
+  energyRequirement String?  @map("energy_requirement") // low, medium, high
+  estimatedDuration Int?     @map("estimated_duration") // minutes
+  optimalTimeOfDay  String?  @map("optimal_time_of_day") // morning, afternoon, evening, any
+  sortPriority      Float?   @map("sort_priority") // for energy-based task ordering (lower = higher priority)
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 

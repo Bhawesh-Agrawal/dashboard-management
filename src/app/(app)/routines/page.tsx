@@ -5,20 +5,24 @@ import { RoutineList } from "@/features/routines/components/routine-list";
 import { CreateRoutineDialog } from "@/features/routines/components/routine-form";
 import { IdentityGrid } from "@/features/identities/components/IdentityGrid";
 import { IdentityForm } from "@/features/identities/components/IdentityForm";
+import { getIdentities } from "@/features/identities/lib/actions";
 
 export const revalidate = 0;
 
 const USER_ID = "default-user";
 
 export default async function RoutinesPage() {
-  const routines = await getRoutinesWithStreaks();
+  const [routines, identities] = await Promise.all([
+    getRoutinesWithStreaks(),
+    getIdentities(USER_ID),
+  ]);
 
   return (
     <div>
       <PageHeader
         title="Routines"
         subtitle={`${routines.length} routine${routines.length !== 1 ? "s" : ""}`}
-        action={<CreateRoutineDialog />}
+        action={<CreateRoutineDialog identities={identities} />}
       />
 
       {/* Identities section */}
@@ -35,10 +39,10 @@ export default async function RoutinesPage() {
         <EmptyState
           title="No routines yet"
           description="Build daily habits by creating your first routine."
-          action={<CreateRoutineDialog />}
+          action={<CreateRoutineDialog identities={identities} />}
         />
       ) : (
-        <RoutineList routines={routines} />
+        <RoutineList routines={routines} identities={identities} />
       )}
     </div>
   );

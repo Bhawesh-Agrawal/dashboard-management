@@ -5,11 +5,18 @@ import { Paperclip, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-reac
 import { UploadDialog } from "./UploadDialog";
 import { AddLinkDialog } from "./AddLinkDialog";
 import { AttachmentCard } from "./AttachmentCard";
+import dynamic from "next/dynamic";
+
+const PdfViewerModal = dynamic(
+  () => import("./PdfViewerModal").then((m) => m.PdfViewerModal),
+  { ssr: false }
+);
 import { getNoteAttachments } from "@/features/notes/lib/actions-attachments";
 import type { NoteAttachment } from "@prisma/client";
 
 export interface AttachmentSectionProps {
   noteId: string;
+  noteTitle?: string;
   initialAttachments?: NoteAttachment[];
 }
 
@@ -17,17 +24,25 @@ const COLLAPSE_THRESHOLD = 3;
 
 export function AttachmentSection({
   noteId,
+  noteTitle,
   initialAttachments = [],
 }: AttachmentSectionProps) {
   const [attachments, setAttachments] = useState<NoteAttachment[]>(initialAttachments);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<NoteAttachment | null>(null);
 
   const refresh = useCallback(async () => {
     const result = await getNoteAttachments(noteId);
     setAttachments(result);
   }, [noteId]);
+
+  function handlePdfView(attachment: NoteAttachment) {
+    setSelectedAttachment(attachment);
+    setPdfViewerOpen(true);
+  }
 
   const needsCollapse = attachments.length > COLLAPSE_THRESHOLD;
   const visibleAttachments = needsCollapse && !expanded
@@ -62,6 +77,7 @@ export function AttachmentSection({
               key={attachment.id}
               attachment={attachment}
               onRemoved={refresh}
+              onPdfView={handlePdfView}
             />
           ))}
 
@@ -121,6 +137,18 @@ export function AttachmentSection({
         noteId={noteId}
         onAdd={refresh}
       />
+
+      {/* PDF Viewer Modal */}
+      {selectedAttachment && (
+        <PdfViewerModal
+          open={pdfViewerOpen}
+          onOpenChange={setPdfViewerOpen}
+          noteId={noteId}
+          attachmentId={selectedAttachment.id}
+          s3Url={selectedAttachment.s3Url}
+          title={selectedAttachment.title || noteTitle || "PDF Document"}
+        />
+      )}
     </div>
   );
 }

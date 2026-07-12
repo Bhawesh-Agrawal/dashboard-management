@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { deleteFile } from "@/lib/s3/actions";
+import { getPresignedUrl } from "@/lib/s3/client";
 import { generateSemanticLinks } from "./semantic-links";
 import { markNoteReviewed as markReviewed } from "./spaced-repetition";
 import { createExplicitLink as createLink, removeLink as deleteLink } from "./semantic-links";
@@ -262,4 +263,78 @@ export async function addAttachments(
 
 export async function removeAttachment(id: string) {
   return removeNoteAttachment(id);
+}
+
+// ─── PDF View URL ──────────────────────────────────────────
+
+/**
+ * Generate a presigned GET URL for viewing a PDF.
+ * The stored s3Url is a PUT URL (for uploads); this generates a fresh read URL.
+ * Pass attachmentId to view an attachment's PDF instead of the note's own file.
+ */
+export async function getPdfViewUrl(
+  noteId: string,
+  attachmentId?: string,
+  directS3Key?: string
+): Promise<{ ok: true; data: { url: string } } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    let s3Key: string | null = null;
+
+    // If an S3 key is provided directly (e.g. from file attachments), skip DB lookup
+    if (directS3Key) {
+      s3Key = directS3Key;
+    } else if (attachmentId) {
+      // Look up attachment's s3Key
+      const note = await prisma.note.findUnique({
+        where: { id: noteId },
+        select: { userId: true },
+      });
+
+      if (!note) {
+        return { ok: false, error: "Note not found" };
+      }
+
+      if (note.userId !== userId) {
+        return { ok: false, error: "Access denied" };
+      }
+
+      const attachment = await prisma.noteAttachment.findUnique({
+        where: { id: attachmentId },
+        select: { s3Key: true, noteId: true },
+      });
+      if (!attachment || attachment.noteId !== noteId) {
+        return { ok: false, error: "Attachment not found" };
+      }
+      s3Key = attachment.s3Key;
+    } else {
+      // Look up note's own s3Key
+      const note = await prisma.note.findUnique({
+        where: { id: noteId },
+        select: { userId: true, s3Key: true },
+      });
+
+      if (!note) {
+        return { ok: false, error: "Note not found" };
+      }
+
+      if (note.userId !== userId) {
+        return { ok: false, error: "Access denied" };
+      }
+
+      s3Key = note.s3Key;
+    }
+
+    if (!s3Key) {
+      return { ok: false, error: "No file attached" };
+    }
+
+    const url = await getPresignedUrl(s3Key, 3600);
+    return { ok: true, data: { url } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to generate PDF view URL:", message);
+    return { ok: false, error: "Failed to generate view URL" };
+  }
 }

@@ -67,9 +67,10 @@ function getSiteName(url: string): string {
 export interface AttachmentCardProps {
   attachment: NoteAttachment;
   onRemoved?: () => void;
+  onPdfView?: (attachment: NoteAttachment) => void;
 }
 
-export function AttachmentCard({ attachment, onRemoved }: AttachmentCardProps) {
+export function AttachmentCard({ attachment, onRemoved, onPdfView }: AttachmentCardProps) {
   const [removing, setRemoving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(attachment.title);
@@ -190,24 +191,35 @@ export function AttachmentCard({ attachment, onRemoved }: AttachmentCardProps) {
 
       {/* Actions */}
       <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <a
-          href={attachment.s3Url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          {isLink ? (
-            <>
-              <ExternalLink className="h-3 w-3" />
-              Open
-            </>
-          ) : (
-            <>
-              <ExternalLink className="h-3 w-3" />
-              View
-            </>
-          )}
-        </a>
+        {attachment.type === "PDF" && onPdfView ? (
+          <button
+            type="button"
+            onClick={() => onPdfView(attachment)}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View
+          </button>
+        ) : (
+          <a
+            href={attachment.s3Url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            {isLink ? (
+              <>
+                <ExternalLink className="h-3 w-3" />
+                Open
+              </>
+            ) : (
+              <>
+                <ExternalLink className="h-3 w-3" />
+                View
+              </>
+            )}
+          </a>
+        )}
         <button
           type="button"
           onClick={handleRemove}

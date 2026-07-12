@@ -477,3 +477,96 @@ button, a, [role="button"], input[type="button"], input[type="submit"], input[ty
   background: var(--muted);
   font-weight: 600;
 }
+
+/* ─── PDF Viewer ───────────────────────────────────────────── */
+.pdf-document {
+  position: relative;
+}
+
+.pdf-document .react-pdf__Page {
+  position: relative;
+}
+
+.pdf-document .react-pdf__Page canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* Text layer for search and selection */
+.pdf-document .react-pdf__Page__textContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.25;
+  line-height: 1;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0% 0%;
+}
+
+.pdf-document .react-pdf__Page__textContent span {
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0% 100%;
+}
+
+.pdf-document .react-pdf__Page__textContent span::selection {
+  background: rgba(0, 100, 0, 0.4);
+}
+
+/* Annotation layer styles */
+.pdf-document .react-pdf__Page__annotations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Dark mode: invert PDF pages but keep images reasonable */
+.dark .pdf-document .react-pdf__Page canvas,
+.dark .pdf-document .react-pdf__Page img {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+
+.dark .pdf-document .react-pdf__Page__textContent span::selection {
+  background: rgba(100, 160, 255, 0.4);
+}
+
+/* PDF skeleton loader */
+.pdf-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--muted)/0.5 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: pdf-skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes pdf-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* PDF scroll container: enable vertical scroll, allow horizontal swipe on mobile */
+.pdf-scroll-container {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .pdf-scroll-container {
+    touch-action: pan-y pinch-zoom;
+  }
+}

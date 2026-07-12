@@ -14,14 +14,6 @@ import {
 import type { CreateDocumentNoteInput, UpdateDocumentNoteInput, DocumentFilters } from "@/types";
 import type { Prisma } from "@prisma/client";
 
-// Re-export annotation actions
-export {
-  createAnnotation,
-  updateAnnotation,
-  deleteAnnotation,
-  getAnnotations,
-} from "./actions-annotations";
-
 // ─── Types ──────────────────────────────────────────────────
 
 type NoteWithRelations = Prisma.NoteGetPayload<{
@@ -213,9 +205,9 @@ export async function deleteDocumentFolder(
 }
 
 export async function getDocumentFolders(
-  userId: string,
   parentId?: string | null
 ) {
+  const userId = await getCurrentUserId();
   return prisma.documentFolder.findMany({
     where: { userId, parentId: parentId ?? null },
     orderBy: [{ isPinned: "desc" }, { sortOrder: "asc" }],
@@ -519,10 +511,10 @@ export async function deleteDocumentNote(
 }
 
 export async function getDocumentNotes(
-  userId: string,
   filters: DocumentFilters
 ): Promise<{ ok: true; data: { notes: NoteWithRelations[]; total: number; page: number; pageSize: number } } | { ok: false; error: string }> {
   try {
+    const userId = await getCurrentUserId();
     const validated = documentFiltersSchema.safeParse(filters);
     if (!validated.success) {
       return { ok: false, error: validated.error.issues[0].message };

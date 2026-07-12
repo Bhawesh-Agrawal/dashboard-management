@@ -146,6 +146,62 @@ export async function updateNoteAttachment(
   }
 }
 
+// ─── Add Note Link Attachment ────────────────────────────────
+
+export async function addNoteLinkAttachment(
+  noteId: string,
+  data: { url: string; title: string; description?: string; favicon?: string }
+): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    });
+
+    if (!note) {
+      return { ok: false, error: "Note not found" };
+    }
+
+    if (note.userId !== userId) {
+      return { ok: false, error: "Access denied" };
+    }
+
+    const maxSort = await prisma.noteAttachment.aggregate({
+      where: { noteId },
+      _max: { sortOrder: true },
+    });
+
+    const attachment = await prisma.noteAttachment.create({
+      data: {
+        noteId,
+        userId,
+        type: "LINK",
+        title: data.title,
+        s3Key: data.url,
+        s3Url: data.url,
+        fileSize: 0,
+        fileName: data.url,
+        mimeType: "text/uri-list",
+        thumbnailUrl: data.favicon,
+        extractedText: data.description,
+        sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+      },
+      select: { id: true },
+    });
+
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${noteId}`);
+
+    return { ok: true, data: attachment };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to add note link attachment:", message);
+    return { ok: false, error: "Failed to save link" };
+  }
+}
+
 // ─── Get Note Attachments ────────────────────────────────────
 
 export async function getNoteAttachments(noteId: string) {

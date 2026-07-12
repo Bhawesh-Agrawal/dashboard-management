@@ -2,32 +2,57 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { ReviewType } from "@prisma/client";
-import { generateReview } from "./generator";
+import type { Review } from "@prisma/client";
+import { generateReview, isFallbackReview } from "./generator";
 import type { ActionItem } from "./types";
+
+// ─── Parse Prisma Json fields that may come back as strings ──
+// @prisma/adapter-pg overrides pg's JSONB parser with a no-op,
+// so Json columns can arrive as raw strings instead of objects.
+function parseJson<T>(value: unknown): T {
+  if (typeof value === "string") return JSON.parse(value) as T;
+  return value as T;
+}
+
+function parseReviewJson(review: Review) {
+  return {
+    ...review,
+    sections: parseJson(review.sections),
+    actions: parseJson(review.actions),
+    metrics: parseJson(review.metrics),
+  };
+}
 
 export async function getReviews(
   userId: string,
   type?: ReviewType,
   limit = 20
 ) {
-  return prisma.review.findMany({
+  const reviews = await prisma.review.findMany({
     where: {
       userId,
       status: { not: "archived" },
       ...(type ? { type } : {}),
     },
     orderBy: { periodEnd: "desc" },
-    take: limit,
+    take: limit + 10,
   });
+
+  return reviews
+    .filter((r) => !isFallbackReview(r.summary))
+    .slice(0, limit);
 }
 
 export async function getReviewById(id: string) {
-  return prisma.review.findUnique({ where: { id } });
+  const review = await prisma.review.findUnique({ where: { id } });
+  if (!review) return null;
+  return parseReviewJson(review);
 }
 
 export async function getLatestReview(userId: string, type?: ReviewType) {
-  return prisma.review.findFirst({
+  const review = await prisma.review.findFirst({
     where: {
       userId,
       status: { not: "archived" },
@@ -35,6 +60,8 @@ export async function getLatestReview(userId: string, type?: ReviewType) {
     },
     orderBy: { periodEnd: "desc" },
   });
+  if (!review) return null;
+  return parseReviewJson(review);
 }
 
 export async function getUnviewedCount(userId: string) {
@@ -51,7 +78,9 @@ export async function markReviewViewed(id: string) {
     where: { id },
     data: { status: "viewed", viewedAt: new Date() },
   });
-  revalidatePath("/reviews");
+  after(() => {
+    revalidatePath("/reviews");
+  });
   return review;
 }
 
@@ -64,6 +93,12 @@ export async function archiveReview(id: string) {
   return review;
 }
 
+export async function deleteReview(id: string) {
+  await prisma.review.delete({ where: { id } });
+  revalidatePath("/reviews");
+  return { ok: true as const };
+}
+
 export async function completeActionItem(
   reviewId: string,
   actionIndex: number
@@ -71,19 +106,16 @@ export async function completeActionItem(
   const review = await prisma.review.findUnique({ where: { id: reviewId } });
   if (!review) throw new Error("Review not found");
 
-  const actions = (review.actions as unknown as ActionItem[]) || [];
+  const actions = parseJson<ActionItem[]>(review.actions);
   const action = actions[actionIndex];
   if (!action) throw new Error("Action not found");
 
-  const userId = review.userId;
-
-  // Create a task from the action item
   const priorityMap = { high: 1, medium: 2, low: 3 };
   await prisma.task.create({
     data: {
       title: action.text,
       priority: priorityMap[action.priority] ?? 2,
-      userId,
+      userId: review.userId,
       notes: `From ${review.type} review (${new Date(review.periodStart).toLocaleDateString()} – ${new Date(review.periodEnd).toLocaleDateString()})`,
     },
   });
@@ -98,9 +130,9 @@ export async function exportReviewAsMarkdown(id: string) {
   const review = await prisma.review.findUnique({ where: { id } });
   if (!review) throw new Error("Review not found");
 
-  const sections = (review.sections as unknown as { title: string; content: string }[]) || [];
-  const actions = (review.actions as unknown as ActionItem[]) || [];
-  const metrics = (review.metrics as unknown as Record<string, unknown>) || {};
+  const sections = parseJson<{ title: string; content: string }[]>(review.sections);
+  const actions = parseJson<ActionItem[]>(review.actions);
+  const metrics = parseJson<Record<string, unknown>>(review.metrics);
 
   const typeLabel = review.type.charAt(0).toUpperCase() + review.type.slice(1);
   const dateRange = `${new Date(review.periodStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(review.periodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
@@ -129,16 +161,16 @@ export async function exportReviewAsMarkdown(id: string) {
     md += `- Routine Adherence: ${Math.round(metrics.routineAdherence)}%\n`;
   }
   if (typeof metrics.moodAverage === "number") {
-    md += `- Mood Average: ${metrics.moodAverage.toFixed(1)}/5\n`;
+    md += `- Mood Average: ${(metrics.moodAverage as number).toFixed(1)}/5\n`;
   }
   if (typeof metrics.energyAverage === "number") {
-    md += `- Energy Average: ${metrics.energyAverage.toFixed(1)}/5\n`;
+    md += `- Energy Average: ${(metrics.energyAverage as number).toFixed(1)}/5\n`;
   }
   if (typeof metrics.totalSpent === "number") {
-    md += `- Total Spent: $${metrics.totalSpent.toFixed(2)}\n`;
+    md += `- Total Spent: $${(metrics.totalSpent as number).toFixed(2)}\n`;
   }
   if (typeof metrics.attendanceRate === "number") {
-    md += `- Attendance: ${Math.round(metrics.attendanceRate)}%\n`;
+    md += `- Attendance: ${Math.round(metrics.attendanceRate as number)}%\n`;
   }
   if (typeof metrics.deepWorkHours === "number") {
     md += `- Deep Work: ${metrics.deepWorkHours}h\n`;
@@ -149,7 +181,9 @@ export async function exportReviewAsMarkdown(id: string) {
 
 export async function generateReviewAction(type: ReviewType) {
   try {
-    const result = await generateReview("default-user", type, new Date());
+    const result = await generateReview("default-user", type, new Date(), {
+      replaceExisting: true,
+    });
     revalidatePath("/reviews");
     return { ok: true as const, review: result };
   } catch (err) {

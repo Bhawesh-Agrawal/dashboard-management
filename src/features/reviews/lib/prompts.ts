@@ -20,18 +20,20 @@ RULES:
 - Be direct and actionable
 - Prioritize by urgency and energy match
 - If no classes today, focus on tasks and routines
+- If data is limited, provide thoughtful observations about what IS available and suggest specific actions
+- Never produce empty or one-line sections — always add useful context
 
 OUTPUT FORMAT:
 Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary)
-- sections: array of { title, content, order } objects
+- sections: array of { title, content, order } objects (each section must have substantive content, not just a title)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage (if available), energyAverage (if available), sleepAverage (if available), attendanceRate (if available), notesCreated (count of notes today if available)
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
     `Generate a morning brief for ${dateStr}.\n\n${dataSummary}`,
-  maxTokens: 512,
+  maxTokens: 1024,
   temperature: 0.4,
 };
 
@@ -55,11 +57,13 @@ RULES:
 - Be specific about which tasks went in which DRIP quadrant
 - Correlate mood scores with productivity days
 - Actions must be concrete and tied to this week's data
+- If data is limited, analyze what IS available thoroughly and suggest specific improvements
+- Never produce empty or one-line sections — always add substantive analysis
 
 OUTPUT FORMAT:
 Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary of the week)
-- sections: array of { title, content, order } objects (one per section above)
+- sections: array of { title, content, order } objects (one per section above, each with substantive markdown content)
 - actions: array of { text, type ("kill"/"automate"/"focus"/"unblock"/"experiment"), priority ("high"/"medium"/"low") } objects
 - metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, deepWorkHours
 
@@ -85,11 +89,13 @@ RULES:
 - Reference specific data points (e.g., "routine adherence dropped from 85% to 62% in week 3")
 - Strategic pivots must be evidence-based, not generic
 - Include both wins and areas for improvement
+- If data is limited, analyze trends within what IS available and provide actionable recommendations
+- Never produce empty or one-line sections — always add substantive analysis
 
 OUTPUT FORMAT:
 Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
-- sections: array of { title, content, order } objects
+- sections: array of { title, content, order } objects (each with detailed markdown content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
 - metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
 
@@ -115,11 +121,13 @@ RULES:
 - Use identity status data (aspirational/developing/integrated/neglected)
 - Cross-reference what the student says they want to be with what they actually did this quarter
 - Anti-vision check should be constructive — identify risks without catastrophizing
+- If data is limited, work with what IS available and provide honest, constructive observations
+- Never produce empty or one-line sections — always add substantive reflection
 
 OUTPUT FORMAT:
 Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
-- sections: array of { title, content, order } objects
+- sections: array of { title, content, order } objects (each with detailed reflective content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
 - metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
 

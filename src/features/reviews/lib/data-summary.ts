@@ -19,7 +19,7 @@ const JS_DAY_TO_ENUM: DayOfWeekEnum[] = [
   "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT",
 ];
 
-function getPeriodBounds(
+export function getPeriodBounds(
   type: ReviewType,
   date: Date
 ): { periodStart: Date; periodEnd: Date } {

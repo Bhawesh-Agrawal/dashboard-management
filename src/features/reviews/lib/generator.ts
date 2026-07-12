@@ -4,22 +4,23 @@ import type { ReviewType } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { format } from "date-fns";
 import { getReviewPrompt } from "./prompts";
-import { fetchReviewData, formatReviewDataSummary } from "./data-summary";
+import { fetchReviewData, formatReviewDataSummary, getPeriodBounds } from "./data-summary";
 import type { ParsedReview, ReviewSection, ActionItem, ReviewMetrics } from "./types";
+
+export const FALLBACK_MARKER = "AI synthesis unavailable";
 
 // ─── Fallback when AI fails ────────────────────────────────
 function createFallbackReview(
   type: ReviewType,
   periodStart: Date,
-  periodEnd: Date,
-  rawText?: string
+  _periodEnd: Date
 ): ParsedReview {
   return {
-    summary: rawText?.slice(0, 500) || `${type} review generated on ${format(periodStart, "MMM d, yyyy")}. AI synthesis unavailable — review raw data in the dashboard.`,
+    summary: `${type} review for ${format(periodStart, "MMM d, yyyy")}. ${FALLBACK_MARKER}`,
     sections: [
       {
-        title: "Review",
-        content: rawText || "AI generation failed. Please try again later.",
+        title: "Generation Error",
+        content: "The review could not be generated properly. Please try regenerating.",
         order: 0,
       },
     ],
@@ -33,21 +34,53 @@ function createFallbackReview(
   };
 }
 
-// ─── Parse AI JSON response ────────────────────────────────
-function parseAIResponse(raw: string): ParsedReview {
-  // Try to extract JSON from response (may be wrapped in markdown code blocks)
-  let jsonStr = raw;
+export function isFallbackReview(summary: string): boolean {
+  return summary.includes(FALLBACK_MARKER);
+}
 
-  // Try ```json ... ```
+// ─── Parse AI JSON response ────────────────────────────────
+function extractJsonObject(raw: string): string | null {
+  const start = raw.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return raw.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseAIResponse(raw: string): ParsedReview {
+  let jsonStr: string | null = null;
+
   const codeBlockMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (codeBlockMatch) {
-    jsonStr = codeBlockMatch[1];
+    jsonStr = codeBlockMatch[1].trim();
   } else {
-    // Try finding raw JSON object
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[0];
-    }
+    jsonStr = extractJsonObject(raw);
+  }
+
+  if (!jsonStr) {
+    throw new Error("No JSON object found in AI response");
   }
 
   const parsed = JSON.parse(jsonStr);
@@ -123,7 +156,8 @@ function parseAIResponse(raw: string): ParsedReview {
 export async function generateReview(
   userId: string,
   type: ReviewType,
-  date: Date
+  date: Date,
+  options?: { replaceExisting?: boolean }
 ): Promise<{
   id: string;
   type: ReviewType;
@@ -132,6 +166,32 @@ export async function generateReview(
   summary: string;
 }> {
   const config = getReviewPrompt(type);
+  const { periodStart, periodEnd } = getPeriodBounds(type, date);
+
+  // Dedup: check if a review already exists for this period
+  const existing = await prisma.review.findFirst({
+    where: {
+      userId,
+      type,
+      periodStart,
+      periodEnd,
+    },
+  });
+
+  // If replaceExisting, delete the old one; otherwise return existing
+  if (existing) {
+    if (options?.replaceExisting) {
+      await prisma.review.delete({ where: { id: existing.id } });
+    } else {
+      return {
+        id: existing.id,
+        type: existing.type,
+        periodStart: existing.periodStart,
+        periodEnd: existing.periodEnd,
+        summary: existing.summary,
+      };
+    }
+  }
 
   // 1. Fetch data
   const data = await fetchReviewData(userId, type, date);
@@ -157,7 +217,7 @@ export async function generateReview(
       parsed = parseAIResponse(result.data);
     } catch (err) {
       console.error(`Failed to parse ${type} review JSON:`, err);
-      parsed = createFallbackReview(type, data.periodStart, data.periodEnd, result.data);
+      parsed = createFallbackReview(type, data.periodStart, data.periodEnd);
     }
   } else {
     console.error(`AI generation failed for ${type} review:`, result.error);

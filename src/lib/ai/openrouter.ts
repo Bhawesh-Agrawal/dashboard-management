@@ -21,6 +21,7 @@ type ChatCompletionResponse = {
     message: {
       content: string;
     };
+    finish_reason: string | null;
   }[];
 };
 
@@ -118,7 +119,12 @@ export async function chatCompletion(
     throw new Error("No response from OpenRouter");
   }
 
-  return data.choices[0].message.content;
+  const choice = data.choices[0];
+  if (choice.finish_reason === "length") {
+    console.warn("AI response was truncated (finish_reason: length). Consider increasing maxTokens.");
+  }
+
+  return choice.message.content;
 }
 
 /**

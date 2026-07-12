@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
+import Markdown from "react-markdown";
 import { ReviewTypeBadge } from "./review-type-badge";
 import { ReviewMetricsDisplay } from "./review-metrics";
 import { ReviewActionsList } from "./review-actions-list";
@@ -10,6 +11,23 @@ import { generateReviewAction } from "../lib/actions";
 import type { ReviewType } from "@prisma/client";
 import type { ReviewSection, ActionItem, ReviewMetrics } from "../lib/types";
 import { ChevronDown, RefreshCw, BarChart3, ListChecks } from "lucide-react";
+
+function hasAnyMetrics(metrics: ReviewMetrics): boolean {
+  return !!(
+    metrics.tasksTotal > 0 ||
+    metrics.routineAdherence > 0 ||
+    metrics.moodAverage != null ||
+    metrics.energyAverage != null ||
+    metrics.sleepAverage != null ||
+    metrics.totalSpent != null ||
+    metrics.attendanceRate != null ||
+    metrics.deepWorkHours != null ||
+    metrics.notesCreated != null ||
+    (metrics.projectsProgress && metrics.projectsProgress.length > 0) ||
+    (metrics.identityStrength && metrics.identityStrength.length > 0) ||
+    (metrics.weeklyTrends && metrics.weeklyTrends.length > 0)
+  );
+}
 
 export function ReviewDetail({
   id,
@@ -42,6 +60,8 @@ export function ReviewDetail({
     window.location.reload();
   }
 
+  const showMetrics = hasAnyMetrics(metrics);
+
   return (
     <article className="max-w-3xl">
       {/* Header */}
@@ -62,14 +82,14 @@ export function ReviewDetail({
         </p>
       </div>
 
-      {/* Sections — collapsible cards */}
+      {/* Sections — collapsible cards with markdown */}
       <div className="space-y-4 mb-10">
         {sections
           .sort((a, b) => a.order - b.order)
           .map((section, i) => (
             <SectionCard key={i} title={section.title} defaultOpen={i < 3}>
-              <div className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                {section.content}
+              <div className="review-markdown">
+                <Markdown>{section.content}</Markdown>
               </div>
             </SectionCard>
           ))}
@@ -88,18 +108,20 @@ export function ReviewDetail({
         </div>
       )}
 
-      {/* Metrics */}
-      <div className="mb-10">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Metrics
-          </h3>
+      {/* Metrics — only show if there's meaningful data */}
+      {showMetrics && (
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Metrics
+            </h3>
+          </div>
+          <div className="p-4 rounded-lg border border-border bg-card">
+            <ReviewMetricsDisplay metrics={metrics} />
+          </div>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <ReviewMetricsDisplay metrics={metrics} />
-        </div>
-      </div>
+      )}
 
       {/* Actions bar */}
       <div className="flex items-center gap-3 pt-6 border-t border-border">

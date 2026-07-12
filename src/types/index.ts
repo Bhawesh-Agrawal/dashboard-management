@@ -15,6 +15,7 @@ import type {
   NoteAttachment,
   DocumentFolder,
   NoteAnnotation,
+  AttachmentType,
 } from "@prisma/client";
 import type { RoutineWithStreak } from "@/features/routines/types";
 
@@ -289,3 +290,58 @@ export type NoteWithDocumentInfo = Note & {
     annotations: number;
   };
 };
+
+// ─── Attachment Input ────────────────────────────────────────
+export interface AttachmentInput {
+  type: AttachmentType;
+  title: string;
+  s3Key: string;
+  s3Url: string;
+  fileSize: number;
+  fileName: string;
+  mimeType: string;
+  thumbnailUrl?: string;
+  pageCount?: number;
+}
+
+// ─── Document Note Inputs ───────────────────────────────────
+export interface CreateDocumentNoteInput {
+  title: string;
+  content?: string;
+  folderId?: string | null;
+  courseId?: string | null;
+  semesterId?: string | null;
+  documentType: AttachmentType;
+  s3Key: string;
+  s3Url: string;
+  fileSize: number;
+  fileName: string;
+  mimeType: string;
+  thumbnailUrl?: string;
+  pageCount?: number;
+  originalUrl?: string;
+  embedHtml?: string;
+  tags?: string[];
+}
+
+export interface UpdateDocumentNoteInput {
+  title?: string;
+  content?: string;
+  folderId?: string | null;
+  courseId?: string | null;
+  tags?: string[];
+  thumbnailUrl?: string;
+}
+
+// ─── Document Filters ───────────────────────────────────────
+export interface DocumentFilters {
+  folderId?: string | null;
+  courseId?: string | null;
+  type?: AttachmentType | null;
+  searchQuery?: string | null;
+  isFavorite?: boolean | null;
+  sortBy?: 'createdAt' | 'title' | 'lastViewedAt' | 'fileSize';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}

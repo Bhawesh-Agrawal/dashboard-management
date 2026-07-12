@@ -71,9 +71,13 @@ export async function processOcrAction(formData: FormData): Promise<{
       tags: ["ocr"],
     });
 
+    if (!noteResult.ok) {
+      throw new Error(noteResult.error);
+    }
+
     return {
       success: true,
-      noteId: noteResult?.id,
+      noteId: noteResult.data.id,
       text: ocrResult.text,
       confidence: ocrResult.confidence,
       confidenceDescription: ocrResult.confidence 

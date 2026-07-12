@@ -234,6 +234,8 @@ model Note {
   extractedText           String?        @map("extracted_text")
   lastViewedAt            DateTime?      @map("last_viewed_at")
   viewCount               Int            @default(0) @map("view_count")
+  isPinned                Boolean        @default(false) @map("is_pinned")
+  isFavorite              Boolean        @default(false) @map("is_favorite")
   lastReviewedAt          DateTime?      @map("last_reviewed_at") // spaced repetition tracking
   reviewCount             Int            @default(0) @map("review_count") // spaced repetition count
   createdAt               DateTime       @default(now()) @map("created_at")

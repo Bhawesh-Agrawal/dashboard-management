@@ -3,10 +3,15 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
+import { deleteFile } from "@/lib/s3/actions";
 import { generateSemanticLinks } from "./semantic-links";
 import { markNoteReviewed as markReviewed } from "./spaced-repetition";
 import { createExplicitLink as createLink, removeLink as deleteLink } from "./semantic-links";
 import { addNoteAttachment, removeNoteAttachment } from "./actions-attachments";
+import { createNoteSchema } from "./validation";
+import type { AttachmentInput } from "@/types";
+
+// ─── Create Note ────────────────────────────────────────────
 
 export async function createNote(data: {
   title?: string;
@@ -15,20 +20,63 @@ export async function createNote(data: {
   sourceLink?: string;
   tags?: string[];
   courseId?: string;
-}) {
-  const userId = await getCurrentUserId();
-  const note = await prisma.note.create({
-    data: { ...data, userId },
-  });
+  attachments?: AttachmentInput[];
+}): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
 
-  revalidatePath("/notes");
-  if (data.courseId) revalidatePath(`/courses/${data.courseId}`);
+    const validated = createNoteSchema.safeParse(data);
+    if (!validated.success) {
+      return { ok: false, error: validated.error.issues[0].message };
+    }
 
-  // Trigger semantic linking asynchronously (don't await - background job)
-  generateSemanticLinks(note.id).catch(console.error);
+    const { attachments, ...noteData } = validated.data;
 
-  return note;
+    const note = await prisma.note.create({
+      data: { ...noteData, userId },
+      select: { id: true },
+    });
+
+    if (attachments && attachments.length > 0) {
+      const maxSort = await prisma.noteAttachment.aggregate({
+        where: { noteId: note.id },
+        _max: { sortOrder: true },
+      });
+
+      let sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
+
+      await prisma.noteAttachment.createMany({
+        data: attachments.map((att) => ({
+          noteId: note.id,
+          userId,
+          type: att.type,
+          title: att.title,
+          s3Key: att.s3Key,
+          s3Url: att.s3Url,
+          fileSize: att.fileSize,
+          fileName: att.fileName,
+          mimeType: att.mimeType,
+          thumbnailUrl: att.thumbnailUrl,
+          pageCount: att.pageCount,
+          sortOrder: sortOrder++,
+        })),
+      });
+    }
+
+    revalidatePath("/notes");
+    if (data.courseId) revalidatePath(`/courses/${data.courseId}`);
+
+    generateSemanticLinks(note.id).catch(console.error);
+
+    return { ok: true, data: note };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to create note:", message);
+    return { ok: false, error: "Failed to create note" };
+  }
 }
+
+// ─── Update Note ────────────────────────────────────────────
 
 export async function updateNote(
   id: string,
@@ -58,7 +106,6 @@ export async function updateNote(
   revalidatePath(`/notes/${id}`);
   if (note.courseId) revalidatePath(`/courses/${note.courseId}`);
 
-  // Re-generate semantic links if content changed
   if (data.content) {
     generateSemanticLinks(id).catch(console.error);
   }
@@ -66,20 +113,112 @@ export async function updateNote(
   return note;
 }
 
-export async function deleteNote(id: string) {
-  const note = await prisma.note.delete({
-    where: { id },
-    select: { courseId: true },
-  });
-  revalidatePath("/notes");
-  if (note.courseId) revalidatePath(`/courses/${note.courseId}`);
+// ─── Delete Note ────────────────────────────────────────────
+
+export async function deleteNote(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    const note = await prisma.note.findUnique({
+      where: { id },
+      select: {
+        userId: true,
+        courseId: true,
+        s3Key: true,
+        noteAttachments: { select: { id: true, s3Key: true } },
+      },
+    });
+
+    if (!note) {
+      return { ok: false, error: "Note not found" };
+    }
+
+    if (note.userId !== userId) {
+      return { ok: false, error: "Access denied" };
+    }
+
+    const s3KeysToDelete: string[] = [];
+    if (note.s3Key) {
+      s3KeysToDelete.push(note.s3Key);
+    }
+    for (const attachment of note.noteAttachments) {
+      if (attachment.s3Key) {
+        s3KeysToDelete.push(attachment.s3Key);
+      }
+    }
+
+    for (const key of s3KeysToDelete) {
+      const result = await deleteFile(key);
+      if (!result.ok) {
+        return { ok: false, error: `Failed to delete file from storage: ${key}` };
+      }
+    }
+
+    await prisma.noteAnnotation.deleteMany({ where: { noteId: id } });
+    await prisma.noteAttachment.deleteMany({ where: { noteId: id } });
+    await prisma.note.delete({ where: { id } });
+
+    revalidatePath("/notes");
+    if (note.courseId) revalidatePath(`/courses/${note.courseId}`);
+
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to delete note:", message);
+    return { ok: false, error: "Failed to delete note" };
+  }
 }
+
+// ─── Record Note View ───────────────────────────────────────
+
+export async function recordNoteView(
+  noteId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    });
+
+    if (!note) {
+      return { ok: false, error: "Note not found" };
+    }
+
+    if (note.userId !== userId) {
+      return { ok: false, error: "Access denied" };
+    }
+
+    await prisma.note.update({
+      where: { id: noteId },
+      data: {
+        viewCount: { increment: 1 },
+        lastViewedAt: new Date(),
+      },
+    });
+
+    revalidatePath(`/notes/${noteId}`);
+
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to record note view:", message);
+    return { ok: false, error: "Failed to record view" };
+  }
+}
+
+// ─── Review Note ────────────────────────────────────────────
 
 export async function reviewNote(noteId: string): Promise<void> {
   await markReviewed(noteId);
   revalidatePath("/notes");
   revalidatePath(`/notes/${noteId}`);
 }
+
+// ─── Explicit Links ─────────────────────────────────────────
 
 export async function createExplicitLink(
   sourceId: string,
@@ -102,7 +241,6 @@ export async function removeExplicitLink(
 }
 
 // ─── Attachments ────────────────────────────────────────────
-// Wrappers delegating to actions-attachments.ts
 
 export async function addAttachments(
   noteId: string,

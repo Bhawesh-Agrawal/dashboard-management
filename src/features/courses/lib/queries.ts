@@ -78,3 +78,15 @@ export const getAllCoursesForPicker = cache(async () => {
     },
   });
 });
+
+export const getCoursesForSelect = cache(async (semesterId?: string) => {
+  return prisma.course.findMany({
+    where: semesterId ? { semesterId } : undefined,
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  });
+});

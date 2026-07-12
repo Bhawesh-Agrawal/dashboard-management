@@ -6,7 +6,7 @@ import { EditBudgetDialog } from "./edit-budget-dialog";
 type BudgetEntryData = {
   id: string;
   type: string;
-  amount: { toString(): string };
+  amount: number;
   category: string;
   date: Date;
   notes: string | null;

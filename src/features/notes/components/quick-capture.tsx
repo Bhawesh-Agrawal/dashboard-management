@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { createTask } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
@@ -13,9 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Sparkles, FileText, CheckSquare, Camera, AlertCircle } from "lucide-react";
+import { FileUploadDialog } from "@/features/files/components/FileUploadDialog";
+import { getUploadContextOptions } from "@/features/files/lib/actions";
+import { Plus, Sparkles, FileText, CheckSquare, Camera, AlertCircle, Paperclip } from "lucide-react";
 
-type CaptureMode = "text" | "photo";
+type CaptureMode = "text" | "photo" | "file";
+
+type ContextType = "notes" | "course" | "semester";
+
+type SemesterOption = { id: string; name: string };
+type CourseOption = { id: string; name: string; code: string | null; semesterId: string };
 
 export function QuickCapture({
   open: controlledOpen,
@@ -44,6 +51,42 @@ export function QuickCapture({
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [sourceLink, setSourceLink] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  // File upload context state
+  const [uploadContext, setUploadContext] = useState<ContextType>("notes");
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
+  const [semesterOptions, setSemesterOptions] = useState<SemesterOption[]>([]);
+  const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  // Fetch semester/course options when File tab is opened
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOptions() {
+      setLoadingOptions(true);
+      try {
+        const options = await getUploadContextOptions();
+        if (!cancelled) {
+          setSemesterOptions(options.semesters);
+          setCourseOptions(options.courses);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      if (!cancelled) setLoadingOptions(false);
+    }
+    if (mode === "file" && semesterOptions.length === 0) {
+      loadOptions();
+    }
+    return () => { cancelled = true; };
+  }, [mode, semesterOptions.length]);
+
+  // Filter courses by selected semester
+  const filteredCourses = selectedSemesterId
+    ? courseOptions.filter((c) => c.semesterId === selectedSemesterId)
+    : courseOptions;
 
   async function handleParse() {
     if (!rawInput.trim()) return;
@@ -129,6 +172,9 @@ export function QuickCapture({
     setOcrResult(null);
     setOcrError(null);
     setSourceLink("");
+    setUploadContext("notes");
+    setSelectedCourseId("");
+    setSelectedSemesterId("");
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -147,6 +193,21 @@ export function QuickCapture({
     setOcrResult(null);
     setOcrError(null);
   }
+
+  // Build FileUploadDialog props based on context
+  const fileUploadProps = {
+    open: uploadDialogOpen,
+    onOpenChange: setUploadDialogOpen,
+    semesterId: uploadContext === "semester" ? selectedSemesterId : undefined,
+    courseId: uploadContext === "course" ? selectedCourseId : undefined,
+    semesterName: semesterOptions.find((s) => s.id === selectedSemesterId)?.name,
+    courseName: courseOptions.find((c) => c.id === selectedCourseId)?.name,
+    onUploadComplete: () => {
+      setUploadDialogOpen(false);
+      resetState();
+      setOpen(false);
+    },
+  };
 
   return (
     <Dialog
@@ -194,6 +255,17 @@ export function QuickCapture({
           >
             <Camera className="h-4 w-4 inline mr-1" />
             Photo (OCR)
+          </button>
+          <button
+            onClick={() => setMode("file")}
+            className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+              mode === "file"
+                ? "bg-background text-foreground font-medium shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Paperclip className="h-4 w-4 inline mr-1" />
+            File
           </button>
         </div>
 
@@ -415,7 +487,129 @@ export function QuickCapture({
             </div>
           </div>
         )}
+
+        {/* File mode */}
+        {mode === "file" && (
+          <div className="space-y-4 mt-4">
+            {/* Upload context selector */}
+            <div className="space-y-2">
+              <label htmlFor="upload-context" className="section-label">
+                Upload to
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { value: "notes" as ContextType, label: "Notes" },
+                  { value: "course" as ContextType, label: "Course" },
+                  { value: "semester" as ContextType, label: "Semester" },
+                ].map((ctx) => (
+                  <button
+                    key={ctx.value}
+                    type="button"
+                    onClick={() => {
+                      setUploadContext(ctx.value);
+                      setSelectedCourseId("");
+                      setSelectedSemesterId("");
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      uploadContext === ctx.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {ctx.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Semester selector (for semester context or course filtering) */}
+            {(uploadContext === "semester" || uploadContext === "course") && (
+              <div className="space-y-2">
+                <label htmlFor="semester-select" className="section-label">
+                  Semester
+                </label>
+                <select
+                  id="semester-select"
+                  value={selectedSemesterId}
+                  onChange={(e) => {
+                    setSelectedSemesterId(e.target.value);
+                    setSelectedCourseId("");
+                  }}
+                  disabled={loadingOptions}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">
+                    {loadingOptions ? "Loading..." : "Select semester"}
+                  </option>
+                  {semesterOptions.map((sem) => (
+                    <option key={sem.id} value={sem.id}>
+                      {sem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Course selector (for course context) */}
+            {uploadContext === "course" && (
+              <div className="space-y-2">
+                <label htmlFor="course-select" className="section-label">
+                  Course
+                </label>
+                <select
+                  id="course-select"
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  disabled={!selectedSemesterId || loadingOptions}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">
+                    {!selectedSemesterId
+                      ? "Select semester first"
+                      : loadingOptions
+                        ? "Loading..."
+                        : "Select course"}
+                  </option>
+                  {filteredCourses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                      {course.code ? ` (${course.code})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Open upload dialog button */}
+            <button
+              type="button"
+              onClick={() => setUploadDialogOpen(true)}
+              disabled={
+                loadingOptions ||
+                (uploadContext === "course" && !selectedCourseId) ||
+                (uploadContext === "semester" && !selectedSemesterId)
+              }
+              className="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Paperclip className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {uploadContext === "notes"
+                  ? "Click to upload files to Notes"
+                  : uploadContext === "course"
+                    ? selectedCourseId
+                      ? "Click to upload files to this course"
+                      : "Select a course first"
+                    : selectedSemesterId
+                      ? "Click to upload files to this semester"
+                      : "Select a semester first"}
+              </span>
+            </button>
+          </div>
+        )}
       </DialogContent>
+
+      {/* File Upload Dialog */}
+      <FileUploadDialog {...fileUploadProps} />
     </Dialog>
   );
 }

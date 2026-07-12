@@ -14,7 +14,7 @@ import { Pencil } from "lucide-react";
 type EntryData = {
   id: string;
   type: string;
-  amount: { toString(): string };
+  amount: number;
   category: string;
   date: Date;
   notes: string | null;

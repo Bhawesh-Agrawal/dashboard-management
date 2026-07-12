@@ -43,3 +43,13 @@ export const getActiveSemester = cache(async () => {
     },
   });
 });
+
+export const getSemesterOptions = cache(async () => {
+  return prisma.semester.findMany({
+    orderBy: { startDate: "desc" },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+});

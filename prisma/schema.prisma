@@ -23,6 +23,8 @@ model Semester {
   courses                Course[]
   gradingConfigs         GradingConfig[]
   attendanceMarksConfigs AttendanceMarksConfig[]
+  files                  FileAttachment[]
+  documentFolders        DocumentFolder[]
 
   @@index([userId])
   @@map("semesters")
@@ -63,6 +65,8 @@ model Course {
   notes                  Note[]
   gradingConfigs         GradingConfig[]
   attendanceMarksConfigs AttendanceMarksConfig[]
+  files                  FileAttachment[]
+  documentFolders        DocumentFolder[]
 
   @@map("courses")
 }
@@ -207,23 +211,43 @@ enum TaskStatus {
 // Quick notes, optionally linked to a course.
 // Supports semantic linking via NoteLink for Second Brain features.
 model Note {
-  id              String    @id @default(uuid())
-  userId          String?   @map("user_id")
-  content         String
-  sourceType      SourceType @default(typed) @map("source_type")
-  sourceLink      String?   @map("source_link") // OneDrive share link
-  tags            String[] // free-form tags
-  courseId         String?   @map("course_id")
-  lastReviewedAt  DateTime? @map("last_reviewed_at") // spaced repetition tracking
-  reviewCount     Int       @default(0) @map("review_count") // spaced repetition count
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                      String         @id @default(uuid())
+  userId                  String?        @map("user_id")
+  title                   String?
+  content                 String
+  sourceType              SourceType     @default(typed) @map("source_type")
+  sourceLink              String?        @map("source_link") // OneDrive share link
+  tags                    String[]       // free-form tags
+  courseId                 String?        @map("course_id")
+  isDocumentLibraryEntry  Boolean        @default(false) @map("is_document_library_entry")
+  folderId                String?        @map("folder_id")
+  documentType            AttachmentType? @map("document_type")
+  s3Key                   String?        @map("s3_key")
+  s3Url                   String?        @map("s3_url")
+  fileSize                Int?           @map("file_size")
+  fileName                String?        @map("file_name")
+  mimeType                String?        @map("mime_type")
+  pageCount               Int?           @map("page_count")
+  thumbnailUrl            String?        @map("thumbnail_url")
+  originalUrl             String?        @map("original_url")
+  embedHtml               String?        @map("embed_html")
+  extractedText           String?        @map("extracted_text")
+  lastViewedAt            DateTime?      @map("last_viewed_at")
+  viewCount               Int            @default(0) @map("view_count")
+  lastReviewedAt          DateTime?      @map("last_reviewed_at") // spaced repetition tracking
+  reviewCount             Int            @default(0) @map("review_count") // spaced repetition count
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
 
-  course        Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  outgoingLinks NoteLink[]  @relation("NoteLinks")
-  incomingLinks NoteLink[]  @relation("NoteBacklinks")
+  course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  folder           DocumentFolder?   @relation(fields: [folderId], references: [id])
+  outgoingLinks    NoteLink[]        @relation("NoteLinks")
+  incomingLinks    NoteLink[]        @relation("NoteBacklinks")
+  noteAttachments  NoteAttachment[]
+  annotations      NoteAnnotation[]
 
   @@index([userId])
+  @@index([folderId])
   @@map("notes")
 }
 
@@ -247,6 +271,91 @@ model NoteLink {
   @@map("note_links")
 }
 
+// ─── Note Attachment ────────────────────────────────────────
+// File attachments for notes (like email attachments).
+// Used for notes with multiple file attachments.
+model NoteAttachment {
+  id            String         @id @default(cuid())
+  noteId        String         @map("note_id")
+  userId        String         @map("user_id")
+  type          AttachmentType
+  title         String
+  s3Key         String         @map("s3_key")
+  s3Url         String         @map("s3_url")
+  fileSize      Int            @map("file_size")
+  fileName      String         @map("file_name")
+  mimeType      String         @map("mime_type")
+  thumbnailUrl  String?        @map("thumbnail_url")
+  pageCount     Int?           @map("page_count")
+  extractedText String?        @map("extracted_text")
+  sortOrder     Int            @default(0) @map("sort_order")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([userId])
+  @@index([type])
+  @@map("note_attachments")
+}
+
+// ─── Note Annotation ────────────────────────────────────────
+// PDF annotations: highlights, notes, bookmarks, etc.
+model NoteAnnotation {
+  id         String   @id @default(cuid())
+  noteId     String   @map("note_id")
+  userId     String   @map("user_id")
+  type       String   // HIGHLIGHT, NOTE, BOOKMARK, UNDERLINE, STRIKEOUT
+  pageNumber Int      @map("page_number")
+  x          Float?
+  y          Float?
+  width      Float?
+  height     Float?
+  text       String?  // Highlighted text or note content
+  color      String   @default("#FFD700")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([userId])
+  @@index([pageNumber])
+  @@map("note_annotations")
+}
+
+// ─── Document Folder ────────────────────────────────────────
+// Folders for organizing document library entries within Notes.
+model DocumentFolder {
+  id          String       @id @default(cuid())
+  userId      String       @map("user_id")
+  name        String
+  description String?
+  type        FolderType   @default(GENERAL)
+  color       String?
+  icon        String?
+  parentId    String?      @map("parent_id")
+  courseId     String?      @map("course_id")
+  semesterId  String?      @map("semester_id")
+  sortOrder   Int          @default(0) @map("sort_order")
+  isPinned    Boolean      @default(false) @map("is_pinned")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  parent   DocumentFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children DocumentFolder[] @relation("FolderHierarchy")
+  notes    Note[]
+  course   Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  semester Semester?         @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([parentId])
+  @@index([courseId])
+  @@index([semesterId])
+  @@index([type])
+  @@map("document_folders")
+}
+
 enum SourceType {
   typed
   ocr_photo
@@ -254,6 +363,27 @@ enum SourceType {
   uploaded_pdf
   uploaded_pptx
   uploaded_doc
+}
+
+enum AttachmentType {
+  PDF
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  TEXT
+  LINK
+  OTHER
+}
+
+enum FolderType {
+  PYQ
+  RESOURCE_BOOK
+  LECTURE_NOTE
+  ASSIGNMENT
+  REFERENCE
+  PROJECT
+  GENERAL
 }
 
 enum EventType {
@@ -681,4 +811,30 @@ model Review {
   @@index([periodEnd])
   @@index([status])
   @@map("reviews")
+}
+
+// ─── File Attachment ─────────────────────────────────────
+// Files attached to semesters, courses, or notes.
+model FileAttachment {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  fileName    String   @map("file_name")
+  fileSize    Int      @map("file_size")
+  contentType String   @map("content_type")
+  key         String   // S3 object key
+  url         String   // Public URL
+  semesterId  String?  @map("semester_id")
+  courseId     String?  @map("course_id")
+  category    String?  // "syllabus" | "routine" | "calendar" | "other" (semester-level)
+  tags        String[] // Freeform tags (course-level)
+  description String?
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+
+  semester Semester? @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([semesterId])
+  @@index([courseId])
+  @@map("file_attachments")
 }

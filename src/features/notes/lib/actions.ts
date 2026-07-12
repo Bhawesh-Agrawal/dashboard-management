@@ -6,8 +6,10 @@ import { getCurrentUserId } from "@/lib/auth";
 import { generateSemanticLinks } from "./semantic-links";
 import { markNoteReviewed as markReviewed } from "./spaced-repetition";
 import { createExplicitLink as createLink, removeLink as deleteLink } from "./semantic-links";
+import { addNoteAttachment, removeNoteAttachment } from "./actions-attachments";
 
 export async function createNote(data: {
+  title?: string;
   content: string;
   sourceType?: "typed" | "ocr_photo" | "voice";
   sourceLink?: string;
@@ -31,10 +33,24 @@ export async function createNote(data: {
 export async function updateNote(
   id: string,
   data: {
+    title?: string | null;
     content?: string;
     sourceLink?: string | null;
     tags?: string[];
     courseId?: string | null;
+    folderId?: string | null;
+    isDocumentLibraryEntry?: boolean;
+    documentType?: "PDF" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "TEXT" | "LINK" | "OTHER" | null;
+    s3Key?: string | null;
+    s3Url?: string | null;
+    fileSize?: number | null;
+    fileName?: string | null;
+    mimeType?: string | null;
+    pageCount?: number | null;
+    thumbnailUrl?: string | null;
+    originalUrl?: string | null;
+    embedHtml?: string | null;
+    extractedText?: string | null;
   }
 ) {
   const note = await prisma.note.update({ where: { id }, data });
@@ -83,4 +99,29 @@ export async function removeExplicitLink(
   revalidatePath("/notes");
   revalidatePath(`/notes/${sourceId}`);
   revalidatePath(`/notes/${targetId}`);
+}
+
+// ─── Attachments ────────────────────────────────────────────
+// Wrappers delegating to actions-attachments.ts
+
+export async function addAttachments(
+  noteId: string,
+  data: {
+    type: "PDF" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "TEXT" | "LINK" | "OTHER";
+    title: string;
+    s3Key: string;
+    s3Url: string;
+    fileSize: number;
+    fileName: string;
+    mimeType: string;
+    thumbnailUrl?: string;
+    pageCount?: number;
+    extractedText?: string;
+  }
+) {
+  return addNoteAttachment(noteId, data);
+}
+
+export async function removeAttachment(id: string) {
+  return removeNoteAttachment(id);
 }

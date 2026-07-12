@@ -9,6 +9,7 @@ import { setActiveSemester } from "@/features/semesters/lib/actions";
 import { computeCourseGrade } from "@/features/assessments/lib/queries";
 import { computeSGPA } from "@/features/assessments/lib/calculations";
 import { EditSemesterDialog } from "@/features/semesters/components/edit-semester-dialog";
+import { FileManager } from "@/features/files/components/FileManager";
 
 export default async function SemesterDetailPage({
   params,
@@ -100,6 +101,14 @@ export default async function SemesterDetailPage({
           })}
         </div>
       )}
+
+      {/* Semester Files */}
+      <div className="mt-10">
+        <FileManager
+          semesterId={semester.id}
+          semesterName={semester.name}
+        />
+      </div>
     </div>
   );
 }

@@ -12,6 +12,9 @@ import type {
   Project,
   InsightType,
   InsightSeverity,
+  NoteAttachment,
+  DocumentFolder,
+  NoteAnnotation,
 } from "@prisma/client";
 import type { RoutineWithStreak } from "@/features/routines/types";
 
@@ -48,6 +51,17 @@ export type TaskWithCourse = Task & {
 // ─── Note with optional course ──────────────────────────────
 export type NoteWithCourse = Note & {
   course: Pick<Course, "id" | "name" | "color"> | null;
+  folder: Pick<DocumentFolder, "id" | "name" | "type" | "color"> | null;
+  noteAttachments: NoteAttachment[];
+};
+
+export type NoteWithAnnotations = NoteWithCourse & {
+  annotations: NoteAnnotation[];
+};
+
+// ─── Note with attachments ──────────────────────────────────
+export type NoteWithAttachments = NoteWithCourse & {
+  noteAttachments: NoteAttachment[];
 };
 
 // ─── Dashboard data ─────────────────────────────────────────
@@ -256,4 +270,22 @@ export type NoteGraphEdge = {
 export type NoteGraphData = {
   nodes: NoteGraphNode[];
   edges: NoteGraphEdge[];
+};
+
+// ─── Document Library ────────────────────────────────────────
+export type DocumentFolderWithCount = DocumentFolder & {
+  _count: {
+    notes: number;
+    children: number;
+  };
+};
+
+export type NoteWithDocumentInfo = Note & {
+  course: Pick<Course, "id" | "name" | "color"> | null;
+  folder: Pick<DocumentFolder, "id" | "name" | "type" | "color"> | null;
+  noteAttachments: NoteAttachment[];
+  _count: {
+    noteAttachments: number;
+    annotations: number;
+  };
 };

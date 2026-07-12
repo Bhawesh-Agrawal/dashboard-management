@@ -7,6 +7,7 @@ import { AttendanceSection } from "@/features/attendance/components/attendance-c
 import { AssessmentSection } from "@/features/assessments/components/assessment-table";
 import { CourseTasksSection } from "@/features/courses/components/course-tasks";
 import { CourseNotesSection } from "@/features/courses/components/course-notes";
+import { FileManager } from "@/features/files/components/FileManager";
 import { EditCourseDialog } from "@/features/courses/components/edit-course-dialog";
 import { AttendanceModeToggle } from "@/features/courses/components/attendance-mode-toggle";
 import {
@@ -98,6 +99,10 @@ export default async function CourseDetailPage({
         />
         <CourseTasksSection courseId={course.id} tasks={course.tasks} />
         <CourseNotesSection courseId={course.id} notes={course.notes} />
+        <FileManager
+          courseId={course.id}
+          courseName={course.name}
+        />
       </div>
     </div>
   );

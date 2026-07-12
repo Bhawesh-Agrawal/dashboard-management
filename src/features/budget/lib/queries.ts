@@ -8,12 +8,14 @@ export const getBudgetEntries = cache(async (month: number, year: number) => {
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0); // last day of month
 
-  return prisma.budgetEntry.findMany({
+  const entries = await prisma.budgetEntry.findMany({
     where: {
       date: { gte: start, lte: end },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
+
+  return entries.map((e) => ({ ...e, amount: Number(e.amount) }));
 });
 
 /**

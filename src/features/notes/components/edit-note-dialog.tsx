@@ -10,7 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { UploadDialog } from "./UploadDialog";
+import { Pencil, Trash2, Paperclip } from "lucide-react";
 
 export function EditNoteDialog({
   note,
@@ -19,6 +20,7 @@ export function EditNoteDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -108,16 +110,34 @@ export function EditNoteDialog({
               <Trash2 className="h-3.5 w-3.5" />
               Delete
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {loading ? "Saving..." : "Save Changes"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setUploadDialogOpen(true)}
+                disabled={loading}
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                Attach File
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </form>
       </DialogContent>
+
+      {/* Upload Dialog */}
+      <UploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        noteId={note.id}
+      />
     </Dialog>
   );
 }

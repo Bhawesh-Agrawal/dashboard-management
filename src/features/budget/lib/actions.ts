@@ -17,7 +17,7 @@ export async function createBudgetEntry(data: {
     },
   });
   revalidatePath("/budget");
-  return entry;
+  return { ...entry, amount: Number(entry.amount) };
 }
 
 export async function updateBudgetEntry(
@@ -38,7 +38,7 @@ export async function updateBudgetEntry(
     },
   });
   revalidatePath("/budget");
-  return entry;
+  return { ...entry, amount: Number(entry.amount) };
 }
 
 export async function deleteBudgetEntry(id: string) {

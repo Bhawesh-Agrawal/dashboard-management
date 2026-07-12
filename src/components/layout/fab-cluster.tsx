@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, Camera, AlertCircle } from "lucide-react";
+import { Plus, Camera, AlertCircle, ArrowLeft } from "lucide-react";
 import { createTask, getCoursesForPicker, getProjectsForPicker } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { createBudgetEntry } from "@/features/budget/lib/actions";
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 type QuickAddType = "task" | "note" | "budget";
 type NoteMode = "text" | "photo";
@@ -26,12 +27,16 @@ export function FabCluster() {
   const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState<QuickAddType>("task");
   const [noteMode, setNoteMode] = useState<NoteMode>("text");
+  const isMobile = useIsMobile();
 
   // Course/Project state for task creation
   const [courses, setCourses] = useState<LinkToOption[]>([]);
   const [projects, setProjects] = useState<LinkToOption[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+
+  // Wizard step for task tab
+  const [step, setStep] = useState(1);
 
   // OCR state for notes
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -66,6 +71,7 @@ export function FabCluster() {
     setOcrResult(null);
     setOcrError(null);
     setSourceLink("");
+    setStep(1);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -184,7 +190,10 @@ export function FabCluster() {
             ]).map((tab) => (
               <button
                 key={tab.value}
-                onClick={() => setActiveType(tab.value)}
+                onClick={() => {
+                  setActiveType(tab.value);
+                  if (tab.value === "task") setStep(1);
+                }}
                 className={`flex-1 py-1.5 text-sm rounded transition-colors ${
                   activeType === tab.value
                     ? "bg-background text-foreground font-medium shadow-sm"
@@ -197,58 +206,151 @@ export function FabCluster() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            {/* ── Task tab ── */}
             {activeType === "task" && (
               <>
-                <div className="space-y-2">
-                  <label htmlFor="fab-title" className="section-label">
-                    What needs to be done?
-                  </label>
-                  <input
-                    id="fab-title"
-                    name="title"
-                    required
-                    autoFocus
-                    className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    placeholder="Task title..."
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="fab-dueDate" className="section-label">
-                      Due Date & Time
-                    </label>
-                    <input
-                      id="fab-dueDate"
-                      name="dueDate"
-                      type="datetime-local"
-                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                {/* Mobile step indicator */}
+                {isMobile && (
+                  <div className="flex items-center justify-between">
+                    <span className="section-label">
+                      Step {step} of 2
+                    </span>
+                    {step === 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setStep(1)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowLeft className="h-3 w-3" />
+                        Back
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Desktop flat layout */}
+                {!isMobile && (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="fab-title" className="section-label">
+                        What needs to be done?
+                      </label>
+                      <input
+                        id="fab-title"
+                        name="title"
+                        required
+                        autoFocus
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        placeholder="Task title..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label htmlFor="fab-dueDate" className="section-label">
+                          Due Date & Time
+                        </label>
+                        <input
+                          id="fab-dueDate"
+                          name="dueDate"
+                          type="datetime-local"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="fab-priority" className="section-label">
+                          Priority
+                        </label>
+                        <select
+                          id="fab-priority"
+                          name="priority"
+                          defaultValue="2"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="1">High</option>
+                          <option value="2">Medium</option>
+                          <option value="3">Low</option>
+                          <option value="4">Lowest</option>
+                        </select>
+                      </div>
+                    </div>
+                    <LinkToPicker
+                      courses={courses}
+                      projects={projects}
+                      selectedCourseId={selectedCourseId}
+                      selectedProjectId={selectedProjectId}
+                      onCourseChange={setSelectedCourseId}
+                      onProjectChange={setSelectedProjectId}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="fab-priority" className="section-label">
-                      Priority
-                    </label>
-                    <select
-                      id="fab-priority"
-                      name="priority"
-                      defaultValue="2"
-                      className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="1">High</option>
-                      <option value="2">Medium</option>
-                      <option value="3">Low</option>
-                      <option value="4">Lowest</option>
-                    </select>
-                  </div>
-                </div>
-                <LinkToPicker
-                  courses={courses}
-                  projects={projects}
-                  selectedCourseId={selectedCourseId}
-                  selectedProjectId={selectedProjectId}
-                  onCourseChange={setSelectedCourseId}
-                  onProjectChange={setSelectedProjectId}
-                />
+                  </>
+                )}
+
+                {/* Mobile step wizard */}
+                {isMobile && (
+                  <>
+                    {/* Step 1: Core fields */}
+                    <div hidden={step !== 1} className="space-y-4">
+                      <div className="space-y-2">
+                        <label htmlFor="fab-m-title" className="section-label">
+                          What needs to be done?
+                        </label>
+                        <input
+                          id="fab-m-title"
+                          name="title"
+                          required
+                          autoFocus
+                          className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          placeholder="Task title..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="fab-m-dueDate" className="section-label">
+                          Due Date & Time
+                        </label>
+                        <input
+                          id="fab-m-dueDate"
+                          name="dueDate"
+                          type="datetime-local"
+                          className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="fab-m-priority" className="section-label">
+                          Priority
+                        </label>
+                        <select
+                          id="fab-m-priority"
+                          name="priority"
+                          defaultValue="2"
+                          className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="1">High</option>
+                          <option value="2">Medium</option>
+                          <option value="3">Low</option>
+                          <option value="4">Lowest</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setStep(2)}
+                        className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+
+                    {/* Step 2: Link to */}
+                    <div hidden={step !== 2} className="space-y-4">
+                      <LinkToPicker
+                        courses={courses}
+                        projects={projects}
+                        selectedCourseId={selectedCourseId}
+                        selectedProjectId={selectedProjectId}
+                        onCourseChange={setSelectedCourseId}
+                        onProjectChange={setSelectedProjectId}
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
 
@@ -459,19 +561,31 @@ export function FabCluster() {
               </>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || (activeType === "note" && noteMode === "photo" && !ocrResult)}
-              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {loading
-                ? "Adding..."
-                : activeType === "task"
-                  ? "Add Task"
-                  : activeType === "note"
-                    ? noteMode === "photo" ? "Save OCR Note" : "Add Note"
-                    : "Add Entry"}
-            </button>
+            {/* Submit button — shown inline on desktop, or as part of step 2 on mobile task tab */}
+            {(!isMobile || activeType !== "task") && (
+              <button
+                type="submit"
+                disabled={loading || (activeType === "note" && noteMode === "photo" && !ocrResult)}
+                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading
+                  ? "Adding..."
+                  : activeType === "task"
+                    ? "Add Task"
+                    : activeType === "note"
+                      ? noteMode === "photo" ? "Save OCR Note" : "Add Note"
+                      : "Add Entry"}
+              </button>
+            )}
+            {isMobile && activeType === "task" && step === 2 && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Adding..." : "Add Task"}
+              </button>
+            )}
           </form>
         </DialogContent>
       </Dialog>

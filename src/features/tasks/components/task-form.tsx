@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createTask } from "@/features/tasks/lib/actions";
 import {
   Dialog,
@@ -9,8 +9,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import { LinkToPicker, type LinkToOption } from "./link-to-picker";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 export function CreateTaskDialog({
   projectId,
@@ -31,6 +32,15 @@ export function CreateTaskDialog({
   const [loading, setLoading] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId || "");
+  const [step, setStep] = useState(1);
+  const isMobile = useIsMobile();
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && isMobile) {
+      setTimeout(() => titleRef.current?.focus(), 100);
+    }
+  }, [open, isMobile, step]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,10 +65,20 @@ export function CreateTaskDialog({
     setOpen(false);
     setSelectedCourseId("");
     setSelectedProjectId("");
+    setStep(1);
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setStep(1);
+      setSelectedCourseId("");
+      setSelectedProjectId("");
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<button className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors" />}>
           <Plus className="h-4 w-4" />
           New Task
@@ -67,129 +87,265 @@ export function CreateTaskDialog({
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">New Task</DialogTitle>
         </DialogHeader>
+
+        {/* Mobile step indicator */}
+        {isMobile && (
+          <div className="flex items-center justify-between mt-2">
+            <span className="section-label">
+              Step {step} of 2
+            </span>
+            {step === 2 && (
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Back
+              </button>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <label htmlFor="title" className="section-label">
-              Title
-            </label>
-            <input
-              id="title"
-              name="title"
-              required
-              className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="What needs to be done?"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="notes" className="section-label">
-              Notes
-            </label>
-            <textarea
-              id="notes"
-              name="notes"
-              rows={2}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
-              placeholder="Optional details..."
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="dueDate" className="section-label">
-                Due Date & Time
-              </label>
-              <input
-                id="dueDate"
-                name="dueDate"
-                type="datetime-local"
-                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="priority" className="section-label">
-                Priority
-              </label>
-              <select
-                id="priority"
-                name="priority"
-                defaultValue="2"
-                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          {/* ── Desktop flat layout ── */}
+          {!isMobile && (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="title" className="section-label">Title</label>
+                <input
+                  id="title"
+                  name="title"
+                  required
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="What needs to be done?"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="notes" className="section-label">Notes</label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  rows={2}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                  placeholder="Optional details..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="dueDate" className="section-label">Due Date & Time</label>
+                  <input
+                    id="dueDate"
+                    name="dueDate"
+                    type="datetime-local"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="priority" className="section-label">Priority</label>
+                  <select
+                    id="priority"
+                    name="priority"
+                    defaultValue="2"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="1">High</option>
+                    <option value="2">Medium</option>
+                    <option value="3">Low</option>
+                    <option value="4">Lowest</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="energyRequirement" className="section-label">Energy Level</label>
+                  <select
+                    id="energyRequirement"
+                    name="energyRequirement"
+                    defaultValue=""
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="estimatedDuration" className="section-label">Duration</label>
+                  <select
+                    id="estimatedDuration"
+                    name="estimatedDuration"
+                    defaultValue=""
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="15">15 min</option>
+                    <option value="30">30 min</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="240">4 hours</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="optimalTimeOfDay" className="section-label">Best Time</label>
+                  <select
+                    id="optimalTimeOfDay"
+                    name="optimalTimeOfDay"
+                    defaultValue=""
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Any time</option>
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                  </select>
+                </div>
+              </div>
+              {courses && courses.length > 0 && (
+                <LinkToPicker
+                  courses={courses}
+                  projects={projects || []}
+                  selectedCourseId={selectedCourseId}
+                  selectedProjectId={selectedProjectId}
+                  onCourseChange={setSelectedCourseId}
+                  onProjectChange={setSelectedProjectId}
+                />
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                <option value="1">High</option>
-                <option value="2">Medium</option>
-                <option value="3">Low</option>
-                <option value="4">Lowest</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="energyRequirement" className="section-label">
-                Energy Level
-              </label>
-              <select
-                id="energyRequirement"
-                name="energyRequirement"
-                defaultValue=""
-                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Not set</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="estimatedDuration" className="section-label">
-                Duration
-              </label>
-              <select
-                id="estimatedDuration"
-                name="estimatedDuration"
-                defaultValue=""
-                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Not set</option>
-                <option value="15">15 min</option>
-                <option value="30">30 min</option>
-                <option value="60">1 hour</option>
-                <option value="120">2 hours</option>
-                <option value="240">4 hours</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="optimalTimeOfDay" className="section-label">
-                Best Time
-              </label>
-              <select
-                id="optimalTimeOfDay"
-                name="optimalTimeOfDay"
-                defaultValue=""
-                className="flex h-11 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Any time</option>
-                <option value="morning">Morning</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-              </select>
-            </div>
-          </div>
-          {courses && courses.length > 0 && (
-            <LinkToPicker
-              courses={courses}
-              projects={projects || []}
-              selectedCourseId={selectedCourseId}
-              selectedProjectId={selectedProjectId}
-              onCourseChange={setSelectedCourseId}
-              onProjectChange={setSelectedProjectId}
-            />
+                {loading ? "Creating..." : "Create Task"}
+              </button>
+            </>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {loading ? "Creating..." : "Create Task"}
-          </button>
+
+          {/* ── Mobile step wizard ── */}
+          {isMobile && (
+            <>
+              {/* Step 1: What */}
+              <div hidden={step !== 1} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="m-title" className="section-label">Title</label>
+                  <input
+                    ref={titleRef}
+                    id="m-title"
+                    name="title"
+                    required
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    placeholder="What needs to be done?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="m-notes" className="section-label">Notes</label>
+                  <textarea
+                    id="m-notes"
+                    name="notes"
+                    rows={2}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                    placeholder="Optional details..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="m-dueDate" className="section-label">Due Date & Time</label>
+                  <input
+                    id="m-dueDate"
+                    name="dueDate"
+                    type="datetime-local"
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="m-priority" className="section-label">Priority</label>
+                  <select
+                    id="m-priority"
+                    name="priority"
+                    defaultValue="2"
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="1">High</option>
+                    <option value="2">Medium</option>
+                    <option value="3">Low</option>
+                    <option value="4">Lowest</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+
+              {/* Step 2: Details */}
+              <div hidden={step !== 2} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="m-energyRequirement" className="section-label">Energy Level</label>
+                  <select
+                    id="m-energyRequirement"
+                    name="energyRequirement"
+                    defaultValue=""
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="m-estimatedDuration" className="section-label">Duration</label>
+                  <select
+                    id="m-estimatedDuration"
+                    name="estimatedDuration"
+                    defaultValue=""
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="15">15 min</option>
+                    <option value="30">30 min</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="240">4 hours</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="m-optimalTimeOfDay" className="section-label">Best Time</label>
+                  <select
+                    id="m-optimalTimeOfDay"
+                    name="optimalTimeOfDay"
+                    defaultValue=""
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Any time</option>
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                  </select>
+                </div>
+                {courses && courses.length > 0 && (
+                  <LinkToPicker
+                    courses={courses}
+                    projects={projects || []}
+                    selectedCourseId={selectedCourseId}
+                    selectedProjectId={selectedProjectId}
+                    onCourseChange={setSelectedCourseId}
+                    onProjectChange={setSelectedProjectId}
+                  />
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Creating..." : "Create Task"}
+                </button>
+              </div>
+            </>
+          )}
         </form>
       </DialogContent>
     </Dialog>

@@ -12,20 +12,17 @@ export async function createCourse(data: {
   color?: string;
   targetGrade?: string;
 }) {
-  // Create the course and its attendance assessment row in one transaction.
+  // Create the course and its attendance assessment row.
   // The attendance row is system-managed: maxMarks=5, obtainedMarks always null
   // (the value is computed live from AttendanceRecords, never stored).
-  const course = await prisma.$transaction(async (tx) => {
-    const created = await tx.course.create({ data });
-    await tx.assessment.create({
-      data: {
-        courseId: created.id,
-        componentType: "attendance",
-        maxMarks: 5,
-        obtainedMarks: null,
-      },
-    });
-    return created;
+  const course = await prisma.course.create({ data });
+  await prisma.assessment.create({
+    data: {
+      courseId: course.id,
+      componentType: "attendance",
+      maxMarks: 5,
+      obtainedMarks: null,
+    },
   });
 
   revalidatePath("/semesters");

@@ -10,6 +10,7 @@ import { TomorrowRoutines } from "@/features/dashboard/components/tomorrow-routi
 import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
+import { KnowledgeHealthWidget } from "@/features/dashboard/components/knowledge-health-widget";
 import dynamic from "next/dynamic";
 
 // This page reads from the database on every request.
@@ -80,6 +81,12 @@ export default async function TodayPage() {
           <ReviewPreviewWidget
             review={data.latestReview}
             unviewedCount={data.unviewedReviewCount}
+          />
+          <KnowledgeHealthWidget
+            noteCount={data.knowledgeStats.noteCount}
+            connectionCount={data.knowledgeStats.connectionCount}
+            gapCount={data.knowledgeStats.gapCount}
+            reviewsDue={data.reviewStats.notesDueToday}
           />
           <AttendanceAlerts alerts={data.attendanceAlerts} />
           <TomorrowRoutines 

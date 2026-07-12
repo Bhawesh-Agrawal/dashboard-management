@@ -205,21 +205,46 @@ enum TaskStatus {
 
 // ─── Note ──────────────────────────────────────────────────
 // Quick notes, optionally linked to a course.
+// Supports semantic linking via NoteLink for Second Brain features.
 model Note {
-  id          String    @id @default(uuid())
-  userId      String?   @map("user_id")
-  content     String
-  sourceType SourceType @default(typed) @map("source_type")
-  sourceLink String?    @map("source_link") // OneDrive share link
-  tags       String[] // free-form tags
-  courseId   String?    @map("course_id")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  userId          String?   @map("user_id")
+  content         String
+  sourceType      SourceType @default(typed) @map("source_type")
+  sourceLink      String?   @map("source_link") // OneDrive share link
+  tags            String[] // free-form tags
+  courseId         String?   @map("course_id")
+  lastReviewedAt  DateTime? @map("last_reviewed_at") // spaced repetition tracking
+  reviewCount     Int       @default(0) @map("review_count") // spaced repetition count
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  course        Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  outgoingLinks NoteLink[]  @relation("NoteLinks")
+  incomingLinks NoteLink[]  @relation("NoteBacklinks")
 
   @@index([userId])
   @@map("notes")
+}
+
+// ─── NoteLink ─────────────────────────────────────────────
+// Semantic, explicit, and backlinks between notes.
+// Powers the Second Brain knowledge graph.
+model NoteLink {
+  id        String   @id @default(cuid())
+  sourceId  String
+  targetId  String
+  strength  Float    // 0-1 similarity score
+  linkType  String   // semantic, explicit, backlink, reference
+  createdAt DateTime @default(now())
+
+  source Note @relation("NoteLinks", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Note @relation("NoteBacklinks", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId])
+  @@index([sourceId])
+  @@index([targetId])
+  @@map("note_links")
 }
 
 enum SourceType {

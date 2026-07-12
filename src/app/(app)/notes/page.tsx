@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { NoteList } from "@/features/notes/components/note-list";
 import { QuickCapture } from "@/features/notes/components/quick-capture";
+import { NotesViewToggle } from "@/features/notes/components/notes-view-toggle";
 
 export const revalidate = 0;
 
@@ -14,7 +15,12 @@ export default async function NotesPage() {
       <PageHeader
         title="Notes"
         subtitle={`${notes.length} note${notes.length !== 1 ? "s" : ""}`}
-        action={<QuickCapture />}
+        action={
+          <div className="flex items-center gap-2">
+            <NotesViewToggle />
+            <QuickCapture />
+          </div>
+        }
       />
 
       {notes.length === 0 ? (

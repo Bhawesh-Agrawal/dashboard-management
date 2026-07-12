@@ -6,6 +6,7 @@ import type {
   Assessment,
   Task,
   Note,
+  NoteLink,
   GradingConfig,
   AttendanceMarksConfig,
   Project,
@@ -97,6 +98,13 @@ export type DashboardData = {
     summary: string;
   } | null;
   unviewedReviewCount: number;
+  knowledgeStats: KnowledgeStats;
+  reviewStats: {
+    totalNotes: number;
+    notesDueToday: number;
+    notesReviewedThisWeek: number;
+    averageReviewCount: number;
+  };
 };
 
 // ─── Calendar event (merged view) ───────────────────────────
@@ -184,3 +192,68 @@ export interface InsightInput {
   severity: InsightSeverity;
   evidence: InsightEvidence[];
 }
+
+// ─── Second Brain: Note with Links ──────────────────────────
+export type NoteWithScore = Note & {
+  course: Pick<Course, "id" | "name" | "color"> | null;
+  score: number;
+  linkType: string;
+  contextSnippet: string;
+};
+
+export type NoteWithLinks = Note & {
+  course: Pick<Course, "id" | "name" | "color"> | null;
+  outgoingLinks: (NoteLink & {
+    target: Note & {
+      course: Pick<Course, "id" | "name" | "color"> | null;
+    };
+  })[];
+  incomingLinks: (NoteLink & {
+    source: Note & {
+      course: Pick<Course, "id" | "name" | "color"> | null;
+    };
+  })[];
+  _count: {
+    outgoingLinks: number;
+    incomingLinks: number;
+  };
+};
+
+// ─── Second Brain: Knowledge Gaps ───────────────────────────
+export type KnowledgeGap = {
+  type: "orphan_topic" | "missing_connection" | "sparse_area";
+  description: string;
+  relatedNoteIds: string[];
+  suggestedTopics: string[];
+  severity: "low" | "medium" | "high";
+};
+
+export type KnowledgeStats = {
+  noteCount: number;
+  connectionCount: number;
+  gapCount: number;
+  reviewsDue: number;
+  topClusters: { topic: string; noteCount: number }[];
+};
+
+// ─── Second Brain: Graph Data ───────────────────────────────
+export type NoteGraphNode = {
+  id: string;
+  label: string;
+  courseName: string | null;
+  courseColor: string | null;
+  connectionCount: number;
+  lastReviewedAt: Date | null;
+};
+
+export type NoteGraphEdge = {
+  source: string;
+  target: string;
+  strength: number;
+  linkType: string;
+};
+
+export type NoteGraphData = {
+  nodes: NoteGraphNode[];
+  edges: NoteGraphEdge[];
+};

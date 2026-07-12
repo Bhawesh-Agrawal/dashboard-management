@@ -121,16 +121,13 @@ export async function uploadFile(
  */
 export async function deleteFile(key: string): Promise<S3Result<void>> {
   const userId = await getCurrentUserId();
-
-  if (!key.startsWith(`${userId}/`)) {
-    return { ok: false, error: "Storage access denied" };
-  }
+  const fullKey = key.startsWith(`${userId}/`) ? key : `${userId}/${key.replace(/^\//, "")}`;
 
   return tryS3(async () => {
     await s3Client.send(
       new DeleteObjectCommand({
         Bucket: BUCKET_NAME,
-        Key: key,
+        Key: fullKey,
       })
     );
   }, "deleteFile");
@@ -200,13 +197,10 @@ export async function getPresignedUploadUrl(
   expiresIn: number = 900
 ): Promise<S3Result<{ url: string; key: string }>> {
   const userId = await getCurrentUserId();
-
-  if (!key.startsWith(`${userId}/`)) {
-    return { ok: false, error: "Storage access denied" };
-  }
+  const fullKey = key.startsWith(`${userId}/`) ? key : `${userId}/${key.replace(/^\//, "")}`;
 
   return tryS3(async () => {
-    const url = await getUploadUrl(key, contentType, expiresIn);
-    return { url, key };
+    const url = await getUploadUrl(fullKey, contentType, expiresIn);
+    return { url, key: fullKey };
   }, "getPresignedUploadUrl");
 }

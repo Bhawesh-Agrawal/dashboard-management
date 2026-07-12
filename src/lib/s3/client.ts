@@ -62,7 +62,7 @@ if (process.env.NODE_ENV !== "production") {
 // ─── Constants ───────────────────────────────────────────────
 
 export const BUCKET_NAME = process.env.S3_BUCKET || "dashboard";
-export const PUBLIC_ENDPOINT = process.env.S3_ENDPOINT || "http://192.168.101.10:9004";
+export const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "http://192.168.101.10:9004";
 
 // ─── URL helpers ─────────────────────────────────────────────
 
@@ -152,8 +152,29 @@ export async function tryS3<T>(
     return { ok: true, data };
   } catch (error) {
     const errorMessage = categorizeS3Error(error);
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`S3 call failed (${context}):`, rawMessage);
+
+    console.error(`\n[S3 ERROR] ${context}`);
+    console.error(`  Endpoint:  ${process.env.S3_ENDPOINT}`);
+    console.error(`  Bucket:    ${BUCKET_NAME}`);
+    if (error instanceof Error) {
+      console.error(`  Message:   ${error.message}`);
+      const metadata = (error as any).$metadata;
+      if (metadata) {
+        console.error(`  HTTP:      ${metadata.httpStatusCode ?? "n/a"}`);
+        console.error(`  RequestId: ${metadata.requestId ?? "n/a"}`);
+        console.error(`  ExtReqId:  ${metadata.extendedRequestId ?? "n/a"}`);
+      }
+      if ((error as any).Code) {
+        console.error(`  Code:      ${(error as any).Code}`);
+      }
+      if ((error as any).Region) {
+        console.error(`  Region:    ${(error as any).Region}`);
+      }
+    } else {
+      console.error(`  Raw:       ${String(error)}`);
+    }
+    console.error("");
+
     return { ok: false, error: errorMessage };
   }
 }

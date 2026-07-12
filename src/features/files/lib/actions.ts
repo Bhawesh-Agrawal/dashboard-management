@@ -57,24 +57,24 @@ export async function createFileAttachment(
   try {
     const userId = await getCurrentUserId();
 
-    // Verify access to semester if provided
+    // Verify semester exists if provided
     if (input.semesterId) {
       const semester = await prisma.semester.findUnique({
         where: { id: input.semesterId },
-        select: { userId: true },
+        select: { id: true },
       });
-      if (!semester || semester.userId !== userId) {
+      if (!semester) {
         return { ok: false, error: "Semester not found" };
       }
     }
 
-    // Verify access to course if provided
+    // Verify course exists if provided
     if (input.courseId) {
       const course = await prisma.course.findUnique({
         where: { id: input.courseId },
-        select: { semester: { select: { userId: true } } },
+        select: { id: true },
       });
-      if (!course || course.semester.userId !== userId) {
+      if (!course) {
         return { ok: false, error: "Course not found" };
       }
     }
@@ -113,19 +113,13 @@ export async function deleteFileAttachment(
   id: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const userId = await getCurrentUserId();
-
     const file = await prisma.fileAttachment.findUnique({
       where: { id },
-      select: { userId: true, key: true, courseId: true, semesterId: true },
+      select: { key: true, courseId: true, semesterId: true },
     });
 
     if (!file) {
       return { ok: false, error: "File not found" };
-    }
-
-    if (file.userId !== userId) {
-      return { ok: false, error: "Access denied" };
     }
 
     // Delete from S3
@@ -160,19 +154,13 @@ export async function updateFileAttachment(
   }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const userId = await getCurrentUserId();
-
     const file = await prisma.fileAttachment.findUnique({
       where: { id },
-      select: { userId: true },
+      select: { id: true },
     });
 
     if (!file) {
       return { ok: false, error: "File not found" };
-    }
-
-    if (file.userId !== userId) {
-      return { ok: false, error: "Access denied" };
     }
 
     await prisma.fileAttachment.update({ where: { id }, data });

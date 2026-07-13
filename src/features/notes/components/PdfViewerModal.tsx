@@ -3,16 +3,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect, type TouchEvent as ReactTouchEvent } from "react";
 import { Document, Page } from "react-pdf";
 
-interface GestureEvent extends Event {
-  scale: number;
-}
-
-declare global {
-  interface HTMLElement {
-    addEventListener(type: "gesturechange", listener: (e: Event) => void, options?: boolean | AddEventListenerOptions): void;
-    removeEventListener(type: "gesturechange", listener: (e: Event) => void, options?: boolean | AddEventListenerOptions): void;
-  }
-}
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -86,6 +76,9 @@ export function PdfViewerModal({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [highlightAll, setHighlightAll] = useState(true);
 
+  // Pinch-to-zoom state for custom two-finger handler
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+
   // Configure worker on mount
   useEffect(() => {
     configurePdfWorker();
@@ -103,6 +96,7 @@ export function PdfViewerModal({
 
     setCurrentPage(initialPage);
     setZoom(100);
+    setViewMode(isMobile ? "continuous" : "single");
     setError(null);
     setIsLoading(true);
     setShowSearch(false);
@@ -141,8 +135,19 @@ export function PdfViewerModal({
       if (pdfDocument) {
         setCurrentPage(Math.min(initialPage, numPages));
       }
+      // Auto-fit-width on mobile after load
+      if (isMobile && containerRef.current) {
+        requestAnimationFrame(() => {
+          const containerWidth = containerRef.current?.clientWidth || 0;
+          if (containerWidth > 0) {
+            const pageWidthInches = 8.27;
+            const fitZoom = Math.round((containerWidth / (pageWidthInches * 96)) * 100);
+            setZoom(Math.max(25, Math.min(200, fitZoom)));
+          }
+        });
+      }
     },
-    [initialPage, pdfDocument]
+    [initialPage, pdfDocument, isMobile]
   );
 
   const handleDocumentLoadError = useCallback((err: Error) => {
@@ -324,8 +329,8 @@ export function PdfViewerModal({
   const pageWidth = useMemo(() => {
     if (containerWidth === 0) return undefined;
     const sidebarWidth = showSidebar && !isMobile ? 180 : 0;
-    const available = containerWidth - sidebarWidth - 32;
-    return Math.min(available * scale, 1200);
+    const available = containerWidth - sidebarWidth - (isMobile ? 8 : 32);
+    return Math.min(available * scale, isMobile ? 2000 : 1200);
   }, [containerWidth, showSidebar, isMobile, scale]);
 
   const pageAnnotations = useMemo(() => {
@@ -409,20 +414,52 @@ export function PdfViewerModal({
     }
   }, [viewMode, currentPage, handlePageChange]);
 
-  // Pinch-to-zoom via gesturechange
+  // Custom two-finger pinch-to-zoom (works on both iOS and Android)
   useEffect(() => {
     const el = scrollContainerRef.current;
-    if (!el) return;
+    if (!el || !isMobile) return;
 
-    const handleGestureChange = (e: Event) => {
-      e.preventDefault();
-      const ge = e as GestureEvent;
-      setZoom((prev) => Math.max(25, Math.min(200, Math.round(prev * ge.scale))));
+    const getDistance = (touches: TouchList) => {
+      const t1 = touches[0];
+      const t2 = touches[1];
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
     };
 
-    el.addEventListener("gesturechange", handleGestureChange, { passive: false });
-    return () => el.removeEventListener("gesturechange", handleGestureChange);
-  }, []);
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchStartRef.current = {
+          distance: getDistance(e.touches),
+          zoom: zoom,
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchStartRef.current) {
+        e.preventDefault();
+        const currentDistance = getDistance(e.touches);
+        const scale = currentDistance / pinchStartRef.current.distance;
+        const newZoom = Math.round(pinchStartRef.current.zoom * scale);
+        setZoom(Math.max(25, Math.min(200, newZoom)));
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchStartRef.current = null;
+      }
+    };
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isMobile, zoom]);
 
   // Lazy page rendering: in continuous mode, only render pages within ±LAZY_BUFFER of current
   const isLazyPage = useCallback(
@@ -498,7 +535,7 @@ export function PdfViewerModal({
             {/* PDF rendering area */}
             <div
               ref={scrollContainerRef}
-              className="flex-1 overflow-auto bg-muted/30 flex justify-center touch-pan-y"
+              className="flex-1 overflow-auto bg-muted/30 flex justify-center touch-pan-y pdf-scroll-container"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
               onScroll={isMobile ? resetToolbarTimer : undefined}

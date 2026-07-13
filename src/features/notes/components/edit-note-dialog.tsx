@@ -50,11 +50,11 @@ export function EditNoteDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<button className="p-1 text-muted-foreground hover:text-foreground transition-colors" />}
+        render={<button className="p-2 sm:p-1 text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center" />}
       >
         <Pencil className="h-3.5 w-3.5" />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)]">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Edit Note</DialogTitle>
         </DialogHeader>

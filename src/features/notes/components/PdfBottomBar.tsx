@@ -51,9 +51,12 @@ export function PdfBottomBar({
   );
 
   return (
-    <div className="sticky bottom-0 z-30 flex items-center justify-between h-10 px-3 border-t bg-background/95 backdrop-blur-sm shrink-0">
+    <div
+      className="sticky bottom-0 z-30 flex items-center justify-between h-12 sm:h-10 px-3 border-t bg-background/95 backdrop-blur-sm shrink-0"
+      style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))" }}
+    >
       {/* Left: Page info */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
         {!isMobile && (
           <Button
             variant="ghost"
@@ -73,9 +76,9 @@ export function PdfBottomBar({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           title="Previous page (←)"
-          className="h-6 w-6"
+          className="h-8 w-8 sm:h-6 sm:w-6 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
         >
-          <ChevronLeft className="h-3.5 w-3.5" />
+          <ChevronLeft className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
         </Button>
 
         {editing ? (
@@ -88,7 +91,7 @@ export function PdfBottomBar({
             onBlur={handlePageSubmit}
             onKeyDown={handlePageKeyDown}
             autoFocus
-            className="w-12 h-5 text-center text-xs border rounded bg-background px-1"
+            className="w-14 h-8 sm:h-6 text-center text-xs border rounded bg-background px-1 min-h-[44px] sm:min-h-0"
           />
         ) : (
           <button
@@ -97,7 +100,7 @@ export function PdfBottomBar({
               setEditing(true);
               setPageInput(String(currentPage));
             }}
-            className="px-1.5 py-0.5 text-xs rounded hover:bg-accent transition-colors min-w-[4rem] text-center"
+            className="px-2 py-1 sm:px-1.5 sm:py-0.5 text-xs rounded hover:bg-accent transition-colors min-w-[5rem] sm:min-w-[4rem] text-center min-h-[44px] sm:min-h-0 flex items-center justify-center"
             title="Click to jump to page"
           >
             {currentPage} / {totalPages}
@@ -110,9 +113,9 @@ export function PdfBottomBar({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
           title="Next page (→)"
-          className="h-6 w-6"
+          className="h-8 w-8 sm:h-6 sm:w-6 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
         >
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
         </Button>
 
         {!isMobile && (

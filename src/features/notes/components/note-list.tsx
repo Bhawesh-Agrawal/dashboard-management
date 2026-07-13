@@ -10,11 +10,11 @@ export function NoteList({ notes }: { notes: NoteWithCourse[] }) {
       {notes.map((note) => (
         <div
           key={note.id}
-          className="group relative block p-3 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors"
+          className="group relative block p-3 sm:p-3 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors"
         >
           <Link href={`/notes/${note.id}`} className="block">
             <p className="text-sm line-clamp-2">{note.content}</p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-xs text-muted-foreground">
                 {new Date(note.createdAt).toLocaleDateString("en-US", {
                   month: "short",
@@ -28,7 +28,7 @@ export function NoteList({ notes }: { notes: NoteWithCourse[] }) {
                 </span>
               )}
               {note.tags.length > 0 && (
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   {note.tags.map((tag) => (
                     <span
                       key={tag}
@@ -41,7 +41,7 @@ export function NoteList({ notes }: { notes: NoteWithCourse[] }) {
               )}
             </div>
           </Link>
-          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-3 right-3 touch-edit">
             <EditNoteDialog note={note} />
           </div>
         </div>

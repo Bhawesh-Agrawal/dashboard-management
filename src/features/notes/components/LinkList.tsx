@@ -111,19 +111,21 @@ export function LinkList({ links }: LinkListProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <div className="flex items-center gap-1 touch-edit shrink-0">
               {url && (
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
                   title="Open link"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
-              <EditNoteDialog note={note} />
+              <div className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center">
+                <EditNoteDialog note={note} />
+              </div>
             </div>
           </div>
         );

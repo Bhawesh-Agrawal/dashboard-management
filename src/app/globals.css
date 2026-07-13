@@ -563,10 +563,37 @@ button, a, [role="button"], input[type="button"], input[type="submit"], input[ty
 .pdf-scroll-container {
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
 }
 
 @media (hover: none) and (pointer: coarse) {
   .pdf-scroll-container {
     touch-action: pan-y pinch-zoom;
+  }
+}
+
+/* PDF pages should fill available width on mobile */
+@media (max-width: 639px) {
+  .pdf-document .react-pdf__Page {
+    max-width: 100%;
+  }
+  
+  .pdf-document .react-pdf__Page canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+
+/* Touch-edit: always show interactive elements on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .touch-edit {
+    opacity: 1 !important;
+  }
+  
+  .touch-edit button,
+  .touch-edit a,
+  .touch-edit [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

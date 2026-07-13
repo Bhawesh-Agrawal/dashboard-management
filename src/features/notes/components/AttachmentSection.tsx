@@ -108,7 +108,7 @@ export function AttachmentSection({
         <button
           type="button"
           onClick={() => setUploadDialogOpen(true)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-h-[44px] px-2 py-1"
         >
           <Paperclip className="h-3 w-3" />
           Attach File
@@ -117,7 +117,7 @@ export function AttachmentSection({
         <button
           type="button"
           onClick={() => setLinkDialogOpen(true)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-h-[44px] px-2 py-1"
         >
           <LinkIcon className="h-3 w-3" />
           Add Link

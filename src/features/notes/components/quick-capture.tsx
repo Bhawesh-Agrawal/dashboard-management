@@ -221,13 +221,13 @@ export function QuickCapture({
     >
       <DialogTrigger
         render={
-          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors" />
+          <button className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors min-h-[44px] sm:min-h-0 sm:h-auto sm:w-auto" />
         }
       >
         <Plus className="h-4 w-4" />
-        Quick Capture
+        <span className="hidden sm:inline">Quick Capture</span>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)]">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Quick Capture</DialogTitle>
         </DialogHeader>
@@ -236,7 +236,7 @@ export function QuickCapture({
         <div className="flex gap-1 p-1 bg-muted rounded-md mt-4">
           <button
             onClick={() => setMode("text")}
-            className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex-1 px-3 py-2.5 sm:py-1.5 text-sm rounded transition-colors min-h-[44px] sm:min-h-0 ${
               mode === "text"
                 ? "bg-background text-foreground font-medium shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -247,7 +247,7 @@ export function QuickCapture({
           </button>
           <button
             onClick={() => setMode("photo")}
-            className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex-1 px-3 py-2.5 sm:py-1.5 text-sm rounded transition-colors min-h-[44px] sm:min-h-0 ${
               mode === "photo"
                 ? "bg-background text-foreground font-medium shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -258,7 +258,7 @@ export function QuickCapture({
           </button>
           <button
             onClick={() => setMode("file")}
-            className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex-1 px-3 py-2.5 sm:py-1.5 text-sm rounded transition-colors min-h-[44px] sm:min-h-0 ${
               mode === "file"
                 ? "bg-background text-foreground font-medium shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -292,7 +292,7 @@ export function QuickCapture({
                 type="button"
                 onClick={handleParse}
                 disabled={!rawInput.trim() || parsing}
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex items-center gap-2 h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
               >
                 <Sparkles className="h-4 w-4" />
                 {parsing ? "Parsing..." : "Parse"}
@@ -347,7 +347,7 @@ export function QuickCapture({
               <button
                 type="button"
                 onClick={handleReset}
-                className="h-9 px-4 rounded-md border border-input text-sm hover:bg-muted transition-colors"
+                className="h-10 sm:h-9 px-4 rounded-md border border-input text-sm hover:bg-muted transition-colors min-h-[44px] sm:min-h-0"
               >
                 Edit
               </button>
@@ -355,7 +355,7 @@ export function QuickCapture({
                 type="button"
                 onClick={handleSave}
                 disabled={loading}
-                className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+                className="h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
               >
                 {loading ? "Saving..." : "Save"}
               </button>
@@ -386,7 +386,7 @@ export function QuickCapture({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
+                className="w-full h-32 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors min-h-[44px]"
               >
                 <Camera className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
@@ -434,7 +434,7 @@ export function QuickCapture({
                 type="button"
                 onClick={handleOcrProcess}
                 disabled={!selectedFile || loading}
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex items-center gap-2 h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
               >
                 <Camera className="h-4 w-4" />
                 {loading ? "Processing..." : "Transcribe"}
@@ -472,7 +472,7 @@ export function QuickCapture({
               <button
                 type="button"
                 onClick={handleReset}
-                className="h-9 px-4 rounded-md border border-input text-sm hover:bg-muted transition-colors"
+                className="h-10 sm:h-9 px-4 rounded-md border border-input text-sm hover:bg-muted transition-colors min-h-[44px] sm:min-h-0"
               >
                 Try Again
               </button>
@@ -480,7 +480,7 @@ export function QuickCapture({
                 type="button"
                 onClick={handleSave}
                 disabled={loading}
-                className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+                className="h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
               >
                 {loading ? "Saving..." : "Save as Note"}
               </button>
@@ -510,7 +510,7 @@ export function QuickCapture({
                       setSelectedCourseId("");
                       setSelectedSemesterId("");
                     }}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    className={`px-3 py-2 sm:py-1.5 text-sm rounded-md transition-colors min-h-[44px] sm:min-h-0 ${
                       uploadContext === ctx.value
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:text-foreground"
@@ -589,7 +589,7 @@ export function QuickCapture({
                 (uploadContext === "course" && !selectedCourseId) ||
                 (uploadContext === "semester" && !selectedSemesterId)
               }
-              className="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
             >
               <Paperclip className="h-8 w-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">

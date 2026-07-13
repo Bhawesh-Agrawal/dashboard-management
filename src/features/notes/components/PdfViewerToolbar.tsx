@@ -84,14 +84,14 @@ export function PdfViewerToolbar({
   }, []);
 
   return (
-    <div className="sticky top-0 z-30 flex items-center h-12 px-2 gap-1 border-b bg-background/95 backdrop-blur-sm shrink-0">
+    <div className="sticky top-0 z-30 flex items-center h-12 px-2 gap-1 border-b bg-background/95 backdrop-blur-sm shrink-0" style={{ paddingTop: "max(0px, env(safe-area-inset-top, 0px))" }}>
       {/* Left: Back + Title */}
       <div className="flex items-center gap-1 min-w-0 flex-1">
         <Button
           variant="ghost"
           size="icon-sm"
           onClick={onBack}
-          className="shrink-0"
+          className="shrink-0 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
           title="Back to Notes (Esc)"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function PdfViewerToolbar({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="shrink-0 p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           title={showSidebar ? "Hide sidebar" : "Show sidebar"}
         >
           {showSidebar ? (
@@ -256,19 +256,20 @@ export function PdfViewerToolbar({
           variant="ghost"
           size="icon-sm"
           onClick={() => setShowOverflow((v) => !v)}
+          className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </Button>
 
         {showOverflow && (
-          <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg py-1 z-50 min-w-[160px]">
+          <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
             <button
               type="button"
               onClick={() => {
                 onZoomOut();
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               <ZoomOut className="h-4 w-4" /> Zoom out
             </button>
@@ -278,7 +279,7 @@ export function PdfViewerToolbar({
                 onZoomIn();
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               <ZoomIn className="h-4 w-4" /> Zoom in
             </button>
@@ -288,7 +289,7 @@ export function PdfViewerToolbar({
                 onViewModeChange(viewMode === "single" ? "continuous" : "single");
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               {viewMode === "single" ? (
                 <>
@@ -307,7 +308,7 @@ export function PdfViewerToolbar({
                 onToggleSearch();
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               <Search className="h-4 w-4" /> Search
             </button>
@@ -317,7 +318,7 @@ export function PdfViewerToolbar({
                 onToggleFullscreen();
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               {isFullscreen ? (
                 <>
@@ -335,7 +336,7 @@ export function PdfViewerToolbar({
                 onDownload();
                 setShowOverflow(false);
               }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               <Download className="h-4 w-4" /> Download
             </button>

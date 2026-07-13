@@ -100,13 +100,13 @@ export function DocumentCard({
         </div>
 
         {/* Actions (hover) */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <div className="flex items-center gap-1 touch-edit shrink-0">
           {isLink && note.s3Url ? (
             <a
               href={note.s3Url}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
               title="Open link"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export function DocumentCard({
             <button
               type="button"
               onClick={() => onPdfView(note)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
               title="View PDF"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -123,7 +123,7 @@ export function DocumentCard({
           ) : (
             <Link
               href={`/notes/${note.id}`}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
               title="View"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -132,7 +132,7 @@ export function DocumentCard({
           <button
             type="button"
             onClick={() => onFavorite?.(note.id)}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
             title={note.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             <Star
@@ -145,7 +145,7 @@ export function DocumentCard({
           <button
             type="button"
             onClick={() => onDelete?.(note.id)}
-            className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+            className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -216,12 +216,12 @@ export function DocumentCard({
       </div>
 
       {/* Hover actions */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-2 right-2 flex gap-1 touch-edit">
         <button
           type="button"
           onClick={() => onFavorite?.(note.id)}
           className={cn(
-            "p-1.5 rounded-md bg-white/90 shadow-sm backdrop-blur-sm transition-colors",
+            "p-2 sm:p-1.5 rounded-md bg-white/90 shadow-sm backdrop-blur-sm transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center",
             note.isFavorite
               ? "text-amber-400 hover:text-amber-500"
               : "text-muted-foreground hover:text-foreground"
@@ -235,7 +235,7 @@ export function DocumentCard({
         <button
           type="button"
           onClick={() => onDelete?.(note.id)}
-          className="p-1.5 rounded-md bg-white/90 shadow-sm backdrop-blur-sm text-muted-foreground hover:text-destructive transition-colors"
+          className="p-2 sm:p-1.5 rounded-md bg-white/90 shadow-sm backdrop-blur-sm text-muted-foreground hover:text-destructive transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           title="Delete"
         >
           <Trash2 className="h-3.5 w-3.5" />

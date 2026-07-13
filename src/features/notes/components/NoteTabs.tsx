@@ -37,20 +37,20 @@ export function NoteTabs({ activeTab, onTabChange, counts }: NoteTabsProps) {
   }));
 
   return (
-    <div className="flex gap-1 p-1 bg-muted rounded-md overflow-x-auto">
+    <div className="flex gap-1 p-1 bg-muted rounded-md overflow-x-auto scrollbar-none">
       {tabs.map((tab) => (
         <button
           key={tab.value}
           type="button"
           onClick={() => onTabChange(tab.value)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm whitespace-nowrap transition-colors",
+            "flex items-center gap-1.5 px-2.5 py-2 sm:py-1.5 sm:px-3 rounded-sm text-sm whitespace-nowrap transition-colors min-h-[44px] sm:min-h-0 shrink-0",
             activeTab === tab.value
               ? "bg-background text-foreground font-medium shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {tab.icon}
+          <span className="h-4 w-4 sm:h-3.5 sm:w-3.5 shrink-0">{tab.icon}</span>
           <span className="hidden sm:inline">{tab.label}</span>
           {tab.count > 0 && (
             <span className={cn(

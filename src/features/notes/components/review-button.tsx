@@ -39,7 +39,7 @@ export function ReviewButton({ noteId }: ReviewButtonProps) {
     <button
       onClick={handleReview}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 min-h-[44px] px-2 py-1"
     >
       <BookOpen className="w-3.5 h-3.5" />
       {loading ? "Reviewing..." : "Mark as Reviewed"}

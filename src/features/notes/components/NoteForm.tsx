@@ -96,7 +96,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write your note…"
-          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none min-h-[120px]"
         />
       </div>
 
@@ -147,7 +147,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
             type="button"
             onClick={onDelete}
             disabled={loading}
-            className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50 min-h-[44px] px-2 py-1"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Delete
@@ -158,7 +158,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
         <button
           type="submit"
           disabled={loading || !content.trim()}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="inline-flex h-10 sm:h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 min-h-[44px]"
         >
           {loading ? "Saving…" : isEditing ? "Save Changes" : "Add Note"}
         </button>

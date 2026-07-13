@@ -245,16 +245,16 @@ export function DocumentLibrary({
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Type filter */}
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {TYPE_FILTERS.map((filter) => (
             <button
               key={filter.value ?? "all"}
               type="button"
               onClick={() => setTypeFilter(filter.value)}
               className={cn(
-                "flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors",
+                "flex items-center gap-1 px-2.5 py-2 sm:py-1 text-xs rounded-full transition-colors whitespace-nowrap min-h-[44px] sm:min-h-0 shrink-0",
                 typeFilter === filter.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground"
@@ -272,7 +272,7 @@ export function DocumentLibrary({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="h-8 text-xs rounded-md border border-input bg-background px-2 text-muted-foreground"
+            className="h-10 sm:h-8 text-xs rounded-md border border-input bg-background px-2 text-muted-foreground min-h-[44px] sm:min-h-0"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -287,7 +287,7 @@ export function DocumentLibrary({
               type="button"
               onClick={() => setViewMode("grid")}
               className={cn(
-                "p-1 rounded transition-colors",
+                "p-1.5 sm:p-1 rounded transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center",
                 viewMode === "grid"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -300,7 +300,7 @@ export function DocumentLibrary({
               type="button"
               onClick={() => setViewMode("list")}
               className={cn(
-                "p-1 rounded transition-colors",
+                "p-1.5 sm:p-1 rounded transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center",
                 viewMode === "list"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -315,10 +315,10 @@ export function DocumentLibrary({
           <button
             type="button"
             onClick={() => setUploadDialogOpen(true)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors min-h-[44px] sm:min-h-0"
           >
             <Upload className="h-3.5 w-3.5" />
-            Upload
+            <span className="hidden sm:inline">Upload</span>
           </button>
         </div>
       </div>

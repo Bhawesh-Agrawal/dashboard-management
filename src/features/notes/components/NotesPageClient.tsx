@@ -100,7 +100,7 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="page-heading">Notes</h1>
@@ -123,9 +123,9 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-md border border-border hover:bg-accent transition-colors"
+            className="lg:hidden p-2.5 rounded-md border border-border hover:bg-accent transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
-            <Menu className="h-4 w-4" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
       </div>

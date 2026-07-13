@@ -418,7 +418,7 @@ function QuickFilterButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left",
+        "w-full flex items-center gap-2 px-2 py-2 sm:py-1.5 rounded-md text-sm transition-colors text-left min-h-[44px] sm:min-h-0",
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
           : "text-sidebar-foreground hover:bg-sidebar-accent/50"

@@ -7,11 +7,12 @@ import { IdentityGrid } from "@/features/identities/components/IdentityGrid";
 import { IdentityForm } from "@/features/identities/components/IdentityForm";
 import { getIdentities } from "@/features/identities/lib/actions";
 
+import { getCurrentUserId } from "@/lib/auth";
+
 export const revalidate = 0;
 
-const USER_ID = "default-user";
-
 export default async function RoutinesPage() {
+  const USER_ID = await getCurrentUserId();
   const [routines, identities] = await Promise.all([
     getRoutinesWithStreaks(),
     getIdentities(USER_ID),

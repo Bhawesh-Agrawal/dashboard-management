@@ -41,9 +41,11 @@ export async function dismissInsight(id: string) {
 
 export async function refreshAllInsights() {
   try {
+    const { getCurrentUserId } = await import("@/lib/auth");
+    const userId = await getCurrentUserId();
     const [ruleBased, aiBased] = await Promise.all([
-      generateAllInsights("default-user"),
-      generateAIInsights("default-user"),
+      generateAllInsights(userId),
+      generateAIInsights(userId),
     ]);
 
     const combined = combineInsights(ruleBased, aiBased);

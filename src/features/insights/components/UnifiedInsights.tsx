@@ -3,8 +3,11 @@ import { getInsights } from "../lib/actions";
 import { InsightCard } from "./InsightCard";
 import { RefreshButton } from "./refresh-button";
 
+import { getCurrentUserId } from "@/lib/auth";
+
 export async function UnifiedInsights() {
-  const insights = await getInsights("default-user");
+  const userId = await getCurrentUserId();
+  const insights = await getInsights(userId);
 
   return (
     <div>

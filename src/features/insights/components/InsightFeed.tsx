@@ -2,8 +2,11 @@ import { Sparkles, CheckCircle } from "lucide-react";
 import { getInsights } from "../lib/actions";
 import { InsightCard } from "./InsightCard";
 
+import { getCurrentUserId } from "@/lib/auth";
+
 export async function InsightFeed() {
-  const insights = await getInsights("default-user");
+  const userId = await getCurrentUserId();
+  const insights = await getInsights(userId);
 
   return (
     <div>

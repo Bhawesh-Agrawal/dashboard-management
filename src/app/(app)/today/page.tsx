@@ -42,7 +42,10 @@ const ReviewPreviewWidget = dynamic(
   { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
 );
 
+import { getCurrentUserId } from "@/lib/auth";
+
 export default async function TodayPage() {
+  const userId = await getCurrentUserId();
   const data = await getDashboardData();
 
   const today = new Date();
@@ -94,7 +97,7 @@ export default async function TodayPage() {
           />
           <DailyQuote quotes={data.quotes} />
           <EnergyMap routines={data.routines} />
-          <IdentityHealthWidget userId="default-user" />
+          <IdentityHealthWidget userId={userId} />
           <UnifiedInsights />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />
           <ContributionGraph streakData={data.streakData} />

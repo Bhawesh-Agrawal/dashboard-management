@@ -24,6 +24,7 @@ export type NotificationType =
  * Notification data structure for push messages.
  */
 export type NotificationPayload = {
+  userId: string;
   title: string;
   body: string;
   icon?: string;
@@ -134,6 +135,7 @@ function isWithinTimeWindow(
  * Handles both routines with specificTime and routines with only timeOfDay.
  */
 async function generateRoutineReminders(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   const currentHour = userLocalTime.getHours();
@@ -146,6 +148,7 @@ async function generateRoutineReminders(
   // Find all routines active today
   const routines = await prisma.routine.findMany({
     where: {
+      userId,
       activeDays: { has: dayOfWeek },
     },
   });
@@ -162,6 +165,7 @@ async function generateRoutineReminders(
         : `${routine.timeOfDay.charAt(0).toUpperCase() + routine.timeOfDay.slice(1)} routine`;
 
       notifications.push({
+        userId,
         title: "Routine Reminder",
         body: `${routine.name} — ${timeLabel}`,
         tag: `routine-${routine.id}`,
@@ -183,6 +187,7 @@ async function generateRoutineReminders(
  * Triggers at 09:00 in the user's local time.
  */
 async function generateTaskNotifications(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   // Only trigger at 09:00
@@ -190,7 +195,6 @@ async function generateTaskNotifications(
     return [];
   }
 
-  const userId = await getCurrentUserId();
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -221,6 +225,7 @@ async function generateTaskNotifications(
     const coursePart = task.course ? ` | ${task.course.name}` : "";
 
     notifications.push({
+      userId,
       title: isToday ? "Task Due Today" : "Task Due Tomorrow",
       body: `${task.title}${coursePart} | Priority P${task.priority}`,
       tag: `task-${task.id}`,
@@ -243,6 +248,7 @@ async function generateTaskNotifications(
  * Generate class start notifications.
  */
 async function generateClassNotifications(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   const currentHour = userLocalTime.getHours();
@@ -254,6 +260,7 @@ async function generateClassNotifications(
   // Find classes scheduled today
   const schedules = await prisma.classSchedule.findMany({
     where: {
+      course: { semester: { userId, isActive: true } },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
     },
     include: { course: { select: { name: true, color: true } } },
@@ -269,6 +276,7 @@ async function generateClassNotifications(
       const locationPart = schedule.location ? ` | ${schedule.location}` : "";
 
       notifications.push({
+        userId,
         title: "Class Starting Soon",
         body: `${schedule.course.name} at ${schedule.startTime}${locationPart}`,
         tag: `class-${schedule.id}`,
@@ -290,6 +298,7 @@ async function generateClassNotifications(
  * Triggers at 09:00 in the user's local time.
  */
 async function generateAssessmentNotifications(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   // Only trigger at 09:00
@@ -306,6 +315,7 @@ async function generateAssessmentNotifications(
 
   const assessments = await prisma.assessment.findMany({
     where: {
+      course: { semester: { userId, isActive: true } },
       date: { gte: now, lte: tomorrow },
       obtainedMarks: null,
     },
@@ -317,6 +327,7 @@ async function generateAssessmentNotifications(
     const isToday = dueDate.toDateString() === now.toDateString();
 
     notifications.push({
+      userId,
       title: isToday ? "Assessment Today" : "Assessment Tomorrow",
       body: `${assessment.componentType.replace("_", "/")} — ${assessment.course.name}`,
       tag: `assessment-${assessment.id}`,
@@ -337,6 +348,7 @@ async function generateAssessmentNotifications(
  * Runs at 21:00 — checks for routines active today that were never completed.
  */
 async function generateMissedRoutineNotifications(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   // Only trigger at 21:00
@@ -353,6 +365,7 @@ async function generateMissedRoutineNotifications(
   // Get all routines active today
   const routines = await prisma.routine.findMany({
     where: {
+      userId,
       activeDays: { has: dayOfWeek },
     },
   });
@@ -417,6 +430,7 @@ async function generateMissedRoutineNotifications(
 
   return [
     {
+      userId,
       title: `${missedRoutines.length} Routine${missedRoutines.length > 1 ? "s" : ""} Incomplete Today`,
       body: lines.join("\n"),
       tag: "missed-routines",
@@ -435,6 +449,7 @@ async function generateMissedRoutineNotifications(
  * Runs at 10:00 — lists open tasks whose due date has already passed.
  */
 async function generateOverdueTaskNotifications(
+  userId: string,
   userLocalTime: Date
 ): Promise<NotificationPayload[]> {
   // Only trigger at 10:00
@@ -442,7 +457,6 @@ async function generateOverdueTaskNotifications(
     return [];
   }
 
-  const userId = await getCurrentUserId();
   const now = new Date();
 
   const overdueTasks = await prisma.task.findMany({
@@ -470,6 +484,7 @@ async function generateOverdueTaskNotifications(
 
   return [
     {
+      userId,
       title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? "s" : ""}`,
       body: lines.join("\n"),
       tag: "overdue-tasks",
@@ -542,6 +557,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   if (sections.includes("classes")) {
     const classes = await prisma.classSchedule.findMany({
       where: {
+        course: { semester: { userId, isActive: true } },
         dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       },
       include: { course: { select: { name: true } } },
@@ -588,6 +604,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   if (sections.includes("routines")) {
     const routines = await prisma.routine.findMany({
       where: {
+        userId,
         activeDays: {
           has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
         },
@@ -653,7 +670,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   // ─── Attendance Alerts ───────────────────────────────────
   if (sections.includes("attendance")) {
     const activeSemester = await prisma.semester.findFirst({
-      where: { isActive: true },
+      where: { userId, isActive: true },
     });
 
     if (activeSemester) {
@@ -718,6 +735,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
 
     const tomorrowClasses = await prisma.classSchedule.findMany({
       where: {
+        course: { semester: { userId, isActive: true } },
         dayOfWeek: tomorrowDay as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       },
       include: { course: { select: { name: true } } },
@@ -744,6 +762,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
 
   return [
     {
+      userId,
       title: "Daily Summary",
       body: blocks.join("\n\n"),
       tag: "daily-summary",
@@ -791,7 +810,10 @@ async function sendPushNotifications(
       },
     };
 
-    for (const notification of notifications) {
+    // Filter notifications for this subscription's user
+    const userNotifications = notifications.filter((n) => n.userId === sub.userId);
+
+    for (const notification of userNotifications) {
       try {
         await webPush.default.sendNotification(
           pushSubscription,
@@ -836,6 +858,7 @@ async function generateDailyReviewAlert(
 
   return [
     {
+      userId,
       title: "Morning Brief Ready",
       body: "Your daily review is ready to read.",
       tag: "review-daily",
@@ -865,6 +888,7 @@ async function generateWeeklyReviewAlert(
 
   return [
     {
+      userId,
       title: "Weekly Review Ready",
       body: "Your weekly review is ready to read.",
       tag: "review-weekly",
@@ -899,6 +923,7 @@ async function generateMonthlyReviewAlert(
 
   return [
     {
+      userId,
       title: "Monthly Review Ready",
       body: "Your monthly strategic review is available.",
       tag: "review-monthly",
@@ -912,77 +937,87 @@ async function generateMonthlyReviewAlert(
  * Call this periodically (e.g., via cron or app load).
  */
 export async function runNotificationScheduler(): Promise<void> {
-  const userId = await getCurrentUserId();
+  // Find all distinct users that have push subscriptions
+  const subscriptions = await prisma.pushSubscription.findMany({
+    distinct: ["userId"],
+    select: { userId: true },
+  });
 
-  // Get user's timezone for time-aware scheduling
-  let timezone: string | null = null;
-  try {
-    const pref = await prisma.notificationPreference.findFirst({
-      where: { userId, timezone: { not: null } },
-      select: { timezone: true },
-    });
-    timezone = pref?.timezone || null;
-  } catch {
-    // No timezone set — use server time
-  }
+  const activeUserIds = subscriptions.map((sub) => sub.userId);
+  if (activeUserIds.length === 0) return;
 
-  const userLocalTime = getUserLocalTime(timezone);
-  const notifications: NotificationPayload[] = [];
+  const allNotifications: NotificationPayload[] = [];
 
-  // Check each notification type
-  if (await isTypeEnabled(userId, "routine_reminder")) {
-    notifications.push(...(await generateRoutineReminders(userLocalTime)));
-  }
+  for (const userId of activeUserIds) {
+    // Get user's timezone for time-aware scheduling
+    let timezone: string | null = null;
+    try {
+      const pref = await prisma.notificationPreference.findFirst({
+        where: { userId, timezone: { not: null } },
+        select: { timezone: true },
+      });
+      timezone = pref?.timezone || null;
+    } catch {
+      // No timezone set — use server time
+    }
 
-  if (await isTypeEnabled(userId, "task_due")) {
-    notifications.push(...(await generateTaskNotifications(userLocalTime)));
-  }
+    const userLocalTime = getUserLocalTime(timezone);
 
-  if (await isTypeEnabled(userId, "class_start")) {
-    notifications.push(...(await generateClassNotifications(userLocalTime)));
-  }
+    // Check each notification type
+    if (await isTypeEnabled(userId, "routine_reminder")) {
+      allNotifications.push(...(await generateRoutineReminders(userId, userLocalTime)));
+    }
 
-  if (await isTypeEnabled(userId, "assessment")) {
-    notifications.push(...(await generateAssessmentNotifications(userLocalTime)));
-  }
+    if (await isTypeEnabled(userId, "task_due")) {
+      allNotifications.push(...(await generateTaskNotifications(userId, userLocalTime)));
+    }
 
-  if (await isTypeEnabled(userId, "daily_summary")) {
-    notifications.push(...(await generateDailySummary(userId)));
-  }
+    if (await isTypeEnabled(userId, "class_start")) {
+      allNotifications.push(...(await generateClassNotifications(userId, userLocalTime)));
+    }
 
-  if (await isTypeEnabled(userId, "missed_routine")) {
-    notifications.push(
-      ...(await generateMissedRoutineNotifications(userLocalTime))
-    );
-  }
+    if (await isTypeEnabled(userId, "assessment")) {
+      allNotifications.push(...(await generateAssessmentNotifications(userId, userLocalTime)));
+    }
 
-  if (await isTypeEnabled(userId, "overdue_task")) {
-    notifications.push(
-      ...(await generateOverdueTaskNotifications(userLocalTime))
-    );
-  }
+    if (await isTypeEnabled(userId, "daily_summary")) {
+      allNotifications.push(...(await generateDailySummary(userId)));
+    }
 
-  if (await isTypeEnabled(userId, "review_daily")) {
-    notifications.push(
-      ...(await generateDailyReviewAlert(userId, userLocalTime))
-    );
-  }
+    if (await isTypeEnabled(userId, "missed_routine")) {
+      allNotifications.push(
+        ...(await generateMissedRoutineNotifications(userId, userLocalTime))
+      );
+    }
 
-  if (await isTypeEnabled(userId, "review_weekly")) {
-    notifications.push(
-      ...(await generateWeeklyReviewAlert(userId, userLocalTime))
-    );
-  }
+    if (await isTypeEnabled(userId, "overdue_task")) {
+      allNotifications.push(
+        ...(await generateOverdueTaskNotifications(userId, userLocalTime))
+      );
+    }
 
-  if (await isTypeEnabled(userId, "review_monthly")) {
-    notifications.push(
-      ...(await generateMonthlyReviewAlert(userId, userLocalTime))
-    );
+    if (await isTypeEnabled(userId, "review_daily")) {
+      allNotifications.push(
+        ...(await generateDailyReviewAlert(userId, userLocalTime))
+      );
+    }
+
+    if (await isTypeEnabled(userId, "review_weekly")) {
+      allNotifications.push(
+        ...(await generateWeeklyReviewAlert(userId, userLocalTime))
+      );
+    }
+
+    if (await isTypeEnabled(userId, "review_monthly")) {
+      allNotifications.push(
+        ...(await generateMonthlyReviewAlert(userId, userLocalTime))
+      );
+    }
   }
 
   // Send all notifications
-  if (notifications.length > 0) {
-    await sendPushNotifications(notifications);
+  if (allNotifications.length > 0) {
+    await sendPushNotifications(allNotifications);
   }
 }
 

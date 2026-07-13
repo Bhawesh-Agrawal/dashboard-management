@@ -67,21 +67,43 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await Promise.all(
-      reviewTypes.map((type) =>
-        generateReview("default-user", type, now)
-      )
-    );
+    const { prisma } = await import("@/lib/prisma");
+    const activeUsers = await prisma.task.findMany({
+      where: { userId: { not: null } },
+      distinct: ["userId"],
+      select: { userId: true },
+    });
+
+    const userIds = activeUsers.map((u) => u.userId as string);
+    if (userIds.length === 0) {
+      return NextResponse.json({ ok: true, message: "No active users found" });
+    }
+
+    const allResults = [];
+
+    for (const userId of userIds) {
+      const results = await Promise.all(
+        reviewTypes.map((type) =>
+          generateReview(userId, type, now)
+        )
+      );
+
+      allResults.push({
+        userId,
+        reviews: results.map((r) => ({
+          id: r.id,
+          type: r.type,
+          periodStart: r.periodStart.toISOString(),
+          periodEnd: r.periodEnd.toISOString(),
+          summary: r.summary.slice(0, 200),
+        })),
+      });
+    }
 
     return NextResponse.json({
       ok: true,
-      reviews: results.map((r) => ({
-        id: r.id,
-        type: r.type,
-        periodStart: r.periodStart.toISOString(),
-        periodEnd: r.periodEnd.toISOString(),
-        summary: r.summary.slice(0, 200),
-      })),
+      processedUsers: allResults.length,
+      results: allResults,
       timestamp: now.toISOString(),
     });
   } catch (err) {

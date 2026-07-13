@@ -32,23 +32,42 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Run insights and daily review in parallel
-    const [ruleBased, aiBased, dailyReview] = await Promise.all([
-      generateAllInsights("default-user"),
-      generateAIInsights("default-user"),
-      generateReview("default-user", "daily", new Date()),
-    ]);
+    const { prisma } = await import("@/lib/prisma");
+    // Find all distinct users that have created tasks
+    const activeUsers = await prisma.task.findMany({
+      where: { userId: { not: null } },
+      distinct: ["userId"],
+      select: { userId: true },
+    });
 
-    const combined = combineInsights(ruleBased, aiBased);
+    const userIds = activeUsers.map((u) => u.userId as string);
+    if (userIds.length === 0) {
+      return NextResponse.json({ ok: true, message: "No active users found" });
+    }
+
+    const results = [];
+
+    // Process all users sequentially or in parallel depending on scale
+    // Doing it sequentially here to avoid blasting the DB/AI API
+    for (const userId of userIds) {
+      const [ruleBased, aiBased, dailyReview] = await Promise.all([
+        generateAllInsights(userId),
+        generateAIInsights(userId),
+        generateReview(userId, "daily", new Date()),
+      ]);
+
+      const combined = combineInsights(ruleBased, aiBased);
+      results.push({
+        userId,
+        insightCount: combined.length,
+        dailyReviewId: dailyReview.id,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
-      insights: combined,
-      insightCount: combined.length,
-      dailyReview: {
-        id: dailyReview.id,
-        summary: dailyReview.summary.slice(0, 200),
-      },
+      processedUsers: results.length,
+      results,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {

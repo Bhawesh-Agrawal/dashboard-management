@@ -566,10 +566,10 @@ button, a, [role="button"], input[type="button"], input[type="submit"], input[ty
   overflow-x: hidden;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .pdf-scroll-container {
-    touch-action: pan-y pinch-zoom;
-  }
+/* PDF pinch-zooming: applied during active two-finger gesture for instant CSS transform feedback */
+.pdf-pinch-zooming {
+  will-change: transform;
+  transform-origin: center center;
 }
 
 /* PDF pages should fill available width on mobile */

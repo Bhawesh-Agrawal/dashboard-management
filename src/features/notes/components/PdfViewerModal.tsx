@@ -78,6 +78,9 @@ export function PdfViewerModal({
 
   // Pinch-to-zoom state for custom two-finger handler
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const isPinchingRef = useRef(false);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // Configure worker on mount
   useEffect(() => {
@@ -414,7 +417,7 @@ export function PdfViewerModal({
     }
   }, [viewMode, currentPage, handlePageChange]);
 
-  // Custom two-finger pinch-to-zoom (works on both iOS and Android)
+  // Custom two-finger pinch-to-zoom (CSS transform during gesture, state on touchend)
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el || !isMobile) return;
@@ -430,8 +433,10 @@ export function PdfViewerModal({
         e.preventDefault();
         pinchStartRef.current = {
           distance: getDistance(e.touches),
-          zoom: zoom,
+          zoom: zoomRef.current,
         };
+        isPinchingRef.current = true;
+        el.classList.add("pdf-pinch-zooming");
       }
     };
 
@@ -439,15 +444,29 @@ export function PdfViewerModal({
       if (e.touches.length === 2 && pinchStartRef.current) {
         e.preventDefault();
         const currentDistance = getDistance(e.touches);
-        const scale = currentDistance / pinchStartRef.current.distance;
-        const newZoom = Math.round(pinchStartRef.current.zoom * scale);
-        setZoom(Math.max(25, Math.min(200, newZoom)));
+        const pinchScale = currentDistance / pinchStartRef.current.distance;
+        // Apply CSS transform for instant visual feedback — no React re-render
+        el.style.transform = `scale(${pinchScale})`;
+        el.style.transformOrigin = "center center";
       }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
+      if (e.touches.length < 2 && isPinchingRef.current) {
+        // Read final transform scale and commit to React state (single canvas re-render)
+        const transform = el.style.transform;
+        const match = transform.match(/scale\(([\d.]+)\)/);
+        if (match) {
+          const finalScale = parseFloat(match[1]);
+          const finalZoom = Math.round(pinchStartRef.current!.zoom * finalScale);
+          setZoom(Math.max(25, Math.min(200, finalZoom)));
+        }
+        // Clear CSS transform
+        el.style.transform = "";
+        el.style.transformOrigin = "";
+        el.classList.remove("pdf-pinch-zooming");
         pinchStartRef.current = null;
+        isPinchingRef.current = false;
       }
     };
 
@@ -459,7 +478,7 @@ export function PdfViewerModal({
       el.removeEventListener("touchmove", handleTouchMove);
       el.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [isMobile, zoom]);
+  }, [isMobile]); // zoom intentionally excluded — read from pinchStartRef
 
   // Lazy page rendering: in continuous mode, only render pages within ±LAZY_BUFFER of current
   const isLazyPage = useCallback(
@@ -471,10 +490,10 @@ export function PdfViewerModal({
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent
         className={cn(
-          "sm:max-w-none sm:max-h-none w-full h-full rounded-none p-0",
+          "max-w-none max-h-none w-full h-full rounded-none p-0 gap-0 ring-0",
           "bg-background text-foreground",
-          "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
-          "data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "data-open:animate-in data-open:fade-in-0",
+          "data-closed:animate-out data-closed:fade-out-0",
           "duration-200"
         )}
         showCloseButton={false}

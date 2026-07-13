@@ -11,10 +11,7 @@ export async function createAnnotation(
   data: {
     type: string;
     pageNumber: number;
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
+    position?: any;
     text?: string;
     color?: string;
   }
@@ -27,24 +24,31 @@ export async function createAnnotation(
       select: { userId: true },
     });
 
-    if (!note) {
-      return { ok: false, error: "Note not found" };
+    const file = !note ? await prisma.fileAttachment.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    }) : null;
+
+    if (!note && !file) {
+      return { ok: false, error: "Document not found" };
     }
 
-    if (note.userId !== userId) {
+    if (note && note.userId && note.userId !== userId) {
+      return { ok: false, error: "Access denied" };
+    }
+    
+    if (file && file.userId && file.userId !== userId) {
       return { ok: false, error: "Access denied" };
     }
 
     const annotation = await prisma.noteAnnotation.create({
       data: {
-        noteId,
+        noteId: note ? noteId : null,
+        fileAttachmentId: file ? noteId : null,
         userId,
         type: data.type,
         pageNumber: data.pageNumber,
-        x: data.x,
-        y: data.y,
-        width: data.width,
-        height: data.height,
+        position: data.position ?? {},
         text: data.text,
         color: data.color ?? "#FFD700",
       },
@@ -77,7 +81,7 @@ export async function updateAnnotation(
 
     const annotation = await prisma.noteAnnotation.findUnique({
       where: { id },
-      select: { userId: true, noteId: true },
+      select: { userId: true, noteId: true, fileAttachmentId: true },
     });
 
     if (!annotation) {
@@ -91,7 +95,12 @@ export async function updateAnnotation(
     await prisma.noteAnnotation.update({ where: { id }, data });
 
     revalidatePath("/notes");
-    revalidatePath(`/notes/${annotation.noteId}`);
+    if (annotation.noteId) {
+      revalidatePath(`/notes/${annotation.noteId}`);
+    } else if (annotation.fileAttachmentId) {
+      // Revalidate course/semester page if needed, but /notes is usually enough for library
+      revalidatePath(`/notes/${annotation.fileAttachmentId}`);
+    }
 
     return { ok: true };
   } catch (error) {
@@ -111,7 +120,7 @@ export async function deleteAnnotation(
 
     const annotation = await prisma.noteAnnotation.findUnique({
       where: { id },
-      select: { userId: true, noteId: true },
+      select: { userId: true, noteId: true, fileAttachmentId: true },
     });
 
     if (!annotation) {
@@ -125,7 +134,11 @@ export async function deleteAnnotation(
     await prisma.noteAnnotation.delete({ where: { id } });
 
     revalidatePath("/notes");
-    revalidatePath(`/notes/${annotation.noteId}`);
+    if (annotation.noteId) {
+      revalidatePath(`/notes/${annotation.noteId}`);
+    } else if (annotation.fileAttachmentId) {
+      revalidatePath(`/notes/${annotation.fileAttachmentId}`);
+    }
 
     return { ok: true };
   } catch (error) {
@@ -141,7 +154,13 @@ export async function getAnnotations(noteId: string) {
   const userId = await getCurrentUserId();
 
   return prisma.noteAnnotation.findMany({
-    where: { noteId, userId },
+    where: {
+      OR: [
+        { noteId },
+        { fileAttachmentId: noteId }
+      ],
+      userId 
+    },
     orderBy: [{ pageNumber: "asc" }, { createdAt: "asc" }],
   });
 }

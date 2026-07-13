@@ -29,8 +29,9 @@ import {
   deleteDocumentNote,
 } from "@/features/notes/lib/actions-documents";
 import { getFileAttachments } from "@/features/files/lib/actions";
+import { getAnnotations } from "@/features/notes/lib/actions-annotations";
 import type { NoteWithDocumentInfo, DocumentFolderWithCount } from "@/types";
-import type { AttachmentType } from "@prisma/client";
+import type { AttachmentType, NoteAnnotation } from "@prisma/client";
 import type { FileAttachment } from "@/features/files/lib/actions";
 import { toast } from "sonner";
 
@@ -128,6 +129,7 @@ export function DocumentLibrary({
     s3Url: string;
     title: string;
   } | null>(null);
+  const [pdfAnnotations, setPdfAnnotations] = useState<NoteAnnotation[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -206,7 +208,7 @@ export function DocumentLibrary({
     }
   }
 
-  function handlePdfView(note: NoteWithDocumentInfo) {
+  async function handlePdfView(note: NoteWithDocumentInfo) {
     if (!note.s3Url) return;
     setSelectedPdf({
       noteId: note.id,
@@ -214,6 +216,9 @@ export function DocumentLibrary({
       s3Url: note.s3Url,
       title: note.title || note.fileName || "Untitled",
     });
+    // Fetch annotations for this note
+    const annotationsResult = await getAnnotations(note.id);
+    setPdfAnnotations(annotationsResult);
     setPdfViewerOpen(true);
   }
 
@@ -414,6 +419,7 @@ export function DocumentLibrary({
           s3Key={selectedPdf.s3Key}
           s3Url={selectedPdf.s3Url}
           title={selectedPdf.title}
+          annotations={pdfAnnotations}
         />
       )}
     </div>

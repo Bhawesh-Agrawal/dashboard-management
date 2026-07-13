@@ -304,23 +304,23 @@ model NoteAttachment {
 // ─── Note Annotation ────────────────────────────────────────
 // PDF annotations: highlights, notes, bookmarks, etc.
 model NoteAnnotation {
-  id         String   @id @default(cuid())
-  noteId     String   @map("note_id")
-  userId     String   @map("user_id")
-  type       String   // HIGHLIGHT, NOTE, BOOKMARK, UNDERLINE, STRIKEOUT
-  pageNumber Int      @map("page_number")
-  x          Float?
-  y          Float?
-  width      Float?
-  height     Float?
-  text       String?  // Highlighted text or note content
-  color      String   @default("#FFD700")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  noteId           String?  @map("note_id")
+  fileAttachmentId String?  @map("file_attachment_id")
+  userId           String   @map("user_id")
+  type             String   // HIGHLIGHT, NOTE, BOOKMARK, UNDERLINE, STRIKEOUT
+  pageNumber       Int      @map("page_number")
+  position         Json     // stores boundingRect and rects for react-pdf-highlighter
+  text             String?  // Highlighted text or note content
+  color            String   @default("#FFD700")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  note           Note?           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  fileAttachment FileAttachment? @relation(fields: [fileAttachmentId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
+  @@index([fileAttachmentId])
   @@index([userId])
   @@index([pageNumber])
   @@map("note_annotations")
@@ -834,6 +834,7 @@ model FileAttachment {
 
   semester Semester? @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  annotations NoteAnnotation[]
 
   @@index([userId])
   @@index([semesterId])

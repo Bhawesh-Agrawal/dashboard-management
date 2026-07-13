@@ -15,6 +15,7 @@ import {
   FileText,
   ChevronDown,
   Menu,
+  PenTool,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export interface PdfViewerToolbarProps {
   showSearch: boolean;
   showInfo: boolean;
   isFullscreen: boolean;
+  showAnnotationSidebar: boolean;
   onBack: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -43,6 +45,7 @@ export interface PdfViewerToolbarProps {
   onToggleSearch: () => void;
   onToggleInfo: () => void;
   onToggleFullscreen: () => void;
+  onToggleAnnotationSidebar: () => void;
   onDownload: () => void;
 }
 
@@ -52,6 +55,7 @@ export function PdfViewerToolbar({
   viewMode,
   showSidebar,
   isFullscreen,
+  showAnnotationSidebar,
   onBack,
   onZoomIn,
   onZoomOut,
@@ -63,6 +67,7 @@ export function PdfViewerToolbar({
   onToggleSearch,
   onToggleInfo,
   onToggleFullscreen,
+  onToggleAnnotationSidebar,
   onDownload,
 }: PdfViewerToolbarProps) {
   const [showZoomMenu, setShowZoomMenu] = useState(false);
@@ -210,6 +215,15 @@ export function PdfViewerToolbar({
       {/* Right: Actions (desktop) */}
       <div className="hidden md:flex items-center gap-1 flex-1 justify-end">
         <Button
+          variant={showAnnotationSidebar ? "secondary" : "ghost"}
+          size="icon-sm"
+          onClick={onToggleAnnotationSidebar}
+          title="Toggle annotations (S)"
+        >
+          <PenTool className="h-4 w-4" />
+        </Button>
+
+        <Button
           variant="ghost"
           size="icon-sm"
           onClick={onToggleSearch}
@@ -302,6 +316,16 @@ export function PdfViewerToolbar({
               )}
             </button>
             <div className="border-t my-1" />
+            <button
+              type="button"
+              onClick={() => {
+                onToggleAnnotationSidebar();
+                setShowOverflow(false);
+              }}
+              className="w-full px-3 py-2.5 sm:py-2 text-sm text-left hover:bg-accent flex items-center gap-2 min-h-[44px] sm:min-h-0"
+            >
+              <PenTool className="h-4 w-4" /> Annotations
+            </button>
             <button
               type="button"
               onClick={() => {

@@ -138,19 +138,8 @@ export function PdfViewerModal({
       if (pdfDocument) {
         setCurrentPage(Math.min(initialPage, numPages));
       }
-      // Auto-fit-width on mobile after load
-      if (isMobile && containerRef.current) {
-        requestAnimationFrame(() => {
-          const containerWidth = containerRef.current?.clientWidth || 0;
-          if (containerWidth > 0) {
-            const pageWidthInches = 8.27;
-            const fitZoom = Math.round((containerWidth / (pageWidthInches * 96)) * 100);
-            setZoom(Math.max(25, Math.min(200, fitZoom)));
-          }
-        });
-      }
     },
-    [initialPage, pdfDocument, isMobile]
+    [initialPage, pdfDocument]
   );
 
   const handleDocumentLoadError = useCallback((err: Error) => {
@@ -478,7 +467,7 @@ export function PdfViewerModal({
       el.removeEventListener("touchmove", handleTouchMove);
       el.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [isMobile]); // zoom intentionally excluded — read from pinchStartRef
+  }, [isMobile, open]); // re-attach when dialog opens
 
   // Lazy page rendering: in continuous mode, only render pages within ±LAZY_BUFFER of current
   const isLazyPage = useCallback(

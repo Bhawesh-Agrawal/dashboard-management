@@ -5,6 +5,7 @@ import {
   getGradingConfig,
   getAttendanceMarksConfig,
 } from "./calculations";
+import type { Assessment, AttendanceRecord } from "@prisma/client";
 
 /**
  * Compute grade point for a single course, including auto-computed
@@ -20,19 +21,25 @@ import {
  * - auto: compute from AttendanceRecord rows (default)
  * - manual: use course.manualPresent / course.manualTotalClasses
  */
-export async function computeCourseGrade(course: {
-  id: string;
-  credits: number;
-  semesterId: string;
-  attendanceMode?: "auto" | "manual" | null;
-  manualPresent?: number | null;
-  manualTotalClasses?: number | null;
-}): Promise<{ credits: number; gradePoint: number | null }> {
+export async function computeCourseGrade(
+  course: {
+    id: string;
+    credits: number;
+    semesterId: string;
+    attendanceMode?: "auto" | "manual" | null;
+    manualPresent?: number | null;
+    manualTotalClasses?: number | null;
+  },
+  prefetched?: {
+    assessments: Assessment[];
+    attendanceRecords: AttendanceRecord[];
+  }
+): Promise<{ credits: number; gradePoint: number | null }> {
   const [assessments, gradingConfigs, attendanceRecords, attConfigs] =
     await Promise.all([
-      prisma.assessment.findMany({ where: { courseId: course.id } }),
+      prefetched?.assessments || prisma.assessment.findMany({ where: { courseId: course.id } }),
       getGradingConfig(course.id, course.semesterId),
-      prisma.attendanceRecord.findMany({ where: { courseId: course.id } }),
+      prefetched?.attendanceRecords || prisma.attendanceRecord.findMany({ where: { courseId: course.id } }),
       getAttendanceMarksConfig(course.id, course.semesterId),
     ]);
 

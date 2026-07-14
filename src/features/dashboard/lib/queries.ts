@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { DashboardData, TaskWithCourse } from "@/types";
 import {
   computeSGPA,
@@ -29,7 +29,17 @@ import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
  * - Attendance data fetched in bulk and reused for both alerts and grades
  * - Active semester + courses fetched once and reused everywhere
  */
-export const getDashboardData = cache(async (): Promise<DashboardData> => {
+export const getDashboardData = async (): Promise<DashboardData> => {
+  const userId = await getCurrentUserId();
+  const getCachedData = unstable_cache(
+    async () => _getDashboardData(userId),
+    [`dashboard-${userId}`],
+    { tags: ["dashboard", `dashboard-${userId}`] }
+  );
+  return getCachedData();
+};
+
+async function _getDashboardData(userId: string): Promise<DashboardData> {
   const today = new Date();
   const dayOfWeekMap: Record<string, string> = {
     0: "SUN", 1: "MON", 2: "TUE", 3: "WED", 4: "THU", 5: "FRI", 6: "SAT",
@@ -44,8 +54,6 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   // ─── Phase 1: Fire ALL independent queries in parallel ────────────────────
   const windowEnd = new Date(today);
   windowEnd.setDate(windowEnd.getDate() + 7);
-
-  const userId = await getCurrentUserId();
 
   const [
     activeSemester,
@@ -277,11 +285,21 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   let cgpa: number | null = null;
 
   if (allSemesters.length > 0) {
+    const semesterIds = allSemesters.map((s) => s.id);
+    
+    const allCourses = await prisma.course.findMany({
+      where: { semesterId: { in: semesterIds } },
+    });
+    
+    const courseIds = allCourses.map((c) => c.id);
+    const [allAssessments, allAttendance] = await Promise.all([
+      prisma.assessment.findMany({ where: { courseId: { in: courseIds } } }),
+      prisma.attendanceRecord.findMany({ where: { courseId: { in: courseIds } } }),
+    ]);
+
     const semData = await Promise.all(
       allSemesters.map(async (sem) => {
-        const semCourses = await prisma.course.findMany({
-          where: { semesterId: sem.id },
-        });
+        const semCourses = allCourses.filter((c) => c.semesterId === sem.id);
         const totalCredits = semCourses.reduce((sum, c) => sum + c.credits, 0);
 
         if (semCourses.length === 0) {
@@ -289,7 +307,10 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
         }
 
         const grades = await Promise.all(
-          semCourses.map((course) => computeCourseGrade(course))
+          semCourses.map((course) => computeCourseGrade(course, {
+            assessments: allAssessments.filter(a => a.courseId === course.id),
+            attendanceRecords: allAttendance.filter(a => a.courseId === course.id)
+          }))
         );
         return { sgpa: computeSGPA(grades), totalCredits };
       })
@@ -322,4 +343,4 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     knowledgeStats,
     reviewStats,
   };
-});
+}

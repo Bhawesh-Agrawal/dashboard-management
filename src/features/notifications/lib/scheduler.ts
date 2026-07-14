@@ -850,8 +850,8 @@ async function generateDailyReviewAlert(
   userId: string,
   now: Date
 ): Promise<NotificationPayload[]> {
-  const hour = now.getHours();
-  if (hour < 7 || hour > 9) return [];
+  // Trigger at 08:00
+  if (!isWithinTimeWindow(now.getHours(), now.getMinutes(), "08:00")) return [];
 
   const review = await prisma.review.findFirst({
     where: { userId, type: "daily", status: "generated" },
@@ -880,8 +880,7 @@ async function generateWeeklyReviewAlert(
   now: Date
 ): Promise<NotificationPayload[]> {
   const day = now.getDay(); // 0 = Sunday
-  const hour = now.getHours();
-  if (day !== 0 || hour < 18 || hour > 20) return [];
+  if (day !== 0 || !isWithinTimeWindow(now.getHours(), now.getMinutes(), "18:00")) return [];
 
   const review = await prisma.review.findFirst({
     where: { userId, type: "weekly", status: "generated" },
@@ -909,8 +908,8 @@ async function generateMonthlyReviewAlert(
   userId: string,
   now: Date
 ): Promise<NotificationPayload[]> {
-  const hour = now.getHours();
-  if (hour < 18 || hour > 20) return [];
+  // Trigger at 18:00
+  if (!isWithinTimeWindow(now.getHours(), now.getMinutes(), "18:00")) return [];
 
   // Check if today is the last day of the month
   const tomorrow = new Date(now);

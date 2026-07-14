@@ -19,7 +19,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    await runNotificationScheduler();
+    const force = url.searchParams.get("force") === "true";
+    await runNotificationScheduler(force);
     return NextResponse.json({ ok: true, timestamp: new Date().toISOString() });
   } catch (error) {
     console.error("Notification scheduler error:", error);

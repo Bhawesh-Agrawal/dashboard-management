@@ -117,12 +117,15 @@ function getUserLocalTime(timezone: string | null | undefined): Date {
  * Check if current time is within a window of a target time (in minutes).
  * Returns true if currentTime is within [targetTime, targetTime + windowMinutes).
  */
+let forceNotifications = false;
+
 function isWithinTimeWindow(
   currentHour: number,
   currentMinutes: number,
   targetTime: string,
   windowMinutes: number = 5
 ): boolean {
+  if (forceNotifications) return true;
   const [targetHour, targetMin] = targetTime.split(":").map(Number);
   const currentTotal = currentHour * 60 + currentMinutes;
   const targetTotal = targetHour * 60 + targetMin;
@@ -795,8 +798,9 @@ async function sendPushNotifications(
     return;
   }
 
+  const vapidEmail = process.env.VAPID_EMAIL || "mailto:admin@example.com";
   webPush.default.setVapidDetails(
-    "mailto:academic-command-center@example.com",
+    vapidEmail,
     vapidPublicKey,
     vapidPrivateKey
   );
@@ -936,7 +940,9 @@ async function generateMonthlyReviewAlert(
  * Run the notification scheduler.
  * Call this periodically (e.g., via cron or app load).
  */
-export async function runNotificationScheduler(): Promise<void> {
+export async function runNotificationScheduler(force: boolean = false): Promise<void> {
+  forceNotifications = force;
+  try {
   // Find all distinct users that have push subscriptions
   const subscriptions = await prisma.pushSubscription.findMany({
     distinct: ["userId"],
@@ -1018,6 +1024,9 @@ export async function runNotificationScheduler(): Promise<void> {
   // Send all notifications
   if (allNotifications.length > 0) {
     await sendPushNotifications(allNotifications);
+  }
+  } finally {
+    forceNotifications = false;
   }
 }
 

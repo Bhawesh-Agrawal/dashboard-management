@@ -41,32 +41,9 @@ export function isFallbackReview(summary: string): boolean {
 // ─── Parse AI JSON response ────────────────────────────────
 function extractJsonObject(raw: string): string | null {
   const start = raw.indexOf("{");
-  if (start === -1) return null;
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < raw.length; i++) {
-    const ch = raw[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escape = true;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) return raw.slice(start, i + 1);
-    }
-  }
-  return null;
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1 || start >= end) return null;
+  return raw.slice(start, end + 1);
 }
 
 function parseAIResponse(raw: string): ParsedReview {
@@ -83,7 +60,9 @@ function parseAIResponse(raw: string): ParsedReview {
     throw new Error("No JSON object found in AI response");
   }
 
-  const parsed = JSON.parse(jsonStr);
+  // Remove potential trailing commas before closing braces/brackets (common LLM error)
+  const cleanedJsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+  const parsed = JSON.parse(cleanedJsonStr);
 
   // Normalize sections
   const sections: ReviewSection[] = Array.isArray(parsed.sections)

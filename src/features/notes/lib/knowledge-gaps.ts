@@ -160,6 +160,7 @@ export async function detectKnowledgeGaps(
       for (const link of links) {
         if (noteIds.includes(link.sourceId) && noteIds.includes(link.targetId)) {
           connectedPairs.add(`${link.sourceId}-${link.targetId}`);
+          connectedPairs.add(`${link.targetId}-${link.sourceId}`);
         }
       }
 

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Plus, Camera, AlertCircle, ArrowLeft } from "lucide-react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { Plus, Camera, AlertCircle, ArrowLeft, Sparkles, CheckSquare, FileText } from "lucide-react";
 import { createTask, getCoursesForPicker, getProjectsForPicker } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { createBudgetEntry } from "@/features/budget/lib/actions";
 import { processOcrAction } from "@/features/notes/lib/actions-ocr";
+import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
+import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
 import { LinkToPicker, type LinkToOption } from "@/features/tasks/components/link-to-picker";
 import {
   Dialog,
@@ -28,6 +30,11 @@ export function FabCluster() {
   const [activeType, setActiveType] = useState<QuickAddType>("task");
   const [noteMode, setNoteMode] = useState<NoteMode>("text");
   const isMobile = useIsMobile();
+
+  // AI Text parsing state
+  const [parsing, startParsingTransition] = useTransition();
+  const [parsed, setParsed] = useState<ParsedCapture | null>(null);
+  const [rawNoteInput, setRawNoteInput] = useState("");
 
   // Course/Project state for task creation
   const [courses, setCourses] = useState<LinkToOption[]>([]);
@@ -72,6 +79,16 @@ export function FabCluster() {
     setOcrError(null);
     setSourceLink("");
     setStep(1);
+    setParsed(null);
+    setRawNoteInput("");
+  }
+
+  async function handleParse() {
+    if (!rawNoteInput.trim()) return;
+    startParsingTransition(async () => {
+      const result = await parseQuickCaptureAction(rawNoteInput);
+      setParsed(result);
+    });
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -93,9 +110,27 @@ export function FabCluster() {
           break;
         case "note":
           if (noteMode === "text") {
-            await createNote({
-              content: formData.get("content") as string,
-            });
+            if (parsed) {
+              if (parsed.type === "task" && parsed.title) {
+                await createTask({
+                  title: parsed.title,
+                  notes: parsed.content,
+                  dueDate: parsed.dueDate || undefined,
+                  courseId: parsed.courseId || undefined,
+                  priority: 2,
+                });
+              } else {
+                await createNote({
+                  content: parsed.content,
+                  tags: parsed.tags,
+                  courseId: parsed.courseId || undefined,
+                });
+              }
+            } else {
+              await createNote({
+                content: rawNoteInput,
+              });
+            }
           } else if (noteMode === "photo" && ocrResult) {
             await createNote({
               content: ocrResult,
@@ -384,20 +419,92 @@ export function FabCluster() {
                 </div>
 
                 {/* Text mode */}
-                {noteMode === "text" && (
-                  <div className="space-y-2">
-                    <label htmlFor="fab-content" className="section-label">
-                      What&apos;s on your mind?
-                    </label>
-                    <textarea
-                      id="fab-content"
-                      name="content"
-                      required
-                      autoFocus
-                      rows={4}
-                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
-                      placeholder="Type a quick note..."
-                    />
+                {noteMode === "text" && !parsed && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label htmlFor="fab-content" className="section-label">
+                        What&apos;s on your mind? (Parse with AI)
+                      </label>
+                      <textarea
+                        id="fab-content"
+                        name="content"
+                        required={!parsed}
+                        autoFocus
+                        rows={4}
+                        value={rawNoteInput}
+                        onChange={(e) => setRawNoteInput(e.target.value)}
+                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                        placeholder="Type a quick note..."
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            handleParse();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Press ⌘+Enter to parse with AI
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleParse}
+                        disabled={!rawNoteInput.trim() || parsing}
+                        className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 disabled:opacity-50"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        {parsing ? "Parsing..." : "AI Parse"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {noteMode === "text" && parsed && (
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-input bg-muted/50 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        {parsed.type === "task" ? (
+                          <CheckSquare className="h-4 w-4 text-amber-600" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-blue-600" />
+                        )}
+                        <span className="text-sm font-medium capitalize">
+                          {parsed.type}
+                        </span>
+                        {parsed.courseName && (
+                          <span className="text-xs bg-muted rounded px-1.5 py-0.5">
+                            {parsed.courseName}
+                          </span>
+                        )}
+                      </div>
+                      {parsed.title && (
+                        <p className="text-sm font-medium mb-1">{parsed.title}</p>
+                      )}
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {parsed.content}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {parsed.dueDate && (
+                          <span className="bg-muted rounded px-1.5 py-0.5">
+                            Due: {new Date(parsed.dueDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {parsed.tags.map((tag) => (
+                          <span key={tag} className="bg-muted rounded px-1.5 py-0.5">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <button
+                        type="button"
+                        onClick={() => setParsed(null)}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Edit Input
+                      </button>
+                    </div>
                   </div>
                 )}
 

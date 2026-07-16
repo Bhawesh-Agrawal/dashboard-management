@@ -9,6 +9,7 @@ import { MilestoneForm } from "@/features/projects/components/milestone-form";
 import { EditProjectDialog } from "@/features/projects/components/edit-project-dialog";
 import { TaskList } from "@/features/tasks/components/task-list";
 import { CreateTaskDialog } from "@/features/tasks/components/task-form";
+import { LinkedNotesSection } from "@/components/shared/linked-notes-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -81,6 +82,11 @@ export default async function ProjectDetailPage({
           ) : (
             <TaskList tasks={project.tasks} courses={courses} />
           )}
+        </section>
+
+        {/* Attachments */}
+        <section>
+          <LinkedNotesSection projectId={project.id} />
         </section>
       </div>
     </div>

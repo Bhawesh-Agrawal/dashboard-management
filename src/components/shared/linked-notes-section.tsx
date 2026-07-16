@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { Paperclip, Loader2 } from "lucide-react";
-import { getDocumentNotes } from "@/features/notes/lib/actions-documents";
+import { getDocumentNotes, deleteDocumentNote } from "@/features/notes/lib/actions-documents";
 import { DocumentUploadDialog } from "@/features/notes/components/DocumentUploadDialog";
 import { DocumentCard } from "@/features/notes/components/DocumentCard";
 import type { Prisma } from "@prisma/client";
@@ -53,6 +53,13 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
     fetchNotes();
   }, [fetchNotes]);
 
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this attachment?")) {
+      await deleteDocumentNote(id);
+      fetchNotes();
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -86,7 +93,7 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
         <div className="space-y-2">
           {notes.map((note) => (
             <div key={note.id} className="relative group">
-              <DocumentCard note={note} onRemoved={fetchNotes} />
+              <DocumentCard note={note as any} viewMode="list" onDelete={handleDelete} />
             </div>
           ))}
         </div>

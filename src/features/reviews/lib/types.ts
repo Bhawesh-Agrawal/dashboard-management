@@ -115,6 +115,13 @@ export interface ReviewDataSummary {
     severity: string;
     type: string;
   }[];
+  classes: {
+    courseName: string;
+    courseCode: string | null;
+    startTime: string;
+    endTime: string;
+    location: string | null;
+  }[];
   periodStart: Date;
   periodEnd: Date;
 }

@@ -78,6 +78,7 @@ export async function fetchReviewData(
     people,
     identities,
     ignoredInsights,
+    classSchedules,
   ] = await Promise.all([
     prisma.task.findMany({
       where: {
@@ -212,7 +213,34 @@ export async function fetchReviewData(
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    
+    prisma.classSchedule.findMany({
+      where: {
+        course: { semester: { isActive: true, userId } },
+      },
+      select: {
+        dayOfWeek: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        course: { select: { name: true, code: true } },
+      },
+      orderBy: { startTime: "asc" },
+    }),
   ]);
+
+  const dayEnum = JS_DAY_TO_ENUM[getDay(date)] as any;
+  const classes = type === "daily"
+    ? classSchedules
+        .filter((c) => c.dayOfWeek === dayEnum)
+        .map((c) => ({
+          courseName: c.course.name,
+          courseCode: c.course.code,
+          startTime: c.startTime,
+          endTime: c.endTime,
+          location: c.location,
+        }))
+    : [];
 
   return {
     tasks: tasks.map((t) => ({
@@ -288,6 +316,7 @@ export async function fetchReviewData(
       severity: ins.severity,
       type: ins.type,
     })),
+    classes,
     periodStart,
     periodEnd,
   };
@@ -315,7 +344,25 @@ export function formatReviewDataSummary(
     `Completion rate: ${data.tasks.length > 0 ? Math.round((completedTasks.length / data.tasks.length) * 100) : 0}%`
   );
 
-  if (type !== "daily") {
+  if (type === "daily") {
+    const relevantTasks = openTasks.filter((t) => !t.dueDate || t.dueDate <= data.periodEnd);
+    if (relevantTasks.length > 0) {
+      lines.push(
+        `Tasks to focus on: ${relevantTasks.slice(0, 10).map((t) => `"${t.title}"${t.dueDate ? ` (due ${format(t.dueDate, "MMM d")})` : ""}`).join(", ")}`
+      );
+    } else {
+      lines.push(`No specific tasks due today.`);
+    }
+    
+    lines.push(`\n== TODAY'S SCHEDULE ==`);
+    if (data.classes.length === 0) {
+      lines.push("No classes scheduled today.");
+    } else {
+      for (const c of data.classes) {
+        lines.push(`- ${c.startTime}-${c.endTime}: ${c.courseName} (${c.courseCode || ""}) ${c.location ? `at ${c.location}` : ""}`);
+      }
+    }
+  } else {
     const highPriorityOpen = openTasks
       .filter((t) => t.priority === 1)
       .slice(0, 5);

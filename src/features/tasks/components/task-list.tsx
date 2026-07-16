@@ -3,7 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { toggleTaskDone, toggleTaskStarred, deleteTask } from "@/features/tasks/lib/actions";
 import type { TaskWithCourse } from "@/types";
-import { Star } from "lucide-react";
+import { Star, Pencil } from "lucide-react";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { TaskLinkBadge } from "./task-link-badge";
 import type { LinkToOption } from "./link-to-picker";
@@ -167,6 +167,14 @@ function TaskRow({
               )}
             </div>
           </div>
+
+          <button
+            onClick={() => setEditOpen(true)}
+            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation text-muted-foreground hover:text-foreground"
+            title="Edit Task"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
 
           <button
             onClick={handleToggleStar}

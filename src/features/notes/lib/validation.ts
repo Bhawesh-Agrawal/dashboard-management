@@ -51,6 +51,8 @@ export const createNoteSchema = z.object({
   sourceLink: z.string().url().optional(),
   tags: z.array(z.string()).optional(),
   courseId: z.string().uuid().optional(),
+  taskId: z.string().uuid().optional(),
+  projectId: z.string().uuid().optional(),
   attachments: z.array(attachmentInputSchema).optional(),
 });
 
@@ -65,6 +67,8 @@ export const createDocumentNoteSchema = z.object({
   folderId: z.string().uuid().nullable().optional(),
   courseId: z.string().uuid().nullable().optional(),
   semesterId: z.string().uuid().nullable().optional(),
+  taskId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
   documentType: AttachmentTypeEnum,
   s3Key: z.string().min(1, "S3 key is required"),
   s3Url: z.string().url("Invalid S3 URL"),
@@ -98,6 +102,8 @@ export const updateDocumentNoteSchema = z.object({
 export const documentFiltersSchema = z.object({
   folderId: z.string().uuid().nullable().optional(),
   courseId: z.string().uuid().nullable().optional(),
+  taskId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
   type: AttachmentTypeEnum.nullable().optional(),
   searchQuery: z.string().nullable().optional(),
   isFavorite: z.boolean().nullable().optional(),

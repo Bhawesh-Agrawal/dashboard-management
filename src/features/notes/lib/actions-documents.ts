@@ -20,6 +20,8 @@ type NoteWithRelations = Prisma.NoteGetPayload<{
   include: {
     course: { select: { id: true; name: true; color: true } };
     folder: { select: { id: true; name: true; type: true; color: true } };
+    task: { select: { id: true; title: true } };
+    project: { select: { id: true; name: true; color: true } };
     noteAttachments: true;
     _count: { select: { noteAttachments: true; annotations: true } };
   };
@@ -29,6 +31,8 @@ type NoteWithDetailRelations = Prisma.NoteGetPayload<{
   include: {
     course: { select: { id: true; name: true; color: true } };
     folder: { select: { id: true; name: true; type: true; color: true } };
+    task: { select: { id: true; title: true } };
+    project: { select: { id: true; name: true; color: true } };
     noteAttachments: true;
     annotations: true;
   };
@@ -37,6 +41,8 @@ type NoteWithDetailRelations = Prisma.NoteGetPayload<{
 const noteInclude = {
   course: { select: { id: true, name: true, color: true } },
   folder: { select: { id: true, name: true, type: true, color: true } },
+  task: { select: { id: true, title: true } },
+  project: { select: { id: true, name: true, color: true } },
   noteAttachments: true,
   _count: {
     select: { noteAttachments: true, annotations: true },
@@ -46,6 +52,8 @@ const noteInclude = {
 const noteDetailInclude = {
   course: { select: { id: true, name: true, color: true } },
   folder: { select: { id: true, name: true, type: true, color: true } },
+  task: { select: { id: true, title: true } },
+  project: { select: { id: true, name: true, color: true } },
   noteAttachments: true,
   annotations: true,
 };
@@ -385,6 +393,8 @@ export async function createDocumentNote(
         isDocumentLibraryEntry: true,
         folderId: validated.data.folderId,
         courseId: validated.data.courseId,
+        taskId: validated.data.taskId,
+        projectId: validated.data.projectId,
         documentType: validated.data.documentType,
         s3Key: validated.data.s3Key,
         s3Url: validated.data.s3Url,
@@ -402,6 +412,8 @@ export async function createDocumentNote(
 
     revalidatePath("/notes");
     if (validated.data.folderId) revalidatePath(`/notes?folderId=${validated.data.folderId}`);
+    if (validated.data.taskId) revalidatePath("/tasks");
+    if (validated.data.projectId) revalidatePath(`/projects/${validated.data.projectId}`);
 
     return { ok: true, data: note };
   } catch (error) {
@@ -528,6 +540,9 @@ export async function getDocumentNotes(
 
     if (f.folderId) where.folderId = f.folderId;
     if (f.courseId) where.courseId = f.courseId;
+    if (f.taskId) where.taskId = f.taskId;
+    if (f.projectId) where.projectId = f.projectId;
+    // We can also allow filtering by taskId and projectId if added to documentFiltersSchema
     if (f.type) where.documentType = f.type;
     if (f.isFavorite) where.isFavorite = true;
     if (f.searchQuery) {

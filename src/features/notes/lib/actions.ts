@@ -21,6 +21,8 @@ export async function createNote(data: {
   sourceLink?: string;
   tags?: string[];
   courseId?: string;
+  taskId?: string;
+  projectId?: string;
   attachments?: AttachmentInput[];
 }): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
   try {
@@ -66,6 +68,8 @@ export async function createNote(data: {
 
     revalidatePath("/notes");
     if (data.courseId) revalidatePath(`/courses/${data.courseId}`);
+    if (data.taskId) revalidatePath("/tasks");
+    if (data.projectId) revalidatePath(`/projects/${data.projectId}`);
 
     generateSemanticLinks(note.id).catch(console.error);
 
@@ -87,6 +91,8 @@ export async function updateNote(
     sourceLink?: string | null;
     tags?: string[];
     courseId?: string | null;
+    taskId?: string | null;
+    projectId?: string | null;
     folderId?: string | null;
     isDocumentLibraryEntry?: boolean;
     documentType?: "PDF" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "TEXT" | "LINK" | "OTHER" | null;
@@ -106,6 +112,8 @@ export async function updateNote(
   revalidatePath("/notes");
   revalidatePath(`/notes/${id}`);
   if (note.courseId) revalidatePath(`/courses/${note.courseId}`);
+  if (note.taskId) revalidatePath("/tasks");
+  if (note.projectId) revalidatePath(`/projects/${note.projectId}`);
 
   if (data.content) {
     generateSemanticLinks(id).catch(console.error);

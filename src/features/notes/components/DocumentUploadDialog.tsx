@@ -31,6 +31,8 @@ export interface DocumentUploadDialogProps {
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   folderName?: string;
+  taskId?: string;
+  projectId?: string;
   onUploadComplete?: () => void;
 }
 
@@ -99,6 +101,8 @@ export function DocumentUploadDialog({
   onOpenChange,
   folderId,
   folderName,
+  taskId,
+  projectId,
   onUploadComplete,
 }: DocumentUploadDialogProps) {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
@@ -183,6 +187,8 @@ export function DocumentUploadDialog({
         const saveResult = await createDocumentNote({
           title: title.trim(),
           folderId: folderId || null,
+          taskId: taskId || null,
+          projectId: projectId || null,
           documentType: documentType as AttachmentType,
           s3Key: result.data.key,
           s3Url: result.data.url,

@@ -284,6 +284,8 @@ export type DocumentFolderWithCount = DocumentFolder & {
 export type NoteWithDocumentInfo = Note & {
   course: Pick<Course, "id" | "name" | "color"> | null;
   folder: Pick<DocumentFolder, "id" | "name" | "type" | "color"> | null;
+  task: Pick<Task, "id" | "title"> | null;
+  project: Pick<Project, "id" | "name" | "color"> | null;
   noteAttachments: NoteAttachment[];
   _count: {
     noteAttachments: number;
@@ -311,6 +313,8 @@ export interface CreateDocumentNoteInput {
   folderId?: string | null;
   courseId?: string | null;
   semesterId?: string | null;
+  taskId?: string | null;
+  projectId?: string | null;
   documentType: AttachmentType;
   s3Key: string;
   s3Url: string;
@@ -337,6 +341,8 @@ export interface UpdateDocumentNoteInput {
 export interface DocumentFilters {
   folderId?: string | null;
   courseId?: string | null;
+  taskId?: string | null;
+  projectId?: string | null;
   type?: AttachmentType | null;
   searchQuery?: string | null;
   isFavorite?: boolean | null;

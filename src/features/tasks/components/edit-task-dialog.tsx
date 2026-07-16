@@ -12,6 +12,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { LinkToPicker, type LinkToOption } from "./link-to-picker";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { LinkedNotesSection } from "@/components/shared/linked-notes-section";
 
 export function EditTaskDialog({
   task,
@@ -209,6 +210,11 @@ export function EditTaskDialog({
                   onProjectChange={setSelectedProjectId}
                 />
               )}
+
+              <div className="pt-2">
+                <LinkedNotesSection taskId={task.id} />
+              </div>
+
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
@@ -339,6 +345,11 @@ export function EditTaskDialog({
                     onProjectChange={setSelectedProjectId}
                   />
                 )}
+                
+                <div className="pt-2">
+                  <LinkedNotesSection taskId={task.id} />
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}

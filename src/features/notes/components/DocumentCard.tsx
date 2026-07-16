@@ -87,6 +87,16 @@ export function DocumentCard({
             {note.folder && (
               <span className="text-xs text-muted-foreground">{note.folder.name}</span>
             )}
+            {note.task && (
+              <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium truncate max-w-[100px]">
+                Task: {note.task.title}
+              </span>
+            )}
+            {note.project && (
+              <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium truncate max-w-[100px]">
+                Project: {note.project.name}
+              </span>
+            )}
             {isFileAttachment && (
               <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
                 Semester
@@ -202,6 +212,16 @@ export function DocumentCard({
           {note.folder && (
             <span className="text-xs text-muted-foreground truncate">
               {note.folder.name}
+            </span>
+          )}
+          {note.task && (
+            <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium truncate max-w-[80px]">
+              {note.task.title}
+            </span>
+          )}
+          {note.project && (
+            <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium truncate max-w-[80px]">
+              {note.project.name}
             </span>
           )}
           {isFileAttachment && (

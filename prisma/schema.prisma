@@ -197,6 +197,7 @@ model Task {
   course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   domain  Domain?  @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  linkedNotes Note[]
 
   @@index([userId])
   @@map("tasks")
@@ -219,6 +220,8 @@ model Note {
   sourceLink              String?        @map("source_link") // OneDrive share link
   tags                    String[]       // free-form tags
   courseId                 String?        @map("course_id")
+  taskId                   String?        @map("task_id")
+  projectId                String?        @map("project_id")
   isDocumentLibraryEntry  Boolean        @default(false) @map("is_document_library_entry")
   folderId                String?        @map("folder_id")
   documentType            AttachmentType? @map("document_type")
@@ -242,6 +245,8 @@ model Note {
   updatedAt               DateTime       @updatedAt @map("updated_at")
 
   course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  task             Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  project          Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
   folder           DocumentFolder?   @relation(fields: [folderId], references: [id])
   outgoingLinks    NoteLink[]        @relation("NoteLinks")
   incomingLinks    NoteLink[]        @relation("NoteBacklinks")
@@ -250,6 +255,8 @@ model Note {
 
   @@index([userId])
   @@index([folderId])
+  @@index([taskId])
+  @@index([projectId])
   @@map("notes")
 }
 
@@ -555,6 +562,7 @@ model Project {
   domain     Domain      @relation(fields: [domainId], references: [id], onDelete: Cascade)
   milestones Milestone[]
   tasks      Task[]
+  linkedNotes Note[]
 
   @@map("projects")
 }

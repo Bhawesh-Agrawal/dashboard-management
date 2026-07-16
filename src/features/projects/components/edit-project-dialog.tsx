@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
+import { LinkedNotesSection } from "@/components/shared/linked-notes-section";
 
 type ProjectData = {
   id: string;
@@ -99,6 +100,9 @@ export function EditProjectDialog({ project }: { project: ProjectData }) {
                 className="h-10 w-16 rounded-md border border-input bg-background cursor-pointer"
               />
             </div>
+          </div>
+          <div className="pt-2">
+            <LinkedNotesSection projectId={project.id} />
           </div>
           <div className="flex gap-2">
             <button

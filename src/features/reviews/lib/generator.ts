@@ -49,11 +49,17 @@ function extractJsonObject(raw: string): string | null {
 function parseAIResponse(raw: string): ParsedReview {
   let jsonStr: string | null = null;
 
-  const codeBlockMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  const codeBlockMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/i);
   if (codeBlockMatch) {
     jsonStr = codeBlockMatch[1].trim();
   } else {
-    jsonStr = extractJsonObject(raw);
+    jsonStr = raw;
+  }
+
+  // Always extract to strip any conversational text outside the root object
+  const extracted = extractJsonObject(jsonStr);
+  if (extracted) {
+    jsonStr = extracted;
   }
 
   if (!jsonStr) {
@@ -62,7 +68,20 @@ function parseAIResponse(raw: string): ParsedReview {
 
   // Remove potential trailing commas before closing braces/brackets (common LLM error)
   const cleanedJsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
-  const parsed = JSON.parse(cleanedJsonStr);
+  
+  let parsed;
+  try {
+    parsed = JSON.parse(cleanedJsonStr);
+  } catch (err) {
+    try {
+      // Fallback: replace literal control characters with spaces to fix "Bad control character" errors
+      const sanitized = cleanedJsonStr.replace(/[\n\r\t]/g, ' ');
+      parsed = JSON.parse(sanitized);
+    } catch (fallbackErr) {
+      console.error("Failed to parse JSON, even after sanitization:", fallbackErr);
+      throw err;
+    }
+  }
 
   // Normalize sections
   const sections: ReviewSection[] = Array.isArray(parsed.sections)

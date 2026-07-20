@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DocumentCard } from "./DocumentCard";
 import { DocumentUploadDialog } from "./DocumentUploadDialog";
+import { FileViewerModal } from "./FileViewerModal";
 import dynamic from "next/dynamic";
 
 const PdfViewerModal = dynamic(
@@ -126,13 +127,8 @@ export function DocumentLibrary({
   const [sortBy, setSortBy] = useState<SortBy>("createdAt");
   const [typeFilter, setTypeFilter] = useState<AttachmentType | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
-  const [selectedPdf, setSelectedPdf] = useState<{
-    noteId: string;
-    s3Key?: string;
-    s3Url: string;
-    title: string;
-  } | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<NoteWithDocumentInfo | null>(null);
   const [pdfAnnotations, setPdfAnnotations] = useState<NoteAnnotation[]>([]);
 
   const loadData = useCallback(async () => {
@@ -212,18 +208,15 @@ export function DocumentLibrary({
     }
   }
 
-  async function handlePdfView(note: NoteWithDocumentInfo) {
+  async function handleView(note: NoteWithDocumentInfo) {
     if (!note.s3Url) return;
-    setSelectedPdf({
-      noteId: note.id,
-      s3Key: note.s3Key ?? undefined,
-      s3Url: note.s3Url,
-      title: note.title || note.fileName || "Untitled",
-    });
-    // Fetch annotations for this note
-    const annotationsResult = await getAnnotations(note.id);
-    setPdfAnnotations(annotationsResult);
-    setPdfViewerOpen(true);
+    setSelectedNote(note);
+    if (note.documentType === "PDF") {
+      // Fetch annotations for this note if it's a PDF
+      const annotationsResult = await getAnnotations(note.id);
+      setPdfAnnotations(annotationsResult);
+    }
+    setViewerOpen(true);
   }
 
   return (
@@ -386,7 +379,7 @@ export function DocumentLibrary({
               viewMode="grid"
               onFavorite={handleFavorite}
               onDelete={handleDelete}
-              onPdfView={handlePdfView}
+              onView={handleView}
             />
           ))}
         </div>
@@ -399,7 +392,7 @@ export function DocumentLibrary({
               viewMode="list"
               onFavorite={handleFavorite}
               onDelete={handleDelete}
-              onPdfView={handlePdfView}
+              onView={handleView}
             />
           ))}
         </div>
@@ -413,19 +406,13 @@ export function DocumentLibrary({
         folderName={breadcrumb[breadcrumb.length - 1]?.name}
         onUploadComplete={loadData}
       />
-
-      {/* PDF Viewer Modal */}
-      {selectedPdf && (
-        <PdfViewerModal
-          open={pdfViewerOpen}
-          onOpenChange={setPdfViewerOpen}
-          noteId={selectedPdf.noteId}
-          s3Key={selectedPdf.s3Key}
-          s3Url={selectedPdf.s3Url}
-          title={selectedPdf.title}
-          annotations={pdfAnnotations}
-        />
-      )}
+      
+      <FileViewerModal
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+        note={selectedNote}
+        annotations={pdfAnnotations}
+      />
     </div>
   );
 }

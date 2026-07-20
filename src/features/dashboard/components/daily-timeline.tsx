@@ -26,14 +26,26 @@ export function DailyTimeline({
   const items: TimelineItem[] = [];
 
   // Parse classes
+  const now = new Date();
+  const currentTotal = now.getHours() * 60 + now.getMinutes();
+
   classes.forEach((c) => {
-    const [hours, minutes] = c.startTime.split(":").map(Number);
+    const [startHours, startMinutes] = c.startTime.split(":").map(Number);
+    const [endHours, endMinutes] = c.endTime.split(":").map(Number);
+    
+    // Check if class has ended
+    const classEndTime = endHours * 60 + endMinutes;
+    if (currentTotal >= classEndTime) {
+       // Skip adding to timeline as it's already over
+       return;
+    }
+
     items.push({
       id: `class-${c.id}`,
       title: c.course.name,
       subtitle: c.location || undefined,
       timeLabel: c.startTime,
-      sortTime: hours * 60 + minutes,
+      sortTime: startHours * 60 + startMinutes,
       type: "class",
     });
   });

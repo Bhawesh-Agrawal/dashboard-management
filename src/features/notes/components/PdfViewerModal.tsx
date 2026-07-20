@@ -191,6 +191,11 @@ export function PdfViewerModal({
   const handleZoomChange = useCallback((newZoom: number) => setZoom(Math.max(25, Math.min(300, newZoom))), []);
   const [containerWidth, setContainerWidth] = useState<number>(0);
 
+  // Pinch-to-zoom state
+  const pinchStartDistRef = useRef<number>(0);
+  const pinchStartZoomRef = useRef<number>(100);
+  const isPinchingRef = useRef<boolean>(false);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver(entries => {
@@ -200,6 +205,41 @@ export function PdfViewerModal({
     });
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
+  }, []);
+
+  // Pinch-to-zoom touch handlers
+  const getTouchDistance = useCallback((touches: React.TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      isPinchingRef.current = true;
+      pinchStartDistRef.current = getTouchDistance(e.touches);
+      pinchStartZoomRef.current = zoom;
+    }
+  }, [zoom, getTouchDistance]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && isPinchingRef.current) {
+      e.preventDefault();
+      const currentDist = getTouchDistance(e.touches);
+      if (pinchStartDistRef.current > 0) {
+        const scale = currentDist / pinchStartDistRef.current;
+        const newZoom = Math.round(pinchStartZoomRef.current * scale);
+        handleZoomChange(newZoom);
+      }
+    }
+  }, [getTouchDistance, handleZoomChange]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) {
+      isPinchingRef.current = false;
+    }
   }, []);
 
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
@@ -270,6 +310,7 @@ export function PdfViewerModal({
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onZoomReset={handleZoomReset}
+          onZoomChange={handleZoomChange}
           onFitWidth={() => {}}
           onFitPage={() => {}}
           onViewModeChange={setViewMode}
@@ -307,7 +348,14 @@ export function PdfViewerModal({
              </div>
           )}
 
-          <div ref={containerRef} className="flex-1 relative overflow-auto bg-muted/30">
+          <div
+            ref={containerRef}
+            className="flex-1 relative overflow-auto bg-muted/30"
+            style={{ touchAction: isMobile ? "pan-x pan-y" : undefined }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             {isLoading && (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -380,6 +428,8 @@ export function PdfViewerModal({
           zoom={zoom}
           onPageChange={handlePageChange}
           onZoomChange={handleZoomChange}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
           isMobile={isMobile}
         />
         

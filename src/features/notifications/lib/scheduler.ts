@@ -18,7 +18,8 @@ export type NotificationType =
   | "overdue_task"
   | "review_daily"
   | "review_weekly"
-  | "review_monthly";
+  | "review_monthly"
+  | "class_end";
 
 /**
  * Notification data structure for push messages.
@@ -33,6 +34,7 @@ export type NotificationPayload = {
   data: {
     url: string;
     type: NotificationType;
+    [key: string]: any;
   };
   actions?: { action: string; title: string }[];
   requireInteraction?: boolean;
@@ -271,11 +273,18 @@ async function generateClassNotifications(
 
   for (const schedule of schedules) {
     const [hours, minutes] = schedule.startTime.split(":").map(Number);
-    const diffMinutes =
-      (hours * 60 + minutes) - (currentHour * 60 + currentMinutes);
+    const targetTotal = hours * 60 + minutes;
+    const currentTotal = currentHour * 60 + currentMinutes;
+    
+    // Check if current time is within 15 minutes before the class starts.
+    // e.g. class at 10:00. targetTotal = 600.
+    // if current is 09:45 (585) to 10:00 (600), we trigger.
+    // targetTotal - currentTotal should be between 0 and 15.
+    const diffFromStart = targetTotal - currentTotal;
 
-    // Trigger exactly once, 5-9 minutes before class starts
-    if (diffMinutes >= 5 && diffMinutes < 10) {
+    // Trigger if within 15 mins before class. Since renotify is true,
+    // they might get it up to 2-3 times if cron runs every 5 mins, which is fine for classes.
+    if (diffFromStart > 0 && diffFromStart <= 15) {
       const locationPart = schedule.location ? ` | ${schedule.location}` : "";
 
       notifications.push({
@@ -288,6 +297,61 @@ async function generateClassNotifications(
           type: "class_start",
         },
         actions: [{ action: "view", title: "View Course" }],
+        requireInteraction: true,
+      });
+    }
+  }
+
+  return notifications;
+}
+
+/**
+ * Generate class end notifications for marking attendance.
+ */
+async function generateClassEndNotifications(
+  userId: string,
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  const currentHour = userLocalTime.getHours();
+  const currentMinutes = userLocalTime.getMinutes();
+  const currentTotal = currentHour * 60 + currentMinutes;
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
+
+  const notifications: NotificationPayload[] = [];
+
+  // Find classes scheduled today
+  const schedules = await prisma.classSchedule.findMany({
+    where: {
+      course: { semester: { userId, isActive: true } },
+      dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+    },
+    include: { course: { select: { id: true, name: true, color: true } } },
+  });
+
+  const todayStr = userLocalTime.toISOString().split("T")[0];
+
+  for (const schedule of schedules) {
+    const [hours, minutes] = schedule.endTime.split(":").map(Number);
+    const targetEndTime = hours * 60 + minutes;
+    const diffFromEnd = currentTotal - targetEndTime;
+
+    // Trigger if current time is within 15 minutes AFTER the class end time.
+    if (diffFromEnd >= 0 && diffFromEnd < 15) {
+      notifications.push({
+        userId,
+        title: "Class Ended",
+        body: `Did you attend ${schedule.course.name}?`,
+        tag: `attendance-${schedule.id}-${todayStr}`,
+        data: {
+          url: `/courses/${schedule.courseId}`,
+          type: "class_end",
+          courseId: schedule.course.id,
+          date: todayStr,
+        },
+        actions: [
+          { action: "mark_present", title: "✅ Present" },
+          { action: "mark_absent", title: "❌ Absent" }
+        ],
         requireInteraction: true,
       });
     }
@@ -979,6 +1043,7 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
 
     if (await isTypeEnabled(userId, "class_start")) {
       allNotifications.push(...(await generateClassNotifications(userId, userLocalTime)));
+      allNotifications.push(...(await generateClassEndNotifications(userId, userLocalTime)));
     }
 
     if (await isTypeEnabled(userId, "assessment")) {

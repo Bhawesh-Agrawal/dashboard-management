@@ -33,7 +33,7 @@ Return a JSON object with these fields:
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
     `Generate a morning brief for ${dateStr}.\n\n${dataSummary}`,
-  maxTokens: 1024,
+  maxTokens: 4096,
   temperature: 0.4,
 };
 
@@ -70,7 +70,7 @@ Return a JSON object with these fields:
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
     `Generate a weekly review for the week ending ${dateStr}.\n\n${dataSummary}`,
-  maxTokens: 1536,
+  maxTokens: 4096,
   temperature: 0.4,
 };
 
@@ -102,7 +102,7 @@ Return a JSON object with these fields:
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
     `Generate a monthly review for ${dateStr}.\n\n${dataSummary}`,
-  maxTokens: 2048,
+  maxTokens: 4096,
   temperature: 0.4,
 };
 
@@ -134,7 +134,7 @@ Return a JSON object with these fields:
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
     `Generate a quarterly vision check for ${dateStr}.\n\n${dataSummary}`,
-  maxTokens: 2048,
+  maxTokens: 4096,
   temperature: 0.4,
 };
 

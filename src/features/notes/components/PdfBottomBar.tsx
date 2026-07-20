@@ -6,6 +6,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +17,8 @@ export interface PdfBottomBarProps {
   zoom: number;
   onPageChange: (page: number) => void;
   onZoomChange?: (zoom: number) => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
   isMobile?: boolean;
 }
 
@@ -24,6 +28,8 @@ export function PdfBottomBar({
   zoom,
   onPageChange,
   onZoomChange: _onZoomChange, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onZoomIn,
+  onZoomOut,
   isMobile = false,
 }: PdfBottomBarProps) {
   const [pageInput, setPageInput] = useState(String(currentPage));
@@ -133,8 +139,32 @@ export function PdfBottomBar({
       </div>
 
       {/* Right: Zoom */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="tabular-nums">{zoom}%</span>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        {onZoomOut && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onZoomOut}
+            disabled={zoom <= 25}
+            title="Zoom out"
+            className="h-8 w-8 sm:h-6 sm:w-6 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+          >
+            <ZoomOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          </Button>
+        )}
+        <span className="tabular-nums min-w-[3rem] text-center">{zoom}%</span>
+        {onZoomIn && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onZoomIn}
+            disabled={zoom >= 300}
+            title="Zoom in"
+            className="h-8 w-8 sm:h-6 sm:w-6 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+          >
+            <ZoomIn className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   );

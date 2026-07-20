@@ -273,14 +273,14 @@ export async function removeAttachment(id: string) {
   return removeNoteAttachment(id);
 }
 
-// ─── PDF View URL ──────────────────────────────────────────
+// ─── File View URL ─────────────────────────────────────────
 
 /**
- * Generate a presigned GET URL for viewing a PDF.
+ * Generate a presigned GET URL for viewing any file (PDF, image, video, etc).
  * The stored s3Url is a PUT URL (for uploads); this generates a fresh read URL.
- * Pass attachmentId to view an attachment's PDF instead of the note's own file.
+ * Pass attachmentId to view an attachment's file instead of the note's own file.
  */
-export async function getPdfViewUrl(
+export async function getFileViewUrl(
   noteId: string,
   attachmentId?: string,
   directS3Key?: string
@@ -346,3 +346,6 @@ export async function getPdfViewUrl(
     return { ok: false, error: "Failed to generate view URL" };
   }
 }
+
+/** @deprecated Use getFileViewUrl instead */
+export const getPdfViewUrl = getFileViewUrl;

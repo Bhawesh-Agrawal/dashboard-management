@@ -201,7 +201,25 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const data = event.notification.data;
+  const data = event.notification.data || {};
+
+  // Handle interactive notification actions (e.g., mark attendance)
+  if (event.action === "mark_present" || event.action === "mark_absent") {
+    const status = event.action === "mark_present" ? "present" : "absent";
+    event.waitUntil(
+      fetch("/api/attendance/mark-from-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: data.courseId,
+          date: data.date,
+          status: status
+        })
+      }).catch((err) => console.error("Failed to mark attendance from push:", err))
+    );
+    return;
+  }
+
   const url = data.url || "/today";
 
   event.waitUntil(

@@ -7,8 +7,8 @@ import { AddLinkDialog } from "./AddLinkDialog";
 import { AttachmentCard } from "./AttachmentCard";
 import dynamic from "next/dynamic";
 
-const PdfViewerModal = dynamic(
-  () => import("./PdfViewerModal").then((m) => m.PdfViewerModal),
+const FileViewerModal = dynamic(
+  () => import("./FileViewerModal").then((m) => m.FileViewerModal),
   { ssr: false }
 );
 import { getNoteAttachments } from "@/features/notes/lib/actions-attachments";
@@ -31,7 +31,7 @@ export function AttachmentSection({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<NoteAttachment | null>(null);
 
   const refresh = useCallback(async () => {
@@ -39,9 +39,9 @@ export function AttachmentSection({
     setAttachments(result);
   }, [noteId]);
 
-  function handlePdfView(attachment: NoteAttachment) {
+  function handleView(attachment: NoteAttachment) {
     setSelectedAttachment(attachment);
-    setPdfViewerOpen(true);
+    setViewerOpen(true);
   }
 
   const needsCollapse = attachments.length > COLLAPSE_THRESHOLD;
@@ -77,7 +77,7 @@ export function AttachmentSection({
               key={attachment.id}
               attachment={attachment}
               onRemoved={refresh}
-              onPdfView={handlePdfView}
+              onView={handleView}
             />
           ))}
 
@@ -138,15 +138,19 @@ export function AttachmentSection({
         onAdd={refresh}
       />
 
-      {/* PDF Viewer Modal */}
+      {/* File Viewer Modal */}
       {selectedAttachment && (
-        <PdfViewerModal
-          open={pdfViewerOpen}
-          onOpenChange={setPdfViewerOpen}
-          noteId={noteId}
-          attachmentId={selectedAttachment.id}
-          s3Url={selectedAttachment.s3Url}
-          title={selectedAttachment.title || noteTitle || "PDF Document"}
+        <FileViewerModal
+          open={viewerOpen}
+          onOpenChange={setViewerOpen}
+          note={{
+            id: noteId,
+            s3Key: undefined,
+            s3Url: selectedAttachment.s3Url,
+            title: selectedAttachment.title || noteTitle || "Document",
+            fileName: selectedAttachment.title || "Document",
+            documentType: selectedAttachment.type || "DOCUMENT"
+          } as any}
         />
       )}
     </div>

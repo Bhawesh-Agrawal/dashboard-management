@@ -5,6 +5,7 @@ import { Paperclip, Loader2 } from "lucide-react";
 import { getDocumentNotes, deleteDocumentNote } from "@/features/notes/lib/actions-documents";
 import { DocumentUploadDialog } from "@/features/notes/components/DocumentUploadDialog";
 import { DocumentCard } from "@/features/notes/components/DocumentCard";
+import { FileViewerModal } from "@/features/notes/components/FileViewerModal";
 import type { Prisma } from "@prisma/client";
 
 type NoteWithRelations = Prisma.NoteGetPayload<{
@@ -27,6 +28,8 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
   const [notes, setNotes] = useState<NoteWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<any>(null);
 
   const fetchNotes = useCallback(async () => {
     if (!taskId && !projectId) {
@@ -58,6 +61,11 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
       await deleteDocumentNote(id);
       fetchNotes();
     }
+  };
+
+  const handleView = (note: any) => {
+    setSelectedNote(note);
+    setViewerOpen(true);
   };
 
   return (
@@ -93,7 +101,7 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
         <div className="space-y-2">
           {notes.map((note) => (
             <div key={note.id} className="relative group">
-              <DocumentCard note={note as any} viewMode="list" onDelete={handleDelete} />
+              <DocumentCard note={note as any} viewMode="list" onDelete={handleDelete} onView={handleView} />
             </div>
           ))}
         </div>
@@ -105,6 +113,11 @@ export function LinkedNotesSection({ taskId, projectId }: LinkedNotesSectionProp
         onUploadComplete={fetchNotes}
         {...(taskId ? { taskId } : {})}
         {...(projectId ? { projectId } : {})}
+      />
+      <FileViewerModal
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+        note={selectedNote}
       />
     </div>
   );

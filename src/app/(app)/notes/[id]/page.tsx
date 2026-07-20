@@ -37,6 +37,34 @@ export default async function NoteDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-4">
+          {note.s3Url && note.isDocumentLibraryEntry && (
+            <div className="mb-6 rounded-lg border border-border overflow-hidden bg-muted/30">
+              {note.documentType === "IMAGE" ? (
+                <img src={note.s3Url} alt={note.title || "Image"} className="w-full max-h-[600px] object-contain" />
+              ) : note.documentType === "VIDEO" ? (
+                <video src={note.s3Url} controls className="w-full max-h-[600px]" />
+              ) : note.documentType === "AUDIO" ? (
+                <div className="p-6 flex justify-center">
+                  <audio src={note.s3Url} controls className="w-full max-w-md" />
+                </div>
+              ) : note.documentType === "PDF" ? (
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">This is a PDF document.</p>
+                  <a href={note.s3Url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium">
+                    Open PDF
+                  </a>
+                </div>
+              ) : (
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">This file cannot be previewed directly.</p>
+                  <a href={note.s3Url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium">
+                    Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="prose prose-sm max-w-none">
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{note.content}</p>
           </div>

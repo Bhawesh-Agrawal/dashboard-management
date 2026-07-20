@@ -38,6 +38,7 @@ export interface PdfViewerToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  onZoomChange: (zoom: number) => void;
   onFitWidth: () => void;
   onFitPage: () => void;
   onViewModeChange: (mode: "single" | "continuous") => void;
@@ -60,6 +61,7 @@ export function PdfViewerToolbar({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  onZoomChange,
   onFitWidth,
   onFitPage,
   onViewModeChange,
@@ -146,7 +148,7 @@ export function PdfViewerToolbar({
                   key={preset}
                   type="button"
                   onClick={() => {
-                    onZoomReset();
+                    onZoomChange(preset);
                     setShowZoomMenu(false);
                   }}
                   className={cn(

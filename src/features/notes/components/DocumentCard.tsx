@@ -55,7 +55,7 @@ export interface DocumentCardProps {
   viewMode: "grid" | "list";
   onFavorite?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onPdfView?: (note: NoteWithDocumentInfo) => void;
+  onView?: (note: NoteWithDocumentInfo) => void;
 }
 
 export function DocumentCard({
@@ -63,7 +63,7 @@ export function DocumentCard({
   viewMode,
   onFavorite,
   onDelete,
-  onPdfView,
+  onView,
 }: DocumentCardProps) {
   const { icon: TypeIcon, color, bg } = getTypeIcon(note.documentType);
   const title = note.title || note.fileName || "Untitled";
@@ -121,12 +121,12 @@ export function DocumentCard({
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
-          ) : note.documentType === "PDF" && onPdfView && note.s3Url ? (
+          ) : onView && note.s3Url ? (
             <button
               type="button"
-              onClick={() => onPdfView(note)}
+              onClick={() => onView(note)}
               className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
-              title="View PDF"
+              title="Open file viewer"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
@@ -134,7 +134,7 @@ export function DocumentCard({
             <Link
               href={`/notes/${note.id}`}
               className="p-2 sm:p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
-              title="View"
+              title="View note"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </Link>
@@ -169,11 +169,11 @@ export function DocumentCard({
   return (
     <div className="group relative bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       {/* Thumbnail / Icon area */}
-      {note.documentType === "PDF" && onPdfView && note.s3Url ? (
+      {onView && note.s3Url ? (
         <button
           type="button"
-          onClick={() => onPdfView(note)}
-          className="block w-full"
+          onClick={() => onView(note)}
+          className="block w-full text-left"
         >
           <div className={cn("h-28 flex items-center justify-center", bg)}>
             {note.thumbnailUrl ? (

@@ -14,6 +14,7 @@ const borderColor: Record<InsightSeverity, string> = {
   critical: "border-l-[#E54D2E]",
   warning: "border-l-[#C49B5C]",
   info: "border-l-[#6B7FA3]",
+  positive: "border-l-[#7A9E7E]",
 };
 
 function timeAgo(date: Date): string {
@@ -73,7 +74,8 @@ export function InsightCard({ insight }: { insight: IgnoredInsight }) {
       className={cn(
         "group rounded-lg border border-[#E5E2DD] border-l-[3px] bg-white p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
         borderColor[insight.severity],
-        actedOn && "bg-[#7A9E7E]/5"
+        actedOn && "bg-[#7A9E7E]/5",
+        insight.severity === "positive" && "bg-[#7A9E7E]/5"
       )}
     >
       {/* Header */}

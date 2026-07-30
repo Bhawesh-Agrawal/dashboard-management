@@ -109,10 +109,10 @@ function TaskRow({
         onEdit={() => setEditOpen(true)}
         onDelete={handleDelete}
       >
-        <div className="list-row items-center">
+        <div className="list-row items-start sm:items-center">
           <button
             onClick={handleToggleDone}
-            className={`shrink-0 h-11 w-11 rounded border transition-colors flex items-center justify-center touch-manipulation ${
+            className={`shrink-0 h-9 w-9 sm:h-11 sm:w-11 rounded border transition-colors flex items-center justify-center touch-manipulation ${
               optimisticTask.status === "done"
                 ? "bg-primary border-primary text-primary-foreground"
                 : "border-border"
@@ -136,41 +136,43 @@ function TaskRow({
                 <span className="overdue-badge">Overdue</span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-0.5">
               <TaskLinkBadge task={task} />
-              {dueDateDisplay && (
-                <span className="text-xs text-muted-foreground">
-                  Due {dueDateDisplay}
-                </span>
-              )}
-              {optimisticTask.priority === 1 && (
-                <span className="text-xs text-destructive font-medium">High</span>
-              )}
-              {optimisticTask.energyRequirement && optimisticTask.energyRequirement !== "medium" && (
-                <span
-                  className={`text-[0.625rem] px-1 py-0.5 rounded ${
-                    optimisticTask.energyRequirement === "high"
-                      ? "bg-[#C4868C]/10 text-[#C4868C]"
-                      : "bg-[#7A9E7E]/10 text-[#7A9E7E]"
-                  }`}
-                >
-                  {optimisticTask.energyRequirement === "high" ? "⚡" : "🟢"}{" "}
-                  {optimisticTask.energyRequirement}
-                </span>
-              )}
-              {optimisticTask.estimatedDuration && (
-                <span className="text-[0.625rem] text-muted-foreground">
-                  {optimisticTask.estimatedDuration < 60
-                    ? `${optimisticTask.estimatedDuration}m`
-                    : `${Math.floor(optimisticTask.estimatedDuration / 60)}h`}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {dueDateDisplay && (
+                  <span className="text-xs text-muted-foreground">
+                    Due {dueDateDisplay}
+                  </span>
+                )}
+                {optimisticTask.priority === 1 && (
+                  <span className="text-xs text-destructive font-medium">High</span>
+                )}
+                {optimisticTask.energyRequirement && optimisticTask.energyRequirement !== "medium" && (
+                  <span
+                    className={`text-[0.625rem] px-1 py-0.5 rounded ${
+                      optimisticTask.energyRequirement === "high"
+                        ? "bg-[#C4868C]/10 text-[#C4868C]"
+                        : "bg-[#7A9E7E]/10 text-[#7A9E7E]"
+                    }`}
+                  >
+                    {optimisticTask.energyRequirement === "high" ? "⚡" : "🟢"}{" "}
+                    {optimisticTask.energyRequirement}
+                  </span>
+                )}
+                {optimisticTask.estimatedDuration && (
+                  <span className="text-[0.625rem] text-muted-foreground">
+                    {optimisticTask.estimatedDuration < 60
+                      ? `${optimisticTask.estimatedDuration}m`
+                      : `${Math.floor(optimisticTask.estimatedDuration / 60)}h`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <button
             onClick={() => setEditOpen(true)}
-            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation text-muted-foreground hover:text-foreground"
+            className="p-2 min-w-[36px] min-h-[36px] sm:p-2.5 sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation text-muted-foreground hover:text-foreground"
             title="Edit Task"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -178,7 +180,7 @@ function TaskRow({
 
           <button
             onClick={handleToggleStar}
-            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation"
+            className="p-2 min-w-[36px] min-h-[36px] sm:p-2.5 sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation"
           >
             <Star
               className={`h-3.5 w-3.5 ${

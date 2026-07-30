@@ -614,6 +614,7 @@ enum InsightSeverity {
   info
   warning
   critical
+  positive
 }
 
 enum InsightType {
@@ -625,6 +626,9 @@ enum InsightType {
   budget_anomaly
   knowledge_gap
   focus_fragmentation
+  achievement
+  positive_trend
+  streak_milestone
 }
 
 enum PatternType {

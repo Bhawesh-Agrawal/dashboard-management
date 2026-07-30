@@ -23,13 +23,15 @@ RULES:
 - Identify TRENDS, not just current state
 - Suggest SPECIFIC, ACTIONABLE changes
 - Rate severity: info (interesting), warning (needs attention), critical (urgent)
+- INCLUDE 1-2 POSITIVE insights — recognize progress, streaks, improvements, and wins. Use severity "positive" for these.
+- For positive insights, be specific about what improved and why it matters
 
 OUTPUT FORMAT:
 Return a JSON array of insights. No markdown, no backticks, no explanation — ONLY the JSON array.
 Each insight must have: type, title, description, severity, evidence (array of objects with metric, value, threshold, context).
 
-Valid types: declining_skill, burnout_risk, missed_opportunity, relationship_drift, energy_mismatch, budget_anomaly, knowledge_gap, focus_fragmentation
-Valid severities: info, warning, critical`;
+Valid types: declining_skill, burnout_risk, missed_opportunity, relationship_drift, energy_mismatch, budget_anomaly, knowledge_gap, focus_fragmentation, achievement, positive_trend, streak_milestone
+Valid severities: info, warning, critical, positive`;
 
 // ─── Data Summary Builder ────────────────────────────────────
 async function buildDataSummary(userId: string): Promise<string> {
@@ -372,8 +374,11 @@ export async function generateAIInsights(
         "budget_anomaly",
         "knowledge_gap",
         "focus_fragmentation",
+        "achievement",
+        "positive_trend",
+        "streak_milestone",
       ]);
-      const validSeverities = new Set(["info", "warning", "critical"]);
+      const validSeverities = new Set(["info", "warning", "critical", "positive"]);
 
       const validInsights = parsed.filter(
         (i) =>
@@ -459,6 +464,7 @@ export function combineInsights(
   const severityOrder: Record<string, number> = {
     critical: 3,
     warning: 2,
+    positive: 1.5,
     info: 1,
   };
 

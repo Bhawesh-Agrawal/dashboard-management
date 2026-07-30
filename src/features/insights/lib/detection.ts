@@ -1028,7 +1028,313 @@ export async function detectFocusFragmentation(
   }
 }
 
-// ─── 8. Generate All Insights (Orchestrator) ─────────────────
+// ─── 8. Detect Achievements ────────────────────────────────
+export async function detectAchievements(
+  userId: string
+): Promise<InsightInput[]> {
+  try {
+    const now = new Date();
+    const last30 = subDays(now, 30);
+    const last90 = subDays(now, 90);
+
+    const insights: InsightInput[] = [];
+
+    // Milestone: total tasks completed crossing thresholds
+    const totalCompleted = await prisma.task.count({
+      where: { userId, status: "done" },
+    });
+
+    const milestones = [10, 25, 50, 100, 200, 500];
+    for (const milestone of milestones) {
+      if (totalCompleted >= milestone && totalCompleted < milestone + 5) {
+        insights.push({
+          userId,
+          type: "achievement",
+          title: `${totalCompleted} tasks completed!`,
+          description: `You've crossed the ${milestone}-task milestone. Your consistency is paying off — keep the momentum going!`,
+          severity: "positive",
+          evidence: [
+            {
+              metric: "total_tasks_completed",
+              value: totalCompleted,
+              threshold: milestone,
+              context: "Lifetime task completion milestone",
+            },
+          ],
+        });
+      }
+    }
+
+    // Milestone: all tasks done for a course
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true },
+      include: { courses: { select: { id: true, name: true } } },
+    });
+
+    if (activeSemester) {
+      for (const course of activeSemester.courses) {
+        const openTasks = await prisma.task.count({
+          where: { userId, courseId: course.id, status: "open" },
+        });
+        const totalCourseTasks = await prisma.task.count({
+          where: { userId, courseId: course.id },
+        });
+
+        if (totalCourseTasks >= 3 && openTasks === 0) {
+          insights.push({
+            userId,
+            type: "achievement",
+            title: `All tasks done for ${course.name}!`,
+            description: `You've cleared every task for ${course.name}. That's real progress — take a moment to appreciate it.`,
+            severity: "positive",
+            evidence: [
+              {
+                metric: "course_tasks_completed",
+                value: totalCourseTasks,
+                threshold: 0,
+                context: `${course.name}: ${totalCourseTasks} tasks completed, 0 remaining`,
+              },
+            ],
+          });
+        }
+      }
+    }
+
+    return insights;
+  } catch (err) {
+    console.error("detectAchievements failed:", err);
+    return [];
+  }
+}
+
+// ─── 9. Detect Positive Trends ─────────────────────────────
+export async function detectPositiveTrends(
+  userId: string
+): Promise<InsightInput[]> {
+  try {
+    const now = new Date();
+    const last14 = subDays(now, 14);
+    const prev14Start = subDays(now, 28);
+    const last30 = subDays(now, 30);
+    const prev30Start = subDays(now, 60);
+
+    const insights: InsightInput[] = [];
+
+    // Trend 1: Routine adherence improving
+    const routines = await prisma.routine.findMany({
+      where: { userId },
+      include: {
+        completions: {
+          where: { date: { gte: prev14Start } },
+          select: { date: true },
+        },
+      },
+    });
+
+    let improvedRoutines = 0;
+    for (const routine of routines) {
+      let activeDaysRecent = 0;
+      let activeDaysPrevious = 0;
+
+      for (let i = 0; i < 14; i++) {
+        const day = subDays(now, i);
+        const enumDay = getEnumDayOfWeek(day);
+        if (routine.activeDays.includes(enumDay)) activeDaysRecent++;
+      }
+      for (let i = 14; i < 28; i++) {
+        const day = subDays(now, i);
+        const enumDay = getEnumDayOfWeek(day);
+        if (routine.activeDays.includes(enumDay)) activeDaysPrevious++;
+      }
+
+      if (activeDaysRecent === 0 || activeDaysPrevious === 0) continue;
+
+      const recentCompletions = routine.completions.filter(
+        (c) => c.date >= last14
+      ).length;
+      const previousCompletions = routine.completions.filter(
+        (c) => c.date >= prev14Start && c.date < last14
+      ).length;
+
+      const recentRate = recentCompletions / activeDaysRecent;
+      const previousRate = previousCompletions / activeDaysPrevious;
+
+      if (previousRate > 0 && recentRate > previousRate * 1.2) {
+        improvedRoutines++;
+      }
+    }
+
+    if (improvedRoutines > 0) {
+      insights.push({
+        userId,
+        type: "positive_trend",
+        title: `${improvedRoutines} routine${improvedRoutines > 1 ? "s" : ""} improving!`,
+        description: `Your routine adherence has improved compared to two weeks ago. Small improvements compound into big results.`,
+        severity: "positive",
+        evidence: [
+          {
+            metric: "improved_routines",
+            value: improvedRoutines,
+            threshold: 1,
+            context: `${improvedRoutines} routines showing improved completion rates`,
+          },
+        ],
+      });
+    }
+
+    // Trend 2: Budget spending decreasing
+    const recentExpenses = await prisma.budgetEntry.findMany({
+      where: { userId, type: "expense", date: { gte: last30 } },
+      select: { amount: true },
+    });
+    const previousExpenses = await prisma.budgetEntry.findMany({
+      where: {
+        userId,
+        type: "expense",
+        date: { gte: prev30Start, lt: last30 },
+      },
+      select: { amount: true },
+    });
+
+    const recentTotal = recentExpenses.reduce(
+      (s, e) => s + Number(e.amount),
+      0
+    );
+    const previousTotal = previousExpenses.reduce(
+      (s, e) => s + Number(e.amount),
+      0
+    );
+
+    if (previousTotal > 0 && recentTotal < previousTotal * 0.8) {
+      const decreasePercent = Math.round(
+        ((previousTotal - recentTotal) / previousTotal) * 100
+      );
+      insights.push({
+        userId,
+        type: "positive_trend",
+        title: "Spending is trending down",
+        description: `Your expenses dropped ${decreasePercent}% compared to the previous month. You're getting better at managing your budget.`,
+        severity: "positive",
+        evidence: [
+          {
+            metric: "spending_decrease",
+            value: decreasePercent,
+            threshold: 20,
+            context: `₹${recentTotal.toFixed(0)} this month vs ₹${previousTotal.toFixed(0)} last month`,
+          },
+        ],
+      });
+    }
+
+    return insights;
+  } catch (err) {
+    console.error("detectPositiveTrends failed:", err);
+    return [];
+  }
+}
+
+// ─── 10. Detect Streak Milestones ──────────────────────────
+export async function detectStreakMilestones(
+  userId: string
+): Promise<InsightInput[]> {
+  try {
+    const insights: InsightInput[] = [];
+
+    // Check activity streak
+    const streakDays = await computeStreakDays(userId);
+    const streakMilestones = [7, 14, 21, 30, 60, 90, 180, 365];
+
+    for (const milestone of streakMilestones) {
+      if (streakDays >= milestone && streakDays < milestone + 3) {
+        const messages: Record<number, string> = {
+          7: "One full week of consistent activity! You're building a powerful habit.",
+          14: "Two weeks strong! Your discipline is showing — consistency is your superpower.",
+          21: "Three weeks in! Research says it takes 21 days to form a habit. You've done it.",
+          30: "A full month of consistent activity! You're in the top tier of disciplined students.",
+          60: "Sixty days! You've turned activity into a lifestyle. Incredible dedication.",
+          90: "Ninety days — a full quarter of consistency! You're building something remarkable.",
+          180: "Half a year of unwavering commitment. Your future self will thank you.",
+          365: "A full year! You've proven that extraordinary results come from ordinary days done consistently.",
+        };
+
+        insights.push({
+          userId,
+          type: "streak_milestone",
+          title: `${streakDays}-day activity streak!`,
+          description:
+            messages[milestone] ||
+            `${streakDays} days of consistent activity. Your dedication is inspiring.`,
+          severity: "positive",
+          evidence: [
+            {
+              metric: "activity_streak",
+              value: streakDays,
+              threshold: milestone,
+              context: `Consecutive days of activity: ${streakDays}`,
+            },
+          ],
+        });
+      }
+    }
+
+    return insights;
+  } catch (err) {
+    console.error("detectStreakMilestones failed:", err);
+    return [];
+  }
+}
+
+// Helper: compute consecutive activity days
+async function computeStreakDays(userId: string): Promise<number> {
+  const now = new Date();
+  let streak = 0;
+
+  for (let i = 0; i < 365; i++) {
+    const day = subDays(now, i);
+    const dayStart = new Date(day);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(day);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const activityCount = await prisma.task.count({
+      where: {
+        userId,
+        OR: [
+          { completedAt: { gte: dayStart, lte: dayEnd } },
+          {
+            createdAt: { gte: dayStart, lte: dayEnd },
+            status: "open",
+          },
+        ],
+      },
+    });
+
+    if (activityCount > 0) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+// ─── Smart Cooldown Configuration ──────────────────────────
+const INSIGHT_COOLDOWN_MS: Record<string, number> = {
+  knowledge_gap: 3 * 24 * 60 * 60 * 1000, // 3 days
+  focus_fragmentation: 2 * 24 * 60 * 60 * 1000, // 2 days
+  burnout_risk: 7 * 24 * 60 * 60 * 1000, // 7 days
+  declining_skill: 7 * 24 * 60 * 60 * 1000, // 7 days
+  missed_opportunity: 1 * 24 * 60 * 60 * 1000, // 1 day
+  budget_anomaly: 3 * 24 * 60 * 60 * 1000, // 3 days
+  energy_mismatch: 3 * 24 * 60 * 60 * 1000, // 3 days
+  relationship_drift: 7 * 24 * 60 * 60 * 1000, // 7 days
+  achievement: 7 * 24 * 60 * 60 * 1000, // 7 days
+  positive_trend: 3 * 24 * 60 * 60 * 1000, // 3 days
+  streak_milestone: 30 * 24 * 60 * 60 * 1000, // 30 days (once per milestone)
+};
+
+// ─── 11. Generate All Insights (Orchestrator) ────────────────
 export async function generateAllInsights(
   userId: string
 ): Promise<IgnoredInsight[]> {
@@ -1043,6 +1349,9 @@ export async function generateAllInsights(
         budgetAnomalies,
         knowledgeGaps,
         focusFragmentation,
+        achievements,
+        positiveTrends,
+        streakMilestones,
       ] = await Promise.all([
         detectDecliningSkills(userId),
         detectBurnoutRisk(userId),
@@ -1051,6 +1360,9 @@ export async function generateAllInsights(
         detectBudgetAnomalies(userId),
         detectKnowledgeGaps(userId),
         detectFocusFragmentation(userId),
+        detectAchievements(userId),
+        detectPositiveTrends(userId),
+        detectStreakMilestones(userId),
       ]);
 
       // Flatten all insights
@@ -1062,17 +1374,46 @@ export async function generateAllInsights(
         ...budgetAnomalies,
         ...knowledgeGaps,
         ...focusFragmentation,
+        ...achievements,
+        ...positiveTrends,
+        ...streakMilestones,
       ];
+
+      // Check cooldowns — skip insights that were recently shown
+      const now = new Date();
+      const cooledDownInsights: InsightInput[] = [];
+
+      for (const insight of allInsights) {
+        const cooldownMs = INSIGHT_COOLDOWN_MS[insight.type] ?? 24 * 60 * 60 * 1000;
+        const cutoff = new Date(now.getTime() - cooldownMs);
+
+        // Check if same insight type was recently persisted
+        const recentExisting = await prisma.ignoredInsight.findFirst({
+          where: {
+            userId,
+            type: insight.type,
+            createdAt: { gte: cutoff },
+            actedOn: false,
+            dismissedAt: null,
+          },
+          select: { id: true },
+        });
+
+        if (!recentExisting) {
+          cooledDownInsights.push(insight);
+        }
+      }
 
       // Deduplicate by type — keep highest severity if duplicate types
       const severityOrder: Record<InsightSeverity, number> = {
         critical: 3,
         warning: 2,
+        positive: 1.5,
         info: 1,
       };
 
       const deduped = new Map<InsightType, InsightInput>();
-      for (const insight of allInsights) {
+      for (const insight of cooledDownInsights) {
         const existing = deduped.get(insight.type);
         if (
           !existing ||
@@ -1083,7 +1424,7 @@ export async function generateAllInsights(
         }
       }
 
-      // Sort by severity (critical first), then by evidence count
+      // Sort by severity (critical first), then positive insights last, then by evidence count
       const sorted = [...deduped.values()].sort((a, b) => {
         const sevDiff =
           severityOrder[b.severity] - severityOrder[a.severity];
@@ -1091,8 +1432,19 @@ export async function generateAllInsights(
         return b.evidence.length - a.evidence.length;
       });
 
-      // Limit to top 5
-      const top5 = sorted.slice(0, 5);
+      // Limit to top 5, but ensure at least 1 positive if available
+      const positiveInsights = sorted.filter(i => i.severity === "positive");
+      const nonPositiveInsights = sorted.filter(i => i.severity !== "positive");
+
+      let top5: InsightInput[];
+      if (nonPositiveInsights.length >= 5) {
+        top5 = nonPositiveInsights.slice(0, 4);
+        if (positiveInsights.length > 0) {
+          top5.push(positiveInsights[0]);
+        }
+      } else {
+        top5 = [...nonPositiveInsights, ...positiveInsights].slice(0, 5);
+      }
 
       // Persist each insight to database
       const persisted = await Promise.all(top5.map(upsertInsight));

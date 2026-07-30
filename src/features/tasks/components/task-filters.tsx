@@ -73,7 +73,7 @@ export function TaskFilters({
 
       {/* Project filter chips */}
       {projects.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none scroll-fade-right">
           <span className="section-label shrink-0">PROJECT</span>
           <button
             onClick={() => setFilter("project", "")}
@@ -115,7 +115,7 @@ export function TaskFilters({
       )}
 
       {/* Course filter chips */}
-      <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 scrollbar-none scroll-fade-right">
         <span className="section-label shrink-0">COURSE</span>
         <button
           onClick={() => setFilter("course", "")}

@@ -198,7 +198,7 @@ export function FabCluster() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 h-12 w-12 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center hover:bg-foreground/90 transition-colors active:scale-95"
-        style={{ bottom: "max(6rem, calc(6rem + env(safe-area-inset-bottom, 0px)))" }}
+        style={{ bottom: "max(7rem, calc(7rem + env(safe-area-inset-bottom, 0px)))" }}
       >
         <Plus className="h-5 w-5" />
       </button>

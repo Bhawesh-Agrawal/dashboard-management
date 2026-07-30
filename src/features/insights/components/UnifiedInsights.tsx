@@ -2,12 +2,19 @@ import { Sparkles, CheckCircle } from "lucide-react";
 import { getInsights } from "../lib/actions";
 import { InsightCard } from "./InsightCard";
 import { RefreshButton } from "./refresh-button";
+import { DailyQuote } from "@/features/dashboard/components/daily-quote";
+import { prisma } from "@/lib/prisma";
 
 import { getCurrentUserId } from "@/lib/auth";
 
 export async function UnifiedInsights() {
   const userId = await getCurrentUserId();
-  const insights = await getInsights(userId);
+  const [insights, quotes] = await Promise.all([
+    getInsights(userId),
+    prisma.quote.findMany({
+      select: { id: true, text: true, source: true },
+    }),
+  ]);
 
   return (
     <div>
@@ -25,6 +32,13 @@ export async function UnifiedInsights() {
           <RefreshButton />
         </div>
       </div>
+
+      {/* Daily Quote — always visible at top of insights */}
+      {quotes.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-[#F8F6F3] border border-[#E5E2DD]">
+          <DailyQuote quotes={quotes} />
+        </div>
+      )}
 
       {insights.length === 0 ? (
         <div className="flex flex-col items-center py-6 text-center">

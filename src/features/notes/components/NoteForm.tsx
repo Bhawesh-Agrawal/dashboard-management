@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Trash2 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import { UploadDialog } from "./UploadDialog";
+import { MarkdownEditor } from "./MarkdownEditor";
 import type { NoteWithCourse } from "@/types";
 
 export interface NoteFormProps {
@@ -87,16 +88,14 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
       {/* Content */}
       <div className="space-y-2">
         <label htmlFor={`note-content${note?.id ? `-${note.id}` : ""}`} className="section-label">
-          Content
+          Content (Markdown)
         </label>
-        <textarea
+        <MarkdownEditor
           id={`note-content${note?.id ? `-${note.id}` : ""}`}
-          rows={6}
-          required
           value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Write your note…"
-          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none min-h-[120px]"
+          onChange={setContent}
+          placeholder="Write your note in Markdown (# heading, - list, **bold**)..."
+          minHeight="180px"
         />
       </div>
 

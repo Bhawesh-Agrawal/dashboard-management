@@ -27,6 +27,7 @@ export default async function PersonDetailPage({
       <PageHeader
         title={person.name}
         subtitle={birthdayDisplay ? `Birthday: ${birthdayDisplay}` : undefined}
+        backHref="/people"
         action={<EditPersonDialog person={person} />}
       />
 

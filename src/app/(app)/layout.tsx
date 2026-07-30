@@ -8,6 +8,8 @@ import { PageTransition } from "@/components/shared/page-transition";
 
 
 
+import { OverdueBanner } from "@/components/layout/overdue-banner";
+
 export default function AppLayout({
   children,
 }: {
@@ -26,6 +28,9 @@ export default function AppLayout({
 
       {/* Main content area */}
       <main className="lg:pl-64 min-h-screen pb-24 lg:pb-0">
+        {/* Persistent Overdue Tasks Banner */}
+        <OverdueBanner />
+
         <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 lg:px-8 py-6 md:py-8 lg:py-10" style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top, 0px))" }}>
           <PageTransition>{children}</PageTransition>
         </div>

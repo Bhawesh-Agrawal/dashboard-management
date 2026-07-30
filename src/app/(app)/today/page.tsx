@@ -11,6 +11,7 @@ import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import { KnowledgeHealthWidget } from "@/features/dashboard/components/knowledge-health-widget";
+import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
 import dynamic from "next/dynamic";
 
 // This page reads from the database on every request.
@@ -96,11 +97,15 @@ export default async function TodayPage() {
             routines={data.tomorrowRoutines.filter(tr => !data.routines.some(r => r.id === tr.id))} 
           />
           <DailyQuote quotes={data.quotes} />
-          <EnergyMap routines={data.routines} />
+          <FocusCarousel
+            streakData={data.streakData}
+            topTasks={data.topTasks}
+            todayClasses={data.todayClasses}
+            routines={data.routines}
+          />
           <IdentityHealthWidget userId={userId} />
           <UnifiedInsights />
           <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />
-          <ContributionGraph streakData={data.streakData} />
         </div>
       </div>
     </div>

@@ -265,7 +265,12 @@ async function generateClassNotifications(
   // Find classes scheduled today
   const schedules = await prisma.classSchedule.findMany({
     where: {
-      course: { semester: { userId, isActive: true } },
+      course: {
+        semester: {
+          OR: [{ userId }, { userId: null }],
+          isActive: true,
+        },
+      },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
     },
     include: { course: { select: { name: true, color: true } } },
@@ -276,15 +281,11 @@ async function generateClassNotifications(
     const targetTotal = hours * 60 + minutes;
     const currentTotal = currentHour * 60 + currentMinutes;
     
-    // Check if current time is within 15 minutes before the class starts.
-    // e.g. class at 10:00. targetTotal = 600.
-    // if current is 09:45 (585) to 10:00 (600), we trigger.
-    // targetTotal - currentTotal should be between 0 and 15.
+    // Trigger if within 20 mins before class or at class start time.
+    // e.g. class at 10:00 (600). current is 09:40 (580) to 10:00 (600).
     const diffFromStart = targetTotal - currentTotal;
 
-    // Trigger if within 15 mins before class. Since renotify is true,
-    // they might get it up to 2-3 times if cron runs every 5 mins, which is fine for classes.
-    if (diffFromStart > 0 && diffFromStart <= 15) {
+    if (diffFromStart >= 0 && diffFromStart <= 20) {
       const locationPart = schedule.location ? ` | ${schedule.location}` : "";
 
       notifications.push({
@@ -322,7 +323,12 @@ async function generateClassEndNotifications(
   // Find classes scheduled today
   const schedules = await prisma.classSchedule.findMany({
     where: {
-      course: { semester: { userId, isActive: true } },
+      course: {
+        semester: {
+          OR: [{ userId }, { userId: null }],
+          isActive: true,
+        },
+      },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
     },
     include: { course: { select: { id: true, name: true, color: true } } },
@@ -335,8 +341,8 @@ async function generateClassEndNotifications(
     const targetEndTime = hours * 60 + minutes;
     const diffFromEnd = currentTotal - targetEndTime;
 
-    // Trigger if current time is within 15 minutes AFTER the class end time.
-    if (diffFromEnd >= 0 && diffFromEnd < 15) {
+    // Trigger if current time is within 20 minutes AFTER the class end time (or up to 2 mins before).
+    if (diffFromEnd >= -2 && diffFromEnd <= 20) {
       notifications.push({
         userId,
         title: "Class Ended",

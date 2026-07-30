@@ -38,6 +38,7 @@ export default async function ProjectDetailPage({
             ? `${project.domain.name} · ${project.status}`
             : project.status
         }
+        backHref="/projects"
         action={<EditProjectDialog project={project} />}
       />
 

@@ -2,6 +2,7 @@ import { getNoteById } from "@/features/notes/lib/queries";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { RelatedNotesPanel, BacklinksPanel } from "@/features/notes/components/related-notes-panel";
 import { ReviewButton } from "@/features/notes/components/review-button";
 import { EditNoteDialog } from "@/features/notes/components/edit-note-dialog";
@@ -19,13 +20,14 @@ export default async function NoteDetailPage({
   return (
     <div>
       <PageHeader
-        title="Note"
+        title={note.title || "Note"}
         subtitle={new Date(note.createdAt).toLocaleDateString("en-US", {
           weekday: "long",
           month: "long",
           day: "numeric",
           year: "numeric",
         })}
+        backHref="/notes"
         action={
           <div className="flex items-center gap-2">
             <ReviewButton noteId={note.id} />
@@ -65,8 +67,8 @@ export default async function NoteDetailPage({
             </div>
           )}
 
-          <div className="prose prose-sm max-w-none">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{note.content}</p>
+          <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-headings:font-semibold prose-a:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg">
+            <ReactMarkdown>{note.content}</ReactMarkdown>
           </div>
 
           <div className="flex items-center gap-3 pt-4 border-t border-border">

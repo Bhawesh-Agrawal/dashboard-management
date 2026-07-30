@@ -58,12 +58,9 @@ export function MobileNavSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* Use SheetTrigger with render prop so it renders the children (button)
-          directly as the trigger element — no extra wrapper button nesting.
-          Double-button nesting is invalid HTML and breaks iOS tap events. */}
       <SheetTrigger render={children as React.ReactElement} />
 
-      <SheetContent side="bottom" className="h-[70vh] rounded-t-xl">
+      <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl px-4 pt-3 pb-8">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="overflow-y-auto h-full pt-2 pb-8">
           {moreSections.map((section, idx) => (

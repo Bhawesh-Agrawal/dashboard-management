@@ -63,6 +63,7 @@ export default async function CourseDetailPage({
       <PageHeader
         title={course.name}
         subtitle={`${course.code ? course.code + " · " : ""}${course.credits} credits${course.instructor ? ` · ${course.instructor}` : ""}`}
+        backHref={`/semesters/${course.semesterId}`}
         action={
           <EditCourseDialog
             course={{

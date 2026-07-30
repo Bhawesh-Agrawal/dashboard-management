@@ -156,52 +156,57 @@ export function CreateTaskDialog({
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="energyRequirement" className="section-label">Energy Level</label>
-                  <select
-                    id="energyRequirement"
-                    name="energyRequirement"
-                    defaultValue=""
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Not set</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
+              <details className="group text-xs">
+                <summary className="cursor-pointer section-label py-1 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
+                  <span>+ More options (Energy, Duration, Time)</span>
+                </summary>
+                <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border/40 mt-2">
+                  <div className="space-y-2">
+                    <label htmlFor="energyRequirement" className="section-label">Energy Level</label>
+                    <select
+                      id="energyRequirement"
+                      name="energyRequirement"
+                      defaultValue=""
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Not set</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="estimatedDuration" className="section-label">Duration</label>
+                    <select
+                      id="estimatedDuration"
+                      name="estimatedDuration"
+                      defaultValue=""
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Not set</option>
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="60">1 hour</option>
+                      <option value="120">2 hours</option>
+                      <option value="240">4 hours</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="optimalTimeOfDay" className="section-label">Best Time</label>
+                    <select
+                      id="optimalTimeOfDay"
+                      name="optimalTimeOfDay"
+                      defaultValue=""
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Any time</option>
+                      <option value="morning">Morning</option>
+                      <option value="afternoon">Afternoon</option>
+                      <option value="evening">Evening</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="estimatedDuration" className="section-label">Duration</label>
-                  <select
-                    id="estimatedDuration"
-                    name="estimatedDuration"
-                    defaultValue=""
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Not set</option>
-                    <option value="15">15 min</option>
-                    <option value="30">30 min</option>
-                    <option value="60">1 hour</option>
-                    <option value="120">2 hours</option>
-                    <option value="240">4 hours</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="optimalTimeOfDay" className="section-label">Best Time</label>
-                  <select
-                    id="optimalTimeOfDay"
-                    name="optimalTimeOfDay"
-                    defaultValue=""
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Any time</option>
-                    <option value="morning">Morning</option>
-                    <option value="afternoon">Afternoon</option>
-                    <option value="evening">Evening</option>
-                  </select>
-                </div>
-              </div>
+              </details>
               {courses && courses.length > 0 && (
                 <LinkToPicker
                   courses={courses}

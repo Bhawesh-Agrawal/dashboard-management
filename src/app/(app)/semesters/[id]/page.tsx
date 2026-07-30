@@ -33,6 +33,7 @@ export default async function SemesterDetailPage({
       <PageHeader
         title={semester.name}
         subtitle={`${new Date(semester.startDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })} — ${new Date(semester.endDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}${sgpa !== null ? ` · SGPA ${sgpa.toFixed(2)}` : ""}`}
+        backHref="/semesters"
         action={
           <div className="flex gap-2">
             <EditSemesterDialog

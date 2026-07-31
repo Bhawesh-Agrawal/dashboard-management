@@ -27,6 +27,7 @@ interface MarkdownEditorProps {
   placeholder?: string;
   minHeight?: string;
   id?: string;
+  fillHeight?: boolean;
 }
 
 export function MarkdownEditor({
@@ -35,6 +36,7 @@ export function MarkdownEditor({
   placeholder = "Write your note in Markdown…",
   minHeight = "200px",
   id,
+  fillHeight = false,
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<"write" | "preview" | "split">("write");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -86,9 +88,15 @@ export function MarkdownEditor({
   );
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden bg-background focus-within:ring-1 focus-within:ring-ring transition-shadow">
+    <div className={cn(
+      "flex flex-col overflow-hidden bg-background",
+      fillHeight ? "h-full" : "border border-border rounded-lg focus-within:ring-1 focus-within:ring-ring transition-shadow"
+    )}>
       {/* Editor Header / Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-muted/40 border-b border-border text-muted-foreground">
+      <div className={cn(
+        "flex flex-wrap items-center justify-between gap-1 px-2 py-1.5 text-muted-foreground shrink-0",
+        fillHeight ? "border-b border-border/50" : "bg-muted/40 border-b border-border"
+      )}>
         {/* Quick Format Tools */}
         <div className="flex items-center gap-0.5 overflow-x-auto py-0.5 max-w-full">
           <button
@@ -187,7 +195,8 @@ export function MarkdownEditor({
             className="p-1.5 rounded hover:bg-muted hover:text-foreground transition-colors"
           >
             <Minus className="h-4 w-4" />
-          </button>          <button
+          </button>
+          <button
             type="button"
             title="Link ([Title](url))"
             onClick={() => insertText("[", "](https://)", "link title")}
@@ -242,7 +251,10 @@ export function MarkdownEditor({
       </div>
 
       {/* Editor Content Body */}
-      <div className={cn("grid", mode === "split" ? "grid-cols-2 divide-x divide-border" : "grid-cols-1")}>
+      <div className={cn(
+        "grid flex-1 min-h-0 overflow-hidden",
+        mode === "split" ? "grid-cols-2 divide-x divide-border" : "grid-cols-1"
+      )}>
         {/* Write Mode / Left Split */}
         {(mode === "write" || mode === "split") && (
           <textarea
@@ -251,16 +263,22 @@ export function MarkdownEditor({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            style={{ minHeight }}
-            className="w-full p-3 font-mono text-sm bg-transparent resize-y focus:outline-hidden leading-relaxed"
+            style={fillHeight ? undefined : { minHeight }}
+            className={cn(
+              "w-full p-4 font-mono text-sm bg-transparent resize-none focus:outline-none leading-relaxed",
+              fillHeight && "h-full"
+            )}
           />
         )}
 
         {/* Preview Mode / Right Split */}
         {(mode === "preview" || mode === "split") && (
           <div
-            style={{ minHeight }}
-            className="p-3 overflow-y-auto prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-headings:font-semibold prose-a:text-primary prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted prose-pre:p-3 prose-pre:rounded-md"
+            style={fillHeight ? undefined : { minHeight }}
+            className={cn(
+              "p-4 overflow-y-auto prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-headings:font-semibold prose-a:text-primary prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted prose-pre:p-3 prose-pre:rounded-md",
+              fillHeight && "h-full"
+            )}
           >
             {value.trim() ? (
               <ReactMarkdown>{value}</ReactMarkdown>

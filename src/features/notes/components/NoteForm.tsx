@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Paperclip } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import { UploadDialog } from "./UploadDialog";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -24,6 +24,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
   const [sourceLink, setSourceLink] = useState(note?.sourceLink ?? "");
   const [dragActive, setDragActive] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(!!note?.sourceLink || !!note?.tags.length);
 
   const isEditing = !!note;
 
@@ -69,7 +70,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4"
+      className="flex flex-col h-full"
       onDragOver={isEditing ? undefined : handleDragOver}
       onDragLeave={isEditing ? undefined : handleDragLeave}
       onDrop={isEditing ? undefined : handleDrop}
@@ -85,53 +86,59 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
         </div>
       )}
 
-      {/* Content */}
-      <div className="space-y-2">
-        <label htmlFor={`note-content${note?.id ? `-${note.id}` : ""}`} className="section-label">
-          Content (Markdown)
-        </label>
+      {/* Compact Metadata Bar */}
+      <div className="flex items-center gap-3 px-1 py-2 text-sm border-b border-border/50">
+        {/* Tags */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <input
+            id={`note-tags${note?.id ? `-${note.id}` : ""}`}
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="Add tags..."
+            className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/60 focus:ring-0 min-w-0"
+          />
+        </div>
+
+        {/* Source Link */}
+        {showMetadata && (
+          <div className="flex items-center gap-2">
+            <input
+              id={`note-source${note?.id ? `-${note.id}` : ""}`}
+              type="url"
+              value={sourceLink}
+              onChange={(e) => setSourceLink(e.target.value)}
+              placeholder="Source URL..."
+              className="w-48 bg-transparent border-none outline-none text-sm text-muted-foreground placeholder:text-muted-foreground/60 focus:ring-0"
+            />
+          </div>
+        )}
+
+        {/* Toggle metadata */}
+        <button
+          type="button"
+          onClick={() => setShowMetadata(!showMetadata)}
+          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title={showMetadata ? "Hide metadata" : "Show metadata"}
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Main Content Area - Fills remaining space */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         <MarkdownEditor
           id={`note-content${note?.id ? `-${note.id}` : ""}`}
           value={content}
           onChange={setContent}
-          placeholder="Write your note in Markdown (# heading, - list, **bold**)..."
-          minHeight="180px"
-        />
-      </div>
-
-      {/* Tags */}
-      <div className="space-y-2">
-        <label htmlFor={`note-tags${note?.id ? `-${note.id}` : ""}`} className="section-label">
-          Tags
-        </label>
-        <input
-          id={`note-tags${note?.id ? `-${note.id}` : ""}`}
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="comma-separated tags"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-      </div>
-
-      {/* Source Link */}
-      <div className="space-y-2">
-        <label htmlFor={`note-source${note?.id ? `-${note.id}` : ""}`} className="section-label">
-          Source Link (OneDrive)
-        </label>
-        <input
-          id={`note-source${note?.id ? `-${note.id}` : ""}`}
-          type="url"
-          value={sourceLink}
-          onChange={(e) => setSourceLink(e.target.value)}
-          placeholder="https://onedrive.live.com/..."
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          placeholder="Start writing..."
+          fillHeight
         />
       </div>
 
       {/* Attachments (edit mode only) */}
       {isEditing && (
-        <div className="rounded-lg border border-[#E5E2DD] bg-muted/20 p-3">
+        <div className="border-t border-border/50 px-1 py-2">
           <AttachmentSection
             noteId={note.id}
             initialAttachments={note.noteAttachments}
@@ -139,14 +146,14 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2">
+      {/* Footer - Compact */}
+      <div className="flex items-center justify-between px-1 py-3 border-t border-border/50">
         {isEditing && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
             disabled={loading}
-            className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50 min-h-[44px] px-2 py-1"
+            className="inline-flex items-center gap-1.5 text-sm text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50 px-2 py-1"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Delete
@@ -157,7 +164,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
         <button
           type="submit"
           disabled={loading || !content.trim()}
-          className="inline-flex h-10 sm:h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 min-h-[44px]"
+          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {loading ? "Saving…" : isEditing ? "Save Changes" : "Add Note"}
         </button>

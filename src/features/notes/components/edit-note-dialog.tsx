@@ -54,7 +54,7 @@ export function EditNoteDialog({
       >
         <Pencil className="h-3.5 w-3.5" />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)]">
+      <DialogContent className="fixed inset-0 w-full h-full rounded-none sm:max-w-none max-w-none translate-x-0 translate-y-0 p-6">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Edit Note</DialogTitle>
         </DialogHeader>

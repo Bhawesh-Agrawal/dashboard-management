@@ -74,14 +74,17 @@ model Course {
 // ─── Class Schedule ────────────────────────────────────────
 // Recurring weekly time slots for a course.
 model ClassSchedule {
-  id        String    @id @default(uuid())
-  courseId  String    @map("course_id")
-  dayOfWeek DayOfWeek @map("day_of_week")
-  startTime String    @map("start_time") // "HH:mm" format
-  endTime   String    @map("end_time") // "HH:mm" format
-  location  String?
+  id                 String     @id @default(uuid())
+  courseId           String     @map("course_id")
+  dayOfWeek          DayOfWeek  @map("day_of_week")
+  startTime          String     @map("start_time") // "HH:mm" format
+  endTime            String     @map("end_time") // "HH:mm" format
+  location           String?
+  effectiveStartDate DateTime?  @map("effective_start_date") // null = always active
+  effectiveEndDate   DateTime?  @map("effective_end_date")   // null = no end
 
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course     Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  exceptions ScheduleException[]
 
   @@map("class_schedules")
 }
@@ -94,6 +97,30 @@ enum DayOfWeek {
   FRI
   SAT
   SUN
+}
+
+// ─── Schedule Exception ─────────────────────────────────────
+// Single-occurrence deviation from a recurring ClassSchedule.
+enum ScheduleExceptionType {
+  cancelled
+  rescheduled
+}
+
+model ScheduleException {
+  id              String                 @id @default(uuid())
+  classScheduleId String                 @map("class_schedule_id")
+  date            DateTime               @db.Date
+  type            ScheduleExceptionType
+  newStartTime    String?                @map("new_start_time") // only for rescheduled
+  newEndTime      String?                @map("new_end_time")   // only for rescheduled
+  newLocation     String?                @map("new_location")   // only for rescheduled
+  createdAt       DateTime               @default(now()) @map("created_at")
+
+  classSchedule ClassSchedule @relation(fields: [classScheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([classScheduleId, date])
+  @@index([classScheduleId])
+  @@map("schedule_exceptions")
 }
 
 // ─── Attendance Record ─────────────────────────────────────
@@ -526,6 +553,20 @@ model NotificationPreference {
   @@unique([userId, type])
   @@index([userId])
   @@map("notification_preferences")
+}
+
+// ─── Sent Notification ──────────────────────────────────────
+// Tracks which notifications have already been sent to prevent duplicates.
+model SentNotification {
+  id     String   @id @default(uuid())
+  userId String   @map("user_id")
+  tag    String
+  sentAt DateTime @default(now()) @map("sent_at")
+
+  @@unique([userId, tag])
+  @@index([userId])
+  @@index([sentAt])
+  @@map("sent_notifications")
 }
 
 // ─── Domain ───────────────────────────────────────────────

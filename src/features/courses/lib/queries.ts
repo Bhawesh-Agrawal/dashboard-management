@@ -3,7 +3,10 @@ import { cache } from "react";
 
 const courseInclude = {
   semester: true,
-  classSchedules: { orderBy: { dayOfWeek: "asc" as const } },
+  classSchedules: {
+    orderBy: { dayOfWeek: "asc" as const },
+    include: { exceptions: { orderBy: { date: "asc" as const } } },
+  },
   attendanceRecords: { orderBy: { date: "desc" as const } },
   assessments: { orderBy: { date: "asc" as const } },
   tasks: { orderBy: { dueDate: "asc" as const } },

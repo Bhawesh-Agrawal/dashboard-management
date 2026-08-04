@@ -159,17 +159,28 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     : [];
 
   // ─── Phase 3: Semester-dependent queries run in parallel ──────────────────
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+
   const [todayClasses, attendanceData, semesterCoursesForGrades, allSemesters] = await Promise.all([
-    // Today's classes
+    // Today's classes — with exception awareness and date range filtering
     activeSemester
       ? prisma.classSchedule.findMany({
           where: {
             dayOfWeek: todayDayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
             course: { semesterId: activeSemester.id },
+            OR: [
+              { effectiveStartDate: null },
+              { effectiveStartDate: { lte: todayStart } },
+            ],
+            AND: [
+              { OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayStart } }] },
+            ],
           },
           orderBy: { startTime: "asc" },
           include: {
             course: { select: { id: true, name: true, color: true, code: true } },
+            exceptions: { where: { date: todayStart } },
           },
         })
       : Promise.resolve([]),

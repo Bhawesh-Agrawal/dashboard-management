@@ -1,20 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/features/auth/lib/supabase-server";
-
-/**
- * Get the current user's ID from Supabase auth.
- */
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id || "default-user";
-  } catch {
-    return "default-user";
-  }
-}
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Subscribe to Web Push notifications.

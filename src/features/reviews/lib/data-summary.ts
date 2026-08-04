@@ -10,7 +10,6 @@ import {
   endOfQuarter,
   format,
   differenceInCalendarDays,
-  getDay,
 } from "date-fns";
 import type { ReviewDataSummary } from "./types";
 
@@ -26,9 +25,9 @@ export function getPeriodBounds(
   switch (type) {
     case "daily": {
       const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
+      start.setUTCHours(0, 0, 0, 0);
       const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
       return { periodStart: start, periodEnd: end };
     }
     case "weekly":
@@ -229,7 +228,7 @@ export async function fetchReviewData(
     }),
   ]);
 
-  const dayEnum = JS_DAY_TO_ENUM[getDay(date)] as any;
+  const dayEnum = JS_DAY_TO_ENUM[date.getUTCDay()] as any;
   const classes = type === "daily"
     ? classSchedules
         .filter((c) => c.dayOfWeek === dayEnum)
@@ -405,8 +404,8 @@ export function formatReviewDataSummary(
       const periodDays = differenceInCalendarDays(data.periodEnd, data.periodStart) + 1;
       for (let i = 0; i < periodDays; i++) {
         const day = new Date(data.periodStart);
-        day.setDate(day.getDate() + i);
-        const dayEnum = JS_DAY_TO_ENUM[getDay(day)];
+        day.setUTCDate(day.getUTCDate() + i);
+        const dayEnum = JS_DAY_TO_ENUM[day.getUTCDay()];
         if (r.activeDays.includes(dayEnum)) {
           activeDaysInPeriod++;
         }

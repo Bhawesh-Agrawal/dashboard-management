@@ -7,12 +7,12 @@ export const revalidate = 0;
 
 function isLastDayOfMonth(date: Date): boolean {
   const next = new Date(date);
-  next.setDate(next.getDate() + 1);
-  return next.getMonth() !== date.getMonth();
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.getUTCMonth() !== date.getUTCMonth();
 }
 
 function isQuarterEnd(date: Date): boolean {
-  const month = date.getMonth();
+  const month = date.getUTCMonth();
   return [2, 5, 8, 11].includes(month) && isLastDayOfMonth(date);
 }
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const dayOfWeek = now.getUTCDay(); // 0 = Sunday
 
   const reviewTypes: ReviewType[] = [];
 

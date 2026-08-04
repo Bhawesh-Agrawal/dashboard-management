@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import type { DashboardData } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,8 @@ type TimelineItem = {
   sortTime: number; // minutes from midnight
   type: "class" | "deadline" | "routine";
   status?: "done" | "pending";
+  exception?: "cancelled" | "rescheduled";
+  originalTime?: string;
 };
 
 export function DailyTimeline({
@@ -30,8 +32,38 @@ export function DailyTimeline({
   const currentTotal = now.getHours() * 60 + now.getMinutes();
 
   classes.forEach((c) => {
-    const [startHours, startMinutes] = c.startTime.split(":").map(Number);
-    const [endHours, endMinutes] = c.endTime.split(":").map(Number);
+    const exception = (c as any).exceptions?.[0];
+
+    // Skip cancelled classes entirely from timeline
+    if (exception?.type === "cancelled") {
+      items.push({
+        id: `class-${c.id}`,
+        title: c.course.name,
+        subtitle: "Cancelled",
+        timeLabel: c.startTime,
+        sortTime: (() => {
+          const [h, m] = c.startTime.split(":").map(Number);
+          return h * 60 + m;
+        })(),
+        type: "class",
+        exception: "cancelled",
+      });
+      return;
+    }
+
+    // Use rescheduled times if available
+    const startTimeStr = exception?.type === "rescheduled" && exception.newStartTime
+      ? exception.newStartTime
+      : c.startTime;
+    const endTimeStr = exception?.type === "rescheduled" && exception.newEndTime
+      ? exception.newEndTime
+      : c.endTime;
+    const location = exception?.type === "rescheduled" && exception.newLocation
+      ? exception.newLocation
+      : c.location;
+
+    const [startHours, startMinutes] = startTimeStr.split(":").map(Number);
+    const [endHours, endMinutes] = endTimeStr.split(":").map(Number);
     
     // Check if class has ended
     const classEndTime = endHours * 60 + endMinutes;
@@ -43,10 +75,12 @@ export function DailyTimeline({
     items.push({
       id: `class-${c.id}`,
       title: c.course.name,
-      subtitle: c.location || undefined,
-      timeLabel: c.startTime,
+      subtitle: location || undefined,
+      timeLabel: startTimeStr,
       sortTime: startHours * 60 + startMinutes,
       type: "class",
+      exception: exception?.type === "rescheduled" ? "rescheduled" : undefined,
+      originalTime: exception?.type === "rescheduled" ? c.startTime : undefined,
     });
   });
 
@@ -106,7 +140,9 @@ export function DailyTimeline({
             <div
               className={cn(
                 "absolute -left-4 w-4 h-4 rounded-full border-2 border-background flex items-center justify-center top-1",
-                item.type === "class" && "bg-blue-500",
+                item.type === "class" && !item.exception && "bg-blue-500",
+                item.type === "class" && item.exception === "cancelled" && "bg-muted",
+                item.type === "class" && item.exception === "rescheduled" && "bg-amber-500",
                 item.type === "deadline" && "bg-red-500",
                 item.type === "routine" && (item.status === "done" ? "bg-emerald-500" : "bg-amber-500")
               )}
@@ -116,7 +152,9 @@ export function DailyTimeline({
               <div className="flex items-center gap-2 mb-0.5">
                 <span className={cn(
                   "text-xs font-medium uppercase tracking-wider",
-                  item.type === "class" && "text-blue-500",
+                  item.type === "class" && !item.exception && "text-blue-500",
+                  item.type === "class" && item.exception === "cancelled" && "text-muted-foreground line-through",
+                  item.type === "class" && item.exception === "rescheduled" && "text-amber-500",
                   item.type === "deadline" && "text-red-500",
                   item.type === "routine" && "text-amber-500"
                 )}>
@@ -125,12 +163,32 @@ export function DailyTimeline({
                 {item.status === "done" && (
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 )}
+                {item.exception === "cancelled" && (
+                  <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                )}
+                {item.exception === "rescheduled" && (
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                )}
               </div>
-              <p className={cn("text-sm font-medium", item.status === "done" && "line-through text-muted-foreground")}>
+              <p className={cn(
+                "text-sm font-medium",
+                item.status === "done" && "line-through text-muted-foreground",
+                item.exception === "cancelled" && "line-through text-muted-foreground"
+              )}>
                 {item.title}
+                {item.exception === "rescheduled" && item.originalTime && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    (was {item.originalTime})
+                  </span>
+                )}
               </p>
               {item.subtitle && (
-                <p className="text-xs text-muted-foreground mt-0.5">{item.subtitle}</p>
+                <p className={cn(
+                  "text-xs mt-0.5",
+                  item.exception === "cancelled" ? "text-muted-foreground" : "text-muted-foreground"
+                )}>
+                  {item.exception === "cancelled" ? "Class cancelled" : item.subtitle}
+                </p>
               )}
             </div>
           </div>

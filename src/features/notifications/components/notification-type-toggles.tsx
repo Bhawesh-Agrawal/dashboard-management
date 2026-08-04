@@ -8,6 +8,7 @@ type NotificationType =
   | "routine_reminder"
   | "task_due"
   | "class_start"
+  | "class_end"
   | "assessment"
   | "daily_summary"
   | "missed_routine"
@@ -35,6 +36,11 @@ const NOTIFICATION_TYPES: {
     type: "class_start",
     label: "Class Start",
     description: "Notification when a class is about to begin",
+  },
+  {
+    type: "class_end",
+    label: "Class End / Attendance",
+    description: "Prompt to mark attendance after class ends",
   },
   {
     type: "assessment",

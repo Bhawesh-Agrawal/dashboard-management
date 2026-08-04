@@ -67,6 +67,44 @@ async function isTypeEnabled(
   return pref?.enabled ?? true; // Default to enabled
 }
 
+// ─── Notification Dedup ──────────────────────────────────
+// Prevents sending the same notification multiple times.
+
+async function wasNotificationSent(userId: string, tag: string): Promise<boolean> {
+  try {
+    const existing = await prisma.sentNotification.findUnique({
+      where: { userId_tag: { userId, tag } },
+    });
+    return !!existing;
+  } catch {
+    return false;
+  }
+}
+
+async function markNotificationSent(userId: string, tag: string): Promise<void> {
+  try {
+    await prisma.sentNotification.upsert({
+      where: { userId_tag: { userId, tag } },
+      create: { userId, tag },
+      update: { sentAt: new Date() },
+    });
+  } catch {
+    // Non-critical — don't break scheduler
+  }
+}
+
+async function cleanupOldSentNotifications(): Promise<void> {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    await prisma.sentNotification.deleteMany({
+      where: { sentAt: { lt: cutoff } },
+    });
+  } catch {
+    // Non-critical
+  }
+}
+
 // ─── Time-of-day window defaults ───────────────────────────
 // Used for routines that have a timeOfDay but no specificTime.
 const TIME_OF_DAY_DEFAULTS: Record<string, string> = {
@@ -251,6 +289,7 @@ async function generateTaskNotifications(
 
 /**
  * Generate class start notifications.
+ * Checks for schedule exceptions, date range, and dedup before generating.
  */
 async function generateClassNotifications(
   userId: string,
@@ -259,10 +298,12 @@ async function generateClassNotifications(
   const currentHour = userLocalTime.getHours();
   const currentMinutes = userLocalTime.getMinutes();
   const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
+  const today = new Date(userLocalTime);
+  today.setHours(0, 0, 0, 0);
 
   const notifications: NotificationPayload[] = [];
 
-  // Find classes scheduled today
+  // Find classes scheduled today with date range filtering
   const schedules = await prisma.classSchedule.findMany({
     where: {
       course: {
@@ -272,27 +313,55 @@ async function generateClassNotifications(
         },
       },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+      OR: [
+        { effectiveStartDate: null },
+        { effectiveStartDate: { lte: today } },
+      ],
+      AND: [
+        { OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: today } }] },
+      ],
     },
-    include: { course: { select: { name: true, color: true } } },
+    include: {
+      course: { select: { name: true, color: true } },
+      exceptions: { where: { date: today } },
+    },
   });
 
   for (const schedule of schedules) {
-    const [hours, minutes] = schedule.startTime.split(":").map(Number);
+    // Skip cancelled classes
+    const exception = schedule.exceptions[0];
+    if (exception?.type === "cancelled") continue;
+
+    // Use rescheduled start time if available
+    const startTimeStr = exception?.type === "rescheduled" && exception.newStartTime
+      ? exception.newStartTime
+      : schedule.startTime;
+
+    const [hours, minutes] = startTimeStr.split(":").map(Number);
     const targetTotal = hours * 60 + minutes;
     const currentTotal = currentHour * 60 + currentMinutes;
     
     // Trigger if within 20 mins before class or at class start time.
-    // e.g. class at 10:00 (600). current is 09:40 (580) to 10:00 (600).
     const diffFromStart = targetTotal - currentTotal;
 
     if (diffFromStart >= 0 && diffFromStart <= 20) {
-      const locationPart = schedule.location ? ` | ${schedule.location}` : "";
+      const tag = `class-${schedule.id}`;
+      const todayStr = userLocalTime.toISOString().split("T")[0];
+
+      // Dedup: skip if already sent today for this class
+      if (await wasNotificationSent(userId, `${tag}-${todayStr}`)) continue;
+
+      const locationPart = exception?.type === "rescheduled" && exception.newLocation
+        ? ` | ${exception.newLocation}`
+        : schedule.location
+          ? ` | ${schedule.location}`
+          : "";
 
       notifications.push({
         userId,
         title: "Class Starting Soon",
-        body: `${schedule.course.name} at ${schedule.startTime}${locationPart}`,
-        tag: `class-${schedule.id}`,
+        body: `${schedule.course.name} at ${startTimeStr}${locationPart}`,
+        tag: `${tag}-${todayStr}`,
         data: {
           url: `/courses/${schedule.courseId}`,
           type: "class_start",
@@ -308,6 +377,7 @@ async function generateClassNotifications(
 
 /**
  * Generate class end notifications for marking attendance.
+ * Checks for existing attendance, schedule exceptions, and dedup before generating.
  */
 async function generateClassEndNotifications(
   userId: string,
@@ -317,10 +387,12 @@ async function generateClassEndNotifications(
   const currentMinutes = userLocalTime.getMinutes();
   const currentTotal = currentHour * 60 + currentMinutes;
   const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
+  const today = new Date(userLocalTime);
+  today.setHours(0, 0, 0, 0);
 
   const notifications: NotificationPayload[] = [];
 
-  // Find classes scheduled today
+  // Find classes scheduled today with date range filtering
   const schedules = await prisma.classSchedule.findMany({
     where: {
       course: {
@@ -330,24 +402,59 @@ async function generateClassEndNotifications(
         },
       },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
+      OR: [
+        { effectiveStartDate: null },
+        { effectiveStartDate: { lte: today } },
+      ],
+      AND: [
+        { OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: today } }] },
+      ],
     },
-    include: { course: { select: { id: true, name: true, color: true } } },
+    include: {
+      course: { select: { id: true, name: true, color: true } },
+      exceptions: { where: { date: today } },
+    },
   });
 
   const todayStr = userLocalTime.toISOString().split("T")[0];
 
   for (const schedule of schedules) {
-    const [hours, minutes] = schedule.endTime.split(":").map(Number);
+    // Skip cancelled classes
+    const exception = schedule.exceptions[0];
+    if (exception?.type === "cancelled") continue;
+
+    // Use rescheduled times if available, otherwise use original
+    const endTimeStr = exception?.type === "rescheduled" && exception.newEndTime
+      ? exception.newEndTime
+      : schedule.endTime;
+    const [hours, minutes] = endTimeStr.split(":").map(Number);
     const targetEndTime = hours * 60 + minutes;
     const diffFromEnd = currentTotal - targetEndTime;
 
     // Trigger if current time is within 20 minutes AFTER the class end time (or up to 2 mins before).
     if (diffFromEnd >= -2 && diffFromEnd <= 20) {
+      const tag = `attendance-${schedule.id}-${todayStr}`;
+
+      // Dedup: skip if already sent
+      if (await wasNotificationSent(userId, tag)) continue;
+
+      // Skip if attendance already recorded for this course+date
+      const existing = await prisma.attendanceRecord.findUnique({
+        where: { courseId_date: { courseId: schedule.courseId, date: today } },
+      });
+      if (existing && existing.status !== "not_marked") continue;
+
+      const locationPart = exception?.type === "rescheduled" && exception.newLocation
+        ? ` | ${exception.newLocation}`
+        : schedule.location
+          ? ` | ${schedule.location}`
+          : "";
+
       notifications.push({
         userId,
         title: "Class Ended",
-        body: `Did you attend ${schedule.course.name}?`,
-        tag: `attendance-${schedule.id}-${todayStr}`,
+        body: `Did you attend ${schedule.course.name}?${locationPart}`,
+        tag,
         data: {
           url: `/courses/${schedule.courseId}`,
           type: "class_end",
@@ -1049,6 +1156,9 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
 
     if (await isTypeEnabled(userId, "class_start")) {
       allNotifications.push(...(await generateClassNotifications(userId, userLocalTime)));
+    }
+
+    if (await isTypeEnabled(userId, "class_end")) {
       allNotifications.push(...(await generateClassEndNotifications(userId, userLocalTime)));
     }
 
@@ -1091,10 +1201,18 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
     }
   }
 
-  // Send all notifications
+  // Send all notifications and track what was sent
   if (allNotifications.length > 0) {
     await sendPushNotifications(allNotifications);
+    // Record what was sent for dedup
+    for (const n of allNotifications) {
+      await markNotificationSent(n.userId, n.tag);
+    }
   }
+
+  // Cleanup old sent notifications (runs once per scheduler invocation)
+  await cleanupOldSentNotifications();
+
   } finally {
     forceNotifications = false;
   }

@@ -69,7 +69,7 @@ export type NoteWithAttachments = NoteWithCourse & {
 export type DashboardData = {
   topTasks: TaskWithCourse[];
   allOpenTasks: TaskWithCourse[];
-  todayClasses: (ClassSchedule & { course: Pick<Course, "id" | "name" | "color" | "code"> })[];
+  todayClasses: (ClassSchedule & { course: Pick<Course, "id" | "name" | "color" | "code">; exceptions?: any[] })[];
   upcomingDeadlines: {
     id: string;
     title: string;

@@ -187,7 +187,7 @@ self.addEventListener("push", (event) => {
       data: data.data || {},
       actions: data.actions || [],
       requireInteraction: data.requireInteraction || false,
-      renotify: true, // Re-alert even if a notification with the same tag exists
+      renotify: false, // Don't re-alert for same tag — dedup handled by scheduler
       vibrate: [200, 100, 200], // Vibration pattern for mobile devices
     };
 
@@ -209,13 +209,41 @@ self.addEventListener("notificationclick", (event) => {
     event.waitUntil(
       fetch("/api/attendance/mark-from-push", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: data.courseId,
           date: data.date,
           status: status
         })
-      }).catch((err) => console.error("Failed to mark attendance from push:", err))
+      })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(() => {
+        self.registration.showNotification("Attendance Marked", {
+          body: `Marked as ${status} for ${data.date}`,
+          tag: `attendance-confirm-${data.courseId}-${data.date}`,
+          icon: "/icon-192x192.png",
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to mark attendance from push:", err);
+        // Fallback: open the app so user can mark manually
+        const url = data.url || "/today";
+        self.clients.matchAll({ type: "window" }).then((clients) => {
+          for (const client of clients) {
+            if (client.url.includes(self.location.origin) && "focus" in client) {
+              client.navigate(url);
+              return client.focus();
+            }
+          }
+          if (self.clients.openWindow) {
+            return self.clients.openWindow(url);
+          }
+        });
+      })
     );
     return;
   }

@@ -116,7 +116,6 @@ function parseAIResponse(raw: string): ParsedReview {
     completionRate: Number(rawMetrics.completionRate) || 0,
     routineAdherence: Number(rawMetrics.routineAdherence) || 0,
     moodAverage: rawMetrics.moodAverage != null ? Number(rawMetrics.moodAverage) : undefined,
-    energyAverage: rawMetrics.energyAverage != null ? Number(rawMetrics.energyAverage) : undefined,
     sleepAverage: rawMetrics.sleepAverage != null ? Number(rawMetrics.sleepAverage) : undefined,
     totalSpent: rawMetrics.totalSpent != null ? Number(rawMetrics.totalSpent) : undefined,
     attendanceRate: rawMetrics.attendanceRate != null ? Number(rawMetrics.attendanceRate) : undefined,

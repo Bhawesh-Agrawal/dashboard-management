@@ -546,6 +546,9 @@ model NotificationPreference {
   userId               String   @map("user_id")
   type                 String // 'routine_reminder' | 'task_due' | 'class_start' | 'assessment' | 'daily_summary' | 'missed_routine' | 'overdue_task'
   enabled              Boolean  @default(true)
+  priority             String   @default("normal") // 'critical' | 'normal' | 'low'
+  quietHoursStart      String?  @map("quiet_hours_start") // "HH:mm" e.g. "22:00"
+  quietHoursEnd        String?  @map("quiet_hours_end") // "HH:mm" e.g. "07:00"
   dailySummaryTime     String?  @map("daily_summary_time") // "HH:mm" for daily summary (user's local time)
   dailySummarySections String[] @map("daily_summary_sections") // ['classes', 'tasks', 'routines', 'deadlines', 'attendance', 'tomorrow_classes']
   timezone             String? // IANA timezone identifier, e.g. "Asia/Kathmandu"
@@ -558,14 +561,17 @@ model NotificationPreference {
 // ─── Sent Notification ──────────────────────────────────────
 // Tracks which notifications have already been sent to prevent duplicates.
 model SentNotification {
-  id     String   @id @default(uuid())
-  userId String   @map("user_id")
-  tag    String
-  sentAt DateTime @default(now()) @map("sent_at")
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tag       String
+  type      String    // NotificationType — e.g. 'class_start', 'task_due'
+  sentAt    DateTime  @default(now()) @map("sent_at")
+  openedAt  DateTime? @map("opened_at") // Set when user clicks the notification
 
   @@unique([userId, tag])
   @@index([userId])
   @@index([sentAt])
+  @@index([type])
   @@map("sent_notifications")
 }
 
@@ -893,4 +899,20 @@ model FileAttachment {
   @@index([semesterId])
   @@index([courseId])
   @@map("file_attachments")
+}
+
+// ─── User Dashboard Preference ──────────────────────────────
+// Per-user settings for Today page widget layout, accent color, and theme.
+model UserDashboardPreference {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  widgetOrder     Json     @default("[]") @map("widget_order")    // Ordered array of widget IDs
+  hiddenWidgets   String[] @default([]) @map("hidden_widgets")     // Widget IDs the user hid
+  accentColor     String?  @map("accent_color")                    // Hex color or null (default)
+  themeMode       String   @default("light") @map("theme_mode")   // "light" | "dark" | "system"
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId])
+  @@map("user_dashboard_preferences")
 }

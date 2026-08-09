@@ -74,7 +74,6 @@ export function ReviewMetricsDisplay({
     metrics.tasksTotal > 0 ||
     metrics.routineAdherence > 0 ||
     metrics.moodAverage != null ||
-    metrics.energyAverage != null ||
     metrics.totalSpent != null ||
     metrics.attendanceRate != null ||
     metrics.deepWorkHours != null ||
@@ -105,9 +104,6 @@ export function ReviewMetricsDisplay({
       <div className="grid grid-cols-2 gap-x-6">
         {metrics.moodAverage != null && (
           <MetricRow label="Mood" value={`${metrics.moodAverage.toFixed(1)}/5`} />
-        )}
-        {metrics.energyAverage != null && (
-          <MetricRow label="Energy" value={`${metrics.energyAverage.toFixed(1)}/5`} />
         )}
         {metrics.sleepAverage != null && (
           <MetricRow label="Sleep" value={`${metrics.sleepAverage.toFixed(1)}h`} />

@@ -4,6 +4,7 @@ import { Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistration } from "@/components/shared/service-worker-registration";
+import { Providers } from "@/components/shared/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,9 +51,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <Toaster />
-        <ServiceWorkerRegistration />
+        <Providers>
+          {children}
+          <Toaster />
+          <ServiceWorkerRegistration />
+        </Providers>
       </body>
     </html>
   );

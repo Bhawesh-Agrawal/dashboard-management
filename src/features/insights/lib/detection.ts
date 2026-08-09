@@ -536,151 +536,7 @@ export async function detectMissedOpportunities(
   }
 }
 
-// ─── 4. Detect Energy Mismatch ───────────────────────────────
-export async function detectEnergyMismatch(
-  userId: string
-): Promise<InsightInput[]> {
-  try {
-    const now = new Date();
-    const last30 = subDays(now, 30);
-
-    // Fetch routines with their energy impact and active days
-    const routines = await prisma.routine.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        name: true,
-        timeOfDay: true,
-        energyImpact: true,
-        activeDays: true,
-      },
-    });
-
-    // Build per-day-of-week energy profile
-    // For each day-of-week, compute average energy impact:
-    //   charging routines count +1, draining count -1, neutral count 0
-    const dayEnergyProfile: Record<DayOfWeekEnum, number> = {
-      MON: 0, TUE: 0, WED: 0, THU: 0, FRI: 0, SAT: 0, SUN: 0,
-    };
-    const dayRoutineCount: Record<DayOfWeekEnum, number> = {
-      MON: 0, TUE: 0, WED: 0, THU: 0, FRI: 0, SAT: 0, SUN: 0,
-    };
-
-    for (const routine of routines) {
-      const energyScore =
-        routine.energyImpact === "charging"
-          ? 1
-          : routine.energyImpact === "draining"
-            ? -1
-            : 0;
-
-      for (const day of routine.activeDays) {
-        dayEnergyProfile[day] += energyScore;
-        dayRoutineCount[day]++;
-      }
-    }
-
-    // Normalize: positive = net charging day, negative = net draining day
-    const drainingDays = new Set<DayOfWeekEnum>();
-    for (const day of Object.keys(dayEnergyProfile) as DayOfWeekEnum[]) {
-      const count = dayRoutineCount[day];
-      if (count === 0) continue;
-      const avgEnergy = dayEnergyProfile[day] / count;
-      if (avgEnergy < -0.3) {
-        drainingDays.add(day);
-      }
-    }
-
-    if (drainingDays.size === 0) return [];
-
-    // Fetch completed tasks in last 30 days
-    const completedTasks = await prisma.task.findMany({
-      where: {
-        userId,
-        status: "done",
-        completedAt: { gte: last30 },
-        priority: 1, // high-priority tasks only
-      },
-      select: {
-        id: true,
-        title: true,
-        completedAt: true,
-        courseId: true,
-        project: { select: { name: true } },
-        course: { select: { name: true } },
-      },
-    });
-
-    if (completedTasks.length === 0) return [];
-
-    // Check which high-priority tasks were completed on draining days
-    const mismatchedTasks: Array<{
-      title: string;
-      completedAt: Date;
-      dayOfWeek: DayOfWeekEnum;
-      courseName: string | null;
-      projectName: string | null;
-    }> = [];
-
-    for (const task of completedTasks) {
-      if (!task.completedAt) continue;
-      const enumDay = getEnumDayOfWeek(task.completedAt);
-      if (drainingDays.has(enumDay)) {
-        mismatchedTasks.push({
-          title: task.title,
-          completedAt: task.completedAt,
-          dayOfWeek: enumDay,
-          courseName: task.course?.name ?? null,
-          projectName: task.project?.name ?? null,
-        });
-      }
-    }
-
-    if (mismatchedTasks.length === 0) return [];
-
-    const mismatchRate = mismatchedTasks.length / completedTasks.length;
-
-    if (mismatchRate < 0.3) return []; // less than 30% mismatched — not significant
-
-    const severity: InsightSeverity =
-      mismatchRate > 0.6 ? "critical" : "warning";
-
-    return [
-      {
-        userId,
-        type: "energy_mismatch",
-        title: "High-energy tasks scheduled during low-energy periods",
-        description: `${mismatchedTasks.length} of ${completedTasks.length} high-priority tasks (${Math.round(mismatchRate * 100)}%) were completed on days with draining energy profiles: ${[...new Set(mismatchedTasks.map((t) => t.dayOfWeek))].join(", ")}.`,
-        severity,
-        evidence: [
-          {
-            metric: "mismatch_rate",
-            value: Math.round(mismatchRate * 100),
-            threshold: 30,
-            context: `${mismatchedTasks.length}/${completedTasks.length} high-priority tasks on draining days`,
-          },
-          {
-            metric: "draining_days",
-            value: [...drainingDays].join(", "),
-            threshold: "none",
-            context: `Days with net-draining energy profile: ${[...drainingDays].join(", ")}`,
-          },
-          ...mismatchedTasks.slice(0, 3).map((t) => ({
-            metric: "mismatched_task",
-            value: t.title,
-            threshold: "charging day",
-            context: `Completed on ${t.dayOfWeek} — ${t.courseName || t.projectName || "no course"}`,
-          })),
-        ],
-      },
-    ];
-  } catch (err) {
-    console.error("detectEnergyMismatch failed:", err);
-    return [];
-  }
-}
-
-// ─── 5. Detect Budget Anomalies ──────────────────────────────
+// ─── 4. Detect Budget Anomalies ──────────────────────────────
 export async function detectBudgetAnomalies(
   userId: string
 ): Promise<InsightInput[]> {
@@ -1327,7 +1183,6 @@ const INSIGHT_COOLDOWN_MS: Record<string, number> = {
   declining_skill: 7 * 24 * 60 * 60 * 1000, // 7 days
   missed_opportunity: 1 * 24 * 60 * 60 * 1000, // 1 day
   budget_anomaly: 3 * 24 * 60 * 60 * 1000, // 3 days
-  energy_mismatch: 3 * 24 * 60 * 60 * 1000, // 3 days
   relationship_drift: 7 * 24 * 60 * 60 * 1000, // 7 days
   achievement: 7 * 24 * 60 * 60 * 1000, // 7 days
   positive_trend: 3 * 24 * 60 * 60 * 1000, // 3 days
@@ -1345,7 +1200,6 @@ export async function generateAllInsights(
         decliningSkills,
         burnoutRisk,
         missedOpportunities,
-        energyMismatch,
         budgetAnomalies,
         knowledgeGaps,
         focusFragmentation,
@@ -1356,7 +1210,6 @@ export async function generateAllInsights(
         detectDecliningSkills(userId),
         detectBurnoutRisk(userId),
         detectMissedOpportunities(userId),
-        detectEnergyMismatch(userId),
         detectBudgetAnomalies(userId),
         detectKnowledgeGaps(userId),
         detectFocusFragmentation(userId),
@@ -1370,7 +1223,6 @@ export async function generateAllInsights(
         ...decliningSkills,
         ...burnoutRisk,
         ...missedOpportunities,
-        ...energyMismatch,
         ...budgetAnomalies,
         ...knowledgeGaps,
         ...focusFragmentation,

@@ -23,6 +23,19 @@ export const COURSE_COLORS = [
   { name: "Slate", value: "#7A8B99" },
 ] as const;
 
+// Accent presets for theme customization (matches course colors)
+export const ACCENT_PRESETS = [
+  { name: "Default", value: null, cssVar: "" },
+  { name: "Slate Blue", value: "slate-blue", cssVar: "#6B7FA3" },
+  { name: "Sage Green", value: "sage-green", cssVar: "#7A9E7E" },
+  { name: "Dusty Rose", value: "dusty-rose", cssVar: "#C4868C" },
+  { name: "Amber", value: "amber", cssVar: "#C49B5C" },
+  { name: "Lavender", value: "lavender", cssVar: "#9B8EC4" },
+  { name: "Teal", value: "teal", cssVar: "#5C9E9E" },
+  { name: "Coral", value: "coral", cssVar: "#D4845C" },
+  { name: "Slate", value: "slate", cssVar: "#7A8B99" },
+] as const;
+
 // Default grading config: marks% → grade point (10-point scale)
 // Professors can override per course via /settings
 export const DEFAULT_GRADING_CONFIG = [

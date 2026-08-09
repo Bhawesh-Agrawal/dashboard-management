@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Upload } from "lucide-react";
 import { NoteTabs, type TabValue } from "./NoteTabs";
 import { NotesSidebar } from "./NotesSidebar";
 import { NoteList } from "./note-list";
 import { DocumentLibrary } from "./DocumentLibrary";
 import { LinkList } from "./LinkList";
 import { QuickCapture } from "./quick-capture";
+import { VaultImportDialog } from "./VaultImportDialog";
+import { DailyNoteButton } from "./DailyNoteButton";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { NoteWithCourse } from "@/types";
 
@@ -24,6 +26,7 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
   const [activeFolderId, setActiveFolderId] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Compute counts
   const counts = {
@@ -118,6 +121,16 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <DailyNoteButton variant="header" />
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-accent transition-colors"
+            title="Import vault"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Import</span>
+          </button>
           <QuickCapture />
           {/* Mobile sidebar toggle */}
           <button
@@ -206,6 +219,9 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
           ) : null}
         </main>
       </div>
+
+      {/* Vault Import Dialog */}
+      <VaultImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

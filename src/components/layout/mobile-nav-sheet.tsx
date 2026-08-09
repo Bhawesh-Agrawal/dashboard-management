@@ -13,6 +13,7 @@ import {
   BookOpen,
   Search,
   Newspaper,
+  GitBranch,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const moreSections = [
       { label: "Semesters", href: "/semesters", icon: GraduationCap },
       { label: "Routines", href: "/routines", icon: Repeat },
       { label: "Notes", href: "/notes", icon: FileText },
+      { label: "Graph", href: "/notes/graph", icon: GitBranch },
     ],
   },
   {

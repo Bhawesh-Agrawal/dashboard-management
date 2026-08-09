@@ -53,6 +53,7 @@ export const createNoteSchema = z.object({
   courseId: z.string().uuid().optional(),
   taskId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
+  folderId: z.string().uuid().nullable().optional(),
   attachments: z.array(attachmentInputSchema).optional(),
 });
 

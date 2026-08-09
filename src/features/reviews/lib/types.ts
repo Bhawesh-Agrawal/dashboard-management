@@ -20,7 +20,6 @@ export interface ReviewMetrics {
   completionRate: number;
   routineAdherence: number;
   moodAverage?: number;
-  energyAverage?: number;
   sleepAverage?: number;
   totalSpent?: number;
   attendanceRate?: number;
@@ -48,14 +47,12 @@ export interface ReviewDataSummary {
     priority: number;
     dueDate: Date | null;
     completedAt: Date | null;
-    energyRequirement: string | null;
     optimalTimeOfDay: string | null;
     courseName: string | null;
     projectName: string | null;
   }[];
   routines: {
     name: string;
-    energyImpact: string;
     activeDays: string[];
     category: string | null;
     completions: Date[];
@@ -102,7 +99,6 @@ export interface ReviewDataSummary {
     lastContact: Date | null;
     contactFrequency: string | null;
     relationshipType: string | null;
-    energyImpact: string;
   }[];
   identities: {
     statement: string;

@@ -6,6 +6,9 @@ import { AttachmentSection } from "./AttachmentSection";
 import { UploadDialog } from "./UploadDialog";
 import { MarkdownEditor } from "./MarkdownEditor";
 import type { NoteWithCourse } from "@/types";
+import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
+
+type FolderOption = { id: string; name: string; type: string };
 
 export interface NoteFormProps {
   note?: NoteWithCourse;
@@ -13,20 +16,27 @@ export interface NoteFormProps {
     content: string;
     tags: string[];
     sourceLink: string | null;
+    courseId?: string | null;
+    folderId?: string | null;
   }) => Promise<void>;
   onDelete?: () => void;
   loading?: boolean;
+  courses?: LinkToOption[];
+  folders?: FolderOption[];
 }
 
-export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteFormProps) {
+export function NoteForm({ note, onSubmit, onDelete, loading = false, courses = [], folders = [] }: NoteFormProps) {
   const [content, setContent] = useState(note?.content ?? "");
   const [tags, setTags] = useState(note?.tags.join(", ") ?? "");
   const [sourceLink, setSourceLink] = useState(note?.sourceLink ?? "");
+  const [courseId, setCourseId] = useState(note?.courseId ?? "");
+  const [folderId, setFolderId] = useState(note?.folder?.id ?? "");
   const [dragActive, setDragActive] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(!!note?.sourceLink || !!note?.tags.length);
 
   const isEditing = !!note;
+  const hasMoreOptions = courses.length > 0 || folders.length > 0;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -60,6 +70,8 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
       content,
       tags: parsedTags,
       sourceLink: sourceLink || null,
+      courseId: courseId || null,
+      folderId: folderId || null,
     });
   }
 
@@ -125,6 +137,49 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
         </button>
       </div>
 
+      {/* More options — Course / Folder */}
+      {hasMoreOptions && (
+        <details className="text-xs border-b border-border/50">
+          <summary className="cursor-pointer px-1 py-2 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
+            <span>+ More options (Course, Folder)</span>
+          </summary>
+          <div className="space-y-3 px-1 pb-3">
+            {courses.length > 0 && (
+              <div className="space-y-1">
+                <label htmlFor={`note-course${note?.id ? `-${note.id}` : ""}`} className="section-label">Course</label>
+                <select
+                  id={`note-course${note?.id ? `-${note.id}` : ""}`}
+                  value={courseId}
+                  onChange={(e) => setCourseId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">None</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {folders.length > 0 && (
+              <div className="space-y-1">
+                <label htmlFor={`note-folder${note?.id ? `-${note.id}` : ""}`} className="section-label">Folder</label>
+                <select
+                  id={`note-folder${note?.id ? `-${note.id}` : ""}`}
+                  value={folderId}
+                  onChange={(e) => setFolderId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">None</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+
       {/* Main Content Area - Fills remaining space */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <MarkdownEditor
@@ -133,6 +188,7 @@ export function NoteForm({ note, onSubmit, onDelete, loading = false }: NoteForm
           onChange={setContent}
           placeholder="Start writing..."
           fillHeight
+          noteId={note?.id}
         />
       </div>
 

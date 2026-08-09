@@ -72,7 +72,6 @@ export const getRoutinesWithStreaks = cache(
         specificTime: routine.specificTime,
         streakGoal: routine.streakGoal,
         activeDays: routine.activeDays,
-        energyImpact: routine.energyImpact,
         identityId: routine.identityId,
         currentStreak,
         completedToday,

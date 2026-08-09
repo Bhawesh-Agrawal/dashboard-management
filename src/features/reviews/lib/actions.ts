@@ -163,9 +163,6 @@ export async function exportReviewAsMarkdown(id: string) {
   if (typeof metrics.moodAverage === "number") {
     md += `- Mood Average: ${(metrics.moodAverage as number).toFixed(1)}/5\n`;
   }
-  if (typeof metrics.energyAverage === "number") {
-    md += `- Energy Average: ${(metrics.energyAverage as number).toFixed(1)}/5\n`;
-  }
   if (typeof metrics.totalSpent === "number") {
     md += `- Total Spent: $${(metrics.totalSpent as number).toFixed(2)}\n`;
   }

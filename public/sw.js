@@ -203,6 +203,22 @@ self.addEventListener("notificationclick", (event) => {
 
   const data = event.notification.data || {};
 
+  // Track notification open for weekly stats (fire-and-forget)
+  const tag = event.notification.tag;
+  if (tag && tag !== "default") {
+    // Best-effort: try to get userId from the push payload
+    // The push payload includes userId in data; we stored it on notification show
+    const userId = data.userId || null;
+    if (userId) {
+      fetch("/api/notifications/mark-opened", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ tag }),
+      }).catch(() => {}); // non-critical
+    }
+  }
+
   // Handle interactive notification actions (e.g., mark attendance)
   if (event.action === "mark_present" || event.action === "mark_absent") {
     const status = event.action === "mark_present" ? "present" : "absent";

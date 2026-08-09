@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateNote, deleteNote } from "@/features/notes/lib/actions";
+import { getCoursesForPicker } from "@/features/tasks/lib/actions";
+import { getFolders } from "@/features/notes/lib/actions-folders";
 import type { NoteWithCourse } from "@/types";
+import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +14,8 @@ import {
 import { NoteForm } from "./NoteForm";
 import { Pencil } from "lucide-react";
 
+type FolderOption = { id: string; name: string; type: string; _count: { notes: number; children: number } };
+
 export function EditNoteDialog({
   note,
 }: {
@@ -18,19 +23,36 @@ export function EditNoteDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [courses, setCourses] = useState<LinkToOption[]>([]);
+  const [folders, setFolders] = useState<FolderOption[]>([]);
+
+  useEffect(() => {
+    if (open && courses.length === 0) {
+      Promise.all([
+        getCoursesForPicker(),
+        getFolders(),
+      ]).then(([c, f]) => {
+        setCourses(c);
+        setFolders(f);
+      }).catch(() => {});
+    }
+  }, [open, courses.length]);
 
   async function handleSubmit(data: {
     content: string;
     tags: string[];
     sourceLink: string | null;
+    courseId?: string | null;
+    folderId?: string | null;
   }) {
     setLoading(true);
 
     await updateNote(note.id, {
       content: data.content,
       tags: data.tags,
-      courseId: note.courseId,
+      courseId: data.courseId ?? note.courseId,
       sourceLink: data.sourceLink,
+      folderId: data.folderId,
     });
 
     setLoading(false);
@@ -58,6 +80,8 @@ export function EditNoteDialog({
           onSubmit={handleSubmit}
           onDelete={handleDelete}
           loading={loading}
+          courses={courses}
+          folders={folders}
         />
       </DialogContent>
     </Dialog>

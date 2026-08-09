@@ -8,6 +8,9 @@ import { WidgetAccessSettings } from "@/features/settings/components/widget-acce
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { NotificationTypeToggles } from "@/features/notifications/components/notification-type-toggles";
 import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
+import { NotificationWeeklyStats } from "@/features/notifications/components/notification-weekly-stats";
+import { ThemeCustomizer } from "@/features/settings/components/theme-customizer";
+import { getDashboardLayout } from "@/features/dashboard/lib/actions";
 export const revalidate = 0;
 
 import {
@@ -17,9 +20,10 @@ import {
 
 export default async function SettingsPage() {
   const courses = await getAllCourses();
-  const [notificationPreferences, dailySummaryPrefs] = await Promise.all([
+  const [notificationPreferences, dailySummaryPrefs, dashboardLayout] = await Promise.all([
     getNotificationPreferences(),
     getDailySummaryPreferences(),
+    getDashboardLayout(),
   ]);
 
   return (
@@ -30,8 +34,17 @@ export default async function SettingsPage() {
       />
 
       <div className="space-y-10">
-        {/* Grading & Attendance */}
+        {/* Appearance */}
         <section>
+          <h2 className="page-heading text-lg mb-6">Appearance</h2>
+          <ThemeCustomizer
+            initialAccentColor={dashboardLayout.accentColor}
+            initialThemeMode={dashboardLayout.themeMode}
+          />
+        </section>
+
+        {/* Grading & Attendance */}
+        <section className="border-t border-border pt-10">
           <GradingTableEditor courses={courses} />
         </section>
 
@@ -62,6 +75,7 @@ export default async function SettingsPage() {
                 initialTimezone={dailySummaryPrefs.timezone}
               />
             )}
+            <NotificationWeeklyStats />
           </div>
         </section>
       </div>

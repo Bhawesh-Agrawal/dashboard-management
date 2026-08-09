@@ -5,7 +5,10 @@ import { createTask } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
 import { processOcrAction } from "@/features/notes/lib/actions-ocr";
+import { getCoursesForPicker } from "@/features/tasks/lib/actions";
+import { getFolders } from "@/features/notes/lib/actions-folders";
 import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
+import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,7 @@ type ContextType = "notes" | "course" | "semester";
 
 type SemesterOption = { id: string; name: string };
 type CourseOption = { id: string; name: string; code: string | null; semesterId: string };
+type FolderOption = { id: string; name: string; type: string; _count: { notes: number; children: number } };
 
 export function QuickCapture({
   open: controlledOpen,
@@ -38,7 +42,7 @@ export function QuickCapture({
   const [parsing, startParsingTransition] = useTransition();
   const [parsed, setParsed] = useState<ParsedCapture | null>(null);
   const [rawInput, setRawInput] = useState("");
-  
+
   // OCR state
   const [mode, setMode] = useState<CaptureMode>("text");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -53,13 +57,37 @@ export function QuickCapture({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
+  // "More options" state
+  const [manualTags, setManualTags] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+
+  // Course/folder options for More options
+  const [courses, setCourses] = useState<LinkToOption[]>([]);
+  const [folders, setFolders] = useState<FolderOption[]>([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
+
   // File upload context state
   const [uploadContext, setUploadContext] = useState<ContextType>("notes");
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [fileSelectedCourseId, setFileSelectedCourseId] = useState<string>("");
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
   const [semesterOptions, setSemesterOptions] = useState<SemesterOption[]>([]);
   const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+
+  // Fetch courses/folders when dialog opens (lazy)
+  useEffect(() => {
+    if (open && !optionsLoaded) {
+      Promise.all([
+        getCoursesForPicker(),
+        getFolders(),
+      ]).then(([c, f]) => {
+        setCourses(c);
+        setFolders(f);
+        setOptionsLoaded(true);
+      }).catch(() => {});
+    }
+  }, [open, optionsLoaded]);
 
   // Fetch semester/course options when File tab is opened
   useEffect(() => {
@@ -99,17 +127,17 @@ export function QuickCapture({
 
   async function handleOcrProcess() {
     if (!selectedFile) return;
-    
+
     setLoading(true);
     setOcrError(null);
-    
+
     try {
       const formData = new FormData();
       formData.append("image", selectedFile);
       if (sourceLink) formData.append("sourceLink", sourceLink);
-      
+
       const result = await processOcrAction(formData);
-      
+
       if (result.success && result.text) {
         setOcrResult({
           text: result.text,
@@ -126,6 +154,12 @@ export function QuickCapture({
     }
   }
 
+  function parseManualTags(): string[] {
+    return manualTags
+      ? manualTags.split(",").map((t) => t.trim()).filter(Boolean)
+      : [];
+  }
+
   async function handleSave() {
     setLoading(true);
 
@@ -136,22 +170,35 @@ export function QuickCapture({
             title: parsed.title,
             notes: parsed.content,
             dueDate: parsed.dueDate || undefined,
-            courseId: parsed.courseId || undefined,
+            courseId: parsed.courseId || selectedCourseId || undefined,
             priority: 2,
           });
         } else {
+          const mergedTags = [...new Set([...parsed.tags, ...parseManualTags()])];
           await createNote({
             content: parsed.content,
-            tags: parsed.tags,
-            courseId: parsed.courseId || undefined,
+            tags: mergedTags.length > 0 ? mergedTags : undefined,
+            courseId: parsed.courseId || selectedCourseId || undefined,
+            folderId: selectedFolderId || undefined,
           });
         }
+      } else if (mode === "text" && !parsed && rawInput.trim()) {
+        const mergedTags = parseManualTags();
+        await createNote({
+          content: rawInput,
+          tags: mergedTags.length > 0 ? mergedTags : undefined,
+          courseId: selectedCourseId || undefined,
+          folderId: selectedFolderId || undefined,
+        });
       } else if (mode === "photo" && ocrResult) {
+        const mergedTags = [...new Set(["ocr", ...parseManualTags()])];
         await createNote({
           content: ocrResult.text,
           sourceType: "ocr_photo",
           sourceLink: sourceLink || undefined,
-          tags: ["ocr"],
+          tags: mergedTags,
+          courseId: selectedCourseId || undefined,
+          folderId: selectedFolderId || undefined,
         });
       }
 
@@ -172,8 +219,11 @@ export function QuickCapture({
     setOcrResult(null);
     setOcrError(null);
     setSourceLink("");
-    setUploadContext("notes");
+    setManualTags("");
     setSelectedCourseId("");
+    setSelectedFolderId("");
+    setUploadContext("notes");
+    setFileSelectedCourseId("");
     setSelectedSemesterId("");
   }
 
@@ -199,15 +249,17 @@ export function QuickCapture({
     open: uploadDialogOpen,
     onOpenChange: setUploadDialogOpen,
     semesterId: uploadContext === "semester" ? selectedSemesterId : undefined,
-    courseId: uploadContext === "course" ? selectedCourseId : undefined,
+    courseId: uploadContext === "course" ? fileSelectedCourseId : undefined,
     semesterName: semesterOptions.find((s) => s.id === selectedSemesterId)?.name,
-    courseName: courseOptions.find((c) => c.id === selectedCourseId)?.name,
+    courseName: courseOptions.find((c) => c.id === fileSelectedCourseId)?.name,
     onUploadComplete: () => {
       setUploadDialogOpen(false);
       resetState();
       setOpen(false);
     },
   };
+
+  const hasMoreOptions = courses.length > 0 || folders.length > 0;
 
   return (
     <Dialog
@@ -298,6 +350,72 @@ export function QuickCapture({
                 {parsing ? "Parsing..." : "Parse"}
               </button>
             </div>
+
+            {/* More options */}
+            {hasMoreOptions && (
+              <details className="text-xs">
+                <summary className="cursor-pointer section-label py-1 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
+                  <span>+ More options (Tags, Course, Folder)</span>
+                </summary>
+                <div className="space-y-3 pt-2 border-t border-border/40 mt-2">
+                  <div className="space-y-2">
+                    <label htmlFor="qc-text-tags" className="section-label">Tags</label>
+                    <input
+                      id="qc-text-tags"
+                      type="text"
+                      value={manualTags}
+                      onChange={(e) => setManualTags(e.target.value)}
+                      placeholder="comma-separated tags..."
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  {courses.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-text-course" className="section-label">Course</label>
+                      <select
+                        id="qc-text-course"
+                        value={selectedCourseId}
+                        onChange={(e) => setSelectedCourseId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {courses.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {folders.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-text-folder" className="section-label">Folder</label>
+                      <select
+                        id="qc-text-folder"
+                        value={selectedFolderId}
+                        onChange={(e) => setSelectedFolderId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {/* Save button for un-parsed text */}
+            {!parsed && rawInput.trim() && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={loading}
+                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+              >
+                {loading ? "Saving..." : "Save as Note"}
+              </button>
+            )}
           </div>
         )}
 
@@ -343,6 +461,60 @@ export function QuickCapture({
               </div>
             </div>
 
+            {/* More options for parsed text */}
+            {hasMoreOptions && (
+              <details className="text-xs">
+                <summary className="cursor-pointer section-label py-1 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
+                  <span>+ More options (Tags, Course, Folder)</span>
+                </summary>
+                <div className="space-y-3 pt-2 border-t border-border/40 mt-2">
+                  <div className="space-y-2">
+                    <label htmlFor="qc-parsed-tags" className="section-label">Additional Tags</label>
+                    <input
+                      id="qc-parsed-tags"
+                      type="text"
+                      value={manualTags}
+                      onChange={(e) => setManualTags(e.target.value)}
+                      placeholder="comma-separated tags..."
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  {courses.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-parsed-course" className="section-label">Course</label>
+                      <select
+                        id="qc-parsed-course"
+                        value={selectedCourseId}
+                        onChange={(e) => setSelectedCourseId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {courses.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {folders.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-parsed-folder" className="section-label">Folder</label>
+                      <select
+                        id="qc-parsed-folder"
+                        value={selectedFolderId}
+                        onChange={(e) => setSelectedFolderId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -370,7 +542,7 @@ export function QuickCapture({
               <AlertCircle className="h-3 w-3 inline mr-1" />
               Transcription may need cleanup, especially for handwriting.
             </div>
-            
+
             <div className="space-y-2">
               <label htmlFor="photo-input" className="section-label">
                 Select Photo
@@ -419,6 +591,60 @@ export function QuickCapture({
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
+
+            {/* More options for photo */}
+            {hasMoreOptions && (
+              <details className="text-xs">
+                <summary className="cursor-pointer section-label py-1 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
+                  <span>+ More options (Tags, Course, Folder)</span>
+                </summary>
+                <div className="space-y-3 pt-2 border-t border-border/40 mt-2">
+                  <div className="space-y-2">
+                    <label htmlFor="qc-photo-tags" className="section-label">Tags</label>
+                    <input
+                      id="qc-photo-tags"
+                      type="text"
+                      value={manualTags}
+                      onChange={(e) => setManualTags(e.target.value)}
+                      placeholder="extra tags (ocr is auto-added)..."
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  {courses.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-photo-course" className="section-label">Course</label>
+                      <select
+                        id="qc-photo-course"
+                        value={selectedCourseId}
+                        onChange={(e) => setSelectedCourseId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {courses.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {folders.length > 0 && (
+                    <div className="space-y-2">
+                      <label htmlFor="qc-photo-folder" className="section-label">Folder</label>
+                      <select
+                        id="qc-photo-folder"
+                        value={selectedFolderId}
+                        onChange={(e) => setSelectedFolderId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">None</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
 
             {ocrError && (
               <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
@@ -507,7 +733,7 @@ export function QuickCapture({
                     type="button"
                     onClick={() => {
                       setUploadContext(ctx.value);
-                      setSelectedCourseId("");
+                      setFileSelectedCourseId("");
                       setSelectedSemesterId("");
                     }}
                     className={`px-3 py-2 sm:py-1.5 text-sm rounded-md transition-colors min-h-[44px] sm:min-h-0 ${
@@ -533,7 +759,7 @@ export function QuickCapture({
                   value={selectedSemesterId}
                   onChange={(e) => {
                     setSelectedSemesterId(e.target.value);
-                    setSelectedCourseId("");
+                    setFileSelectedCourseId("");
                   }}
                   disabled={loadingOptions}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -558,8 +784,8 @@ export function QuickCapture({
                 </label>
                 <select
                   id="course-select"
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  value={fileSelectedCourseId}
+                  onChange={(e) => setFileSelectedCourseId(e.target.value)}
                   disabled={!selectedSemesterId || loadingOptions}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
@@ -586,7 +812,7 @@ export function QuickCapture({
               onClick={() => setUploadDialogOpen(true)}
               disabled={
                 loadingOptions ||
-                (uploadContext === "course" && !selectedCourseId) ||
+                (uploadContext === "course" && !fileSelectedCourseId) ||
                 (uploadContext === "semester" && !selectedSemesterId)
               }
               className="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
@@ -596,7 +822,7 @@ export function QuickCapture({
                 {uploadContext === "notes"
                   ? "Click to upload files to Notes"
                   : uploadContext === "course"
-                    ? selectedCourseId
+                    ? fileSelectedCourseId
                       ? "Click to upload files to this course"
                       : "Select a course first"
                     : selectedSemesterId

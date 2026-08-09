@@ -147,18 +147,6 @@ function TaskRow({
                 {optimisticTask.priority === 1 && (
                   <span className="text-xs text-destructive font-medium">High</span>
                 )}
-                {optimisticTask.energyRequirement && optimisticTask.energyRequirement !== "medium" && (
-                  <span
-                    className={`text-[0.625rem] px-1 py-0.5 rounded ${
-                      optimisticTask.energyRequirement === "high"
-                        ? "bg-[#C4868C]/10 text-[#C4868C]"
-                        : "bg-[#7A9E7E]/10 text-[#7A9E7E]"
-                    }`}
-                  >
-                    {optimisticTask.energyRequirement === "high" ? "⚡" : "🟢"}{" "}
-                    {optimisticTask.energyRequirement}
-                  </span>
-                )}
                 {optimisticTask.estimatedDuration && (
                   <span className="text-[0.625rem] text-muted-foreground">
                     {optimisticTask.estimatedDuration < 60

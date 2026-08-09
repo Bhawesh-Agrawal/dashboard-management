@@ -12,13 +12,12 @@ const DAILY_PROMPT: ReviewPromptConfig = {
 Create a concise morning brief with:
 - Today's classes and scheduled items
 - Tasks due today or overdue from yesterday
-- Energy-based task suggestions (high-energy tasks for peak hours)
 - 1 ignored insight to address today
 
 RULES:
 - Format: bullet points, max 300 words
 - Be direct and actionable
-- Prioritize by urgency and energy match
+- Prioritize by urgency
 - If no classes today, focus on tasks and routines
 - If data is limited, provide thoughtful observations about what IS available and suggest specific actions
 - Never produce empty or one-line sections — always add useful context
@@ -28,7 +27,7 @@ Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary)
 - sections: array of { title, content, order } objects (each section must have substantive content, not just a title)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage (if available), energyAverage (if available), sleepAverage (if available), attendanceRate (if available), notesCreated (count of notes today if available)
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage (if available), sleepAverage (if available), attendanceRate (if available), notesCreated (count of notes today if available)
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -43,11 +42,11 @@ Generate a structured weekly audit with these sections:
 
 1. EXECUTION SNAPSHOT: tasks completed vs planned, routine adherence %, deep work hours
 2. DRIP MATRIX: classify tasks into 4 quadrants:
-   - High Energy × High Value (do these first)
-   - High Energy × Low Value (delegate or batch)
-   - Low Energy × High Value (schedule for low-energy times)
-   - Low Energy × Low Value (eliminate)
-3. EMOTIONAL × PRODUCTIVITY PATTERN: correlate mood/energy LifeMetrics with task completion days
+   - High Impact × High Value (do these first)
+   - High Impact × Low Value (delegate or batch)
+   - Low Impact × High Value (schedule for focused times)
+   - Low Impact × Low Value (eliminate)
+3. EMOTIONAL × PRODUCTIVITY PATTERN: correlate mood LifeMetrics with task completion days
 4. IDENTITY PROGRESS: which identities were strengthened or weakened by actions this week
 5. 5 ACTIONS: Kill (stop doing), Automate, Focus (double down), Unblock (resolve blocker), Experiment (try new)
 
@@ -65,7 +64,7 @@ Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary of the week)
 - sections: array of { title, content, order } objects (one per section above, each with substantive markdown content)
 - actions: array of { text, type ("kill"/"automate"/"focus"/"unblock"/"experiment"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, deepWorkHours
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, deepWorkHours
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -78,7 +77,7 @@ const MONTHLY_PROMPT: ReviewPromptConfig = {
   systemPrompt: `You are a strategic monthly reviewer for a student.
 Generate a comprehensive monthly report with:
 
-1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines, budget, mood, energy, sleep
+1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines, budget, mood, sleep
 2. GOAL ALIGNMENT: progress toward semester goals (from assessments, courses, projects)
 3. PATTERN RECOGNITION: recurring issues from the data — what keeps showing up?
 4. STRATEGIC PIVOTS: what to change next month based on evidence
@@ -97,7 +96,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed markdown content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -129,7 +128,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed reflective content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, energyAverage, sleepAverage, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>

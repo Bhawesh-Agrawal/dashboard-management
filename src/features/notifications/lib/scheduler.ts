@@ -3,7 +3,6 @@ import { getActiveSubscriptions } from "./subscription";
 import {
   computeAttendancePercent,
 } from "@/features/assessments/lib/calculations";
-import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Notification types that can be scheduled.
@@ -21,6 +20,35 @@ export type NotificationType =
   | "review_monthly"
   | "class_end";
 
+export type NotificationPriority = "critical" | "normal" | "low";
+
+/**
+ * Lean starter set — new users get only these ON.
+ */
+export const DEFAULT_ENABLED_TYPES: NotificationType[] = [
+  "daily_summary",
+  "overdue_task",
+  "class_start",
+  "review_weekly",
+];
+
+/**
+ * Priority tier per type (overridable per-user via NotificationPreference).
+ */
+export const DEFAULT_PRIORITY: Record<NotificationType, NotificationPriority> = {
+  class_start: "critical",
+  class_end: "critical",
+  overdue_task: "critical",
+  daily_summary: "normal",
+  task_due: "normal",
+  assessment: "normal",
+  routine_reminder: "normal",
+  missed_routine: "normal",
+  review_daily: "normal",
+  review_weekly: "low",
+  review_monthly: "low",
+};
+
 /**
  * Notification data structure for push messages.
  */
@@ -34,7 +62,9 @@ export type NotificationPayload = {
   data: {
     url: string;
     type: NotificationType;
-    [key: string]: any;
+    types?: NotificationType[];
+    individualUrls?: Record<string, string>;
+    [key: string]: string | number | boolean | string[] | Record<string, string> | undefined;
   };
   actions?: { action: string; title: string }[];
   requireInteraction?: boolean;
@@ -57,6 +87,7 @@ async function getPreferences(userId: string) {
 
 /**
  * Check if a notification type is enabled.
+ * Defaults to the lean starter set (opt-in rather than opt-out).
  */
 async function isTypeEnabled(
   userId: string,
@@ -64,7 +95,47 @@ async function isTypeEnabled(
 ): Promise<boolean> {
   const prefs = await getPreferences(userId);
   const pref = prefs.find((p) => p.type === type);
-  return pref?.enabled ?? true; // Default to enabled
+  if (pref) return pref.enabled;
+  return DEFAULT_ENABLED_TYPES.includes(type);
+}
+
+/**
+ * Check if current time falls within the user's quiet hours window.
+ * Quiet hours wrap around midnight (e.g. 22:00–07:00).
+ * Returns false if no quiet hours are configured or if the type is critical.
+ */
+function isWithinQuietHours(
+  localHour: number,
+  localMinute: number,
+  start: string | null | undefined,
+  end: string | null | undefined
+): boolean {
+  if (!start || !end) return false;
+
+  const [startH, startM] = start.split(":").map(Number);
+  const [endH, endM] = end.split(":").map(Number);
+  const current = localHour * 60 + localMinute;
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+
+  if (startMin <= endMin) {
+    // Same-day window (e.g. 09:00–17:00)
+    return current >= startMin && current < endMin;
+  }
+  // Wraps midnight (e.g. 22:00–07:00)
+  return current >= startMin || current < endMin;
+}
+
+/**
+ * Get the effective priority for a notification type.
+ * Uses user override from pref, falling back to DEFAULT_PRIORITY.
+ */
+function getEffectivePriority(
+  prefs: { type: string; priority?: string | null }[],
+  type: NotificationType
+): NotificationPriority {
+  const pref = prefs.find((p) => p.type === type);
+  return (pref?.priority as NotificationPriority) || DEFAULT_PRIORITY[type];
 }
 
 // ─── Notification Dedup ──────────────────────────────────
@@ -81,11 +152,11 @@ async function wasNotificationSent(userId: string, tag: string): Promise<boolean
   }
 }
 
-async function markNotificationSent(userId: string, tag: string): Promise<void> {
+async function markNotificationSent(userId: string, tag: string, type: string): Promise<void> {
   try {
     await prisma.sentNotification.upsert({
       where: { userId_tag: { userId, tag } },
-      create: { userId, tag },
+      create: { userId, tag, type },
       update: { sentAt: new Date() },
     });
   } catch {
@@ -1050,14 +1121,15 @@ async function generateDailyReviewAlert(
 
 /**
  * Generate a notification for unread weekly reviews.
- * Fires on Sunday evening (6-8 PM) if there's an unread weekly review.
+ * Fires every morning (8-9 AM) if there's an unread weekly review.
+ * This ensures the user gets notified the morning after the cron generates it (Sunday 8 PM UTC).
  */
 async function generateWeeklyReviewAlert(
   userId: string,
   now: Date
 ): Promise<NotificationPayload[]> {
-  const day = now.getDay(); // 0 = Sunday
-  if (day !== 0 || !isWithinTimeWindow(now.getHours(), now.getMinutes(), "18:00")) return [];
+  // Trigger at 08:00
+  if (!isWithinTimeWindow(now.getHours(), now.getMinutes(), "08:00")) return [];
 
   const review = await prisma.review.findFirst({
     where: { userId, type: "weekly", status: "generated" },
@@ -1066,11 +1138,18 @@ async function generateWeeklyReviewAlert(
 
   if (!review) return [];
 
+  const actions = review.actions as { text?: string }[] | null;
+  const actionCount = Array.isArray(actions) ? actions.filter((a) => a.text).length : 0;
+  const body =
+    actionCount > 0
+      ? `Your weekly review has ${actionCount} action item${actionCount !== 1 ? "s" : ""} waiting.`
+      : "Your weekly review is ready to read.";
+
   return [
     {
       userId,
       title: "Weekly Review Ready",
-      body: "Your weekly review is ready to read.",
+      body,
       tag: "review-weekly",
       data: { url: `/reviews/${review.id}`, type: "review_weekly" },
     },
@@ -1079,20 +1158,15 @@ async function generateWeeklyReviewAlert(
 
 /**
  * Generate a notification for unread monthly reviews.
- * Fires on the last day of the month (6-8 PM) if there's an unread monthly review.
+ * Fires every morning (8-9 AM) if there's an unread monthly review.
+ * This ensures the user gets notified the morning after the cron generates it (last day of month 8 PM UTC).
  */
 async function generateMonthlyReviewAlert(
   userId: string,
   now: Date
 ): Promise<NotificationPayload[]> {
-  // Trigger at 18:00
-  if (!isWithinTimeWindow(now.getHours(), now.getMinutes(), "18:00")) return [];
-
-  // Check if today is the last day of the month
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const isLastDay = now.getMonth() !== tomorrow.getMonth();
-  if (!isLastDay) return [];
+  // Trigger at 08:00
+  if (!isWithinTimeWindow(now.getHours(), now.getMinutes(), "08:00")) return [];
 
   const review = await prisma.review.findFirst({
     where: { userId, type: "monthly", status: "generated" },
@@ -1101,11 +1175,18 @@ async function generateMonthlyReviewAlert(
 
   if (!review) return [];
 
+  const actions = review.actions as { text?: string }[] | null;
+  const actionCount = Array.isArray(actions) ? actions.filter((a) => a.text).length : 0;
+  const body =
+    actionCount > 0
+      ? `Your monthly review has ${actionCount} action item${actionCount !== 1 ? "s" : ""} waiting.`
+      : "Your monthly strategic review is available.";
+
   return [
     {
       userId,
       title: "Monthly Review Ready",
-      body: "Your monthly strategic review is available.",
+      body,
       tag: "review-monthly",
       data: { url: `/reviews/${review.id}`, type: "review_monthly" },
     },
@@ -1145,68 +1226,93 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
 
     const userLocalTime = getUserLocalTime(timezone);
 
+    // Fetch all preferences once for priority + quiet hours checks
+    const prefs = await getPreferences(userId);
+
+    // Helper: should this type be sent right now?
+    async function shouldSend(type: NotificationType): Promise<boolean> {
+      if (!isTypeEnabled(userId, type)) return false;
+
+      const priority = getEffectivePriority(prefs, type);
+      // Critical always sends
+      if (priority === "critical") return true;
+
+      // Normal/low respect quiet hours
+      const pref = prefs.find((p) => p.type === type);
+      const quietStart = pref?.quietHoursStart ?? "22:00";
+      const quietEnd = pref?.quietHoursEnd ?? "07:00";
+      if (isWithinQuietHours(userLocalTime.getHours(), userLocalTime.getMinutes(), quietStart, quietEnd)) {
+        return false;
+      }
+      return true;
+    }
+
     // Check each notification type
-    if (await isTypeEnabled(userId, "routine_reminder")) {
+    if (await shouldSend("routine_reminder")) {
       allNotifications.push(...(await generateRoutineReminders(userId, userLocalTime)));
     }
 
-    if (await isTypeEnabled(userId, "task_due")) {
+    if (await shouldSend("task_due")) {
       allNotifications.push(...(await generateTaskNotifications(userId, userLocalTime)));
     }
 
-    if (await isTypeEnabled(userId, "class_start")) {
+    if (await shouldSend("class_start")) {
       allNotifications.push(...(await generateClassNotifications(userId, userLocalTime)));
     }
 
-    if (await isTypeEnabled(userId, "class_end")) {
+    if (await shouldSend("class_end")) {
       allNotifications.push(...(await generateClassEndNotifications(userId, userLocalTime)));
     }
 
-    if (await isTypeEnabled(userId, "assessment")) {
+    if (await shouldSend("assessment")) {
       allNotifications.push(...(await generateAssessmentNotifications(userId, userLocalTime)));
     }
 
-    if (await isTypeEnabled(userId, "daily_summary")) {
+    if (await shouldSend("daily_summary")) {
       allNotifications.push(...(await generateDailySummary(userId)));
     }
 
-    if (await isTypeEnabled(userId, "missed_routine")) {
+    if (await shouldSend("missed_routine")) {
       allNotifications.push(
         ...(await generateMissedRoutineNotifications(userId, userLocalTime))
       );
     }
 
-    if (await isTypeEnabled(userId, "overdue_task")) {
+    if (await shouldSend("overdue_task")) {
       allNotifications.push(
         ...(await generateOverdueTaskNotifications(userId, userLocalTime))
       );
     }
 
-    if (await isTypeEnabled(userId, "review_daily")) {
+    if (await shouldSend("review_daily")) {
       allNotifications.push(
         ...(await generateDailyReviewAlert(userId, userLocalTime))
       );
     }
 
-    if (await isTypeEnabled(userId, "review_weekly")) {
+    if (await shouldSend("review_weekly")) {
       allNotifications.push(
         ...(await generateWeeklyReviewAlert(userId, userLocalTime))
       );
     }
 
-    if (await isTypeEnabled(userId, "review_monthly")) {
+    if (await shouldSend("review_monthly")) {
       allNotifications.push(
         ...(await generateMonthlyReviewAlert(userId, userLocalTime))
       );
     }
   }
 
+  // ─── Digest Window ──────────────────────────────────────
+  // Batch notifications for the same user within a 15-minute window.
+  const digested = buildDigestWindows(allNotifications);
+
   // Send all notifications and track what was sent
-  if (allNotifications.length > 0) {
-    await sendPushNotifications(allNotifications);
-    // Record what was sent for dedup
-    for (const n of allNotifications) {
-      await markNotificationSent(n.userId, n.tag);
+  if (digested.length > 0) {
+    await sendPushNotifications(digested);
+    // Record what was sent for dedup (with type for analytics)
+    for (const n of digested) {
+      await markNotificationSent(n.userId, n.tag, n.data.type);
     }
   }
 
@@ -1216,6 +1322,89 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
   } finally {
     forceNotifications = false;
   }
+}
+
+// ─── Digest Window Batching ───────────────────────────────
+// Groups notifications for the same user within a 15-minute window
+// into a single push with a summary and "View all" deep link.
+
+function buildDigestWindows(
+  notifications: NotificationPayload[]
+): NotificationPayload[] {
+  if (notifications.length === 0) return [];
+
+  // Group by userId
+  const byUser = new Map<string, NotificationPayload[]>();
+  for (const n of notifications) {
+    const list = byUser.get(n.userId) || [];
+    list.push(n);
+    byUser.set(n.userId, list);
+  }
+
+  const result: NotificationPayload[] = [];
+
+  for (const [userId, userNotifs] of byUser) {
+    // Sort by tag order (approximate scheduled time)
+    userNotifs.sort((a, b) => a.tag.localeCompare(b.tag));
+
+    const windows: NotificationPayload[][] = [];
+    let currentWindow: NotificationPayload[] = [userNotifs[0]];
+
+    for (let i = 1; i < userNotifs.length; i++) {
+      const prev = currentWindow[currentWindow.length - 1];
+      const curr = userNotifs[i];
+      // If current notification is a different type from the previous, start a new window
+      // unless there are multiple types already in the window (batch mixed types too)
+      if (curr.data.type !== prev.data.type) {
+        windows.push(currentWindow);
+        currentWindow = [curr];
+      } else {
+        currentWindow.push(curr);
+      }
+    }
+    windows.push(currentWindow);
+
+    for (const window of windows) {
+      if (window.length === 1) {
+        // Single notification — send as-is
+        result.push(window[0]);
+      } else {
+        // Multiple notifications — build a digest
+        const types = [...new Set(window.map((n) => n.data.type))];
+        const summaryLines = window.map((n) => {
+          const typeLabel = n.data.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+          return `${typeLabel}: ${n.body.split("\n")[0]}`;
+        });
+        const body = summaryLines.join(" · ");
+
+        // Build individual URLs map
+        const individualUrls: Record<string, string> = {};
+        for (const n of window) {
+          individualUrls[n.data.type] = n.data.url;
+        }
+
+        const tag = `digest-${userId}-${window[0].tag}`;
+        const typesParam = types.join(",");
+
+        result.push({
+          userId,
+          title: `${window.length} notifications`,
+          body,
+          tag,
+          data: {
+            url: `/notifications/digest?types=${typesParam}`,
+            type: types[0],
+            types,
+            individualUrls,
+          },
+          actions: [{ action: "view", title: "View all" }],
+          requireInteraction: true,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

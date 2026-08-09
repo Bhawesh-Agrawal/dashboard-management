@@ -78,6 +78,7 @@ function AddNoteForm({
       tags: formData.get("tags")
         ? (formData.get("tags") as string).split(",").map((t) => t.trim())
         : [],
+      sourceLink: (formData.get("sourceLink") as string) || undefined,
     });
 
     setLoading(false);
@@ -99,14 +100,20 @@ function AddNoteForm({
           placeholder="Tags (comma-separated)"
           className="flex-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? "..." : "Save Note"}
-        </button>
+        <input
+          name="sourceLink"
+          type="url"
+          placeholder="Source URL (optional)"
+          className="flex-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
+        />
       </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+      >
+        {loading ? "..." : "Save Note"}
+      </button>
     </form>
   );
 }

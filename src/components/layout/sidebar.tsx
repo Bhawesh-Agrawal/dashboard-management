@@ -20,7 +20,9 @@ import {
   Settings,
   LogOut,
   Newspaper,
+  GitBranch,
 } from "lucide-react";
+import { DailyNoteButton } from "@/features/notes/components/DailyNoteButton";
 
 const navItems = [
   { label: "Today", href: "/today", icon: Calendar },
@@ -30,6 +32,7 @@ const navItems = [
   { label: "Semesters", href: "/semesters", icon: GraduationCap },
   { label: "Routines", href: "/routines", icon: Repeat },
   { label: "Notes", href: "/notes", icon: FileText },
+  { label: "Graph", href: "/notes/graph", icon: GitBranch },
   { label: "Projects", href: "/projects", icon: Briefcase },
   { label: "Budget", href: "/budget", icon: DollarSign },
   { label: "Library", href: "/library", icon: BookOpen },
@@ -75,6 +78,11 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Daily Note */}
+      <div className="px-3 mt-4">
+        <DailyNoteButton variant="sidebar" />
+      </div>
 
       {/* Bottom actions */}
       <div className="border-t border-sidebar-border px-3 py-3 space-y-0.5">

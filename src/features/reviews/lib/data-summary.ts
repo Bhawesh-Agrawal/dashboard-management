@@ -94,7 +94,6 @@ export async function fetchReviewData(
         priority: true,
         dueDate: true,
         completedAt: true,
-        energyRequirement: true,
         optimalTimeOfDay: true,
         course: { select: { name: true } },
         project: { select: { name: true } },
@@ -106,7 +105,6 @@ export async function fetchReviewData(
       where: { userId },
       select: {
         name: true,
-        energyImpact: true,
         activeDays: true,
         category: true,
         identity: { select: { statement: true } },
@@ -185,7 +183,6 @@ export async function fetchReviewData(
         lastContact: true,
         contactFrequency: true,
         relationshipType: true,
-        energyImpact: true,
       },
     }),
 
@@ -248,14 +245,12 @@ export async function fetchReviewData(
       priority: t.priority,
       dueDate: t.dueDate,
       completedAt: t.completedAt,
-      energyRequirement: t.energyRequirement,
       optimalTimeOfDay: t.optimalTimeOfDay,
       courseName: t.course?.name ?? null,
       projectName: t.project?.name ?? null,
     })),
     routines: routinesWithCompletions.map((r) => ({
       name: r.name,
-      energyImpact: r.energyImpact,
       activeDays: r.activeDays,
       category: r.category,
       completions: r.completions.map((c) => c.date),
@@ -302,7 +297,6 @@ export async function fetchReviewData(
       lastContact: p.lastContact,
       contactFrequency: p.contactFrequency,
       relationshipType: p.relationshipType,
-      energyImpact: p.energyImpact,
     })),
     identities: identities.map((i) => ({
       statement: i.statement,
@@ -371,17 +365,6 @@ export function formatReviewDataSummary(
       );
     }
 
-    const energyTasks = completedTasks.filter((t) => t.energyRequirement);
-    if (energyTasks.length > 0) {
-      const byEnergy: Record<string, number> = {};
-      for (const t of energyTasks) {
-        byEnergy[t.energyRequirement!] = (byEnergy[t.energyRequirement!] || 0) + 1;
-      }
-      lines.push(
-        `Energy distribution: ${Object.entries(byEnergy).map(([e, c]) => `${e}=${c}`).join(", ")}`
-      );
-    }
-
     const timeOfDayTasks = completedTasks.filter((t) => t.optimalTimeOfDay);
     if (timeOfDayTasks.length > 0) {
       const byTime: Record<string, number> = {};
@@ -415,7 +398,7 @@ export function formatReviewDataSummary(
           ? Math.round((r.completions.length / activeDaysInPeriod) * 100)
           : 0;
       lines.push(
-        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days) | energy: ${r.energyImpact}${r.identityName ? ` | identity: ${r.identityName}` : ""}`
+        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)${r.identityName ? ` | identity: ${r.identityName}` : ""}`
       );
     }
   }
@@ -531,7 +514,7 @@ export function formatReviewDataSummary(
       const expected = p.contactFrequency ? contactInterval[p.contactFrequency] || 30 : null;
       const overdue = expected ? daysSinceContact > expected * 2 : false;
       lines.push(
-        `${p.name} (${p.relationshipType || "unknown"}): ${daysSinceContact}d ago${overdue ? " ← OVERDUE" : ""} | energy: ${p.energyImpact}`
+        `${p.name} (${p.relationshipType || "unknown"}): ${daysSinceContact}d ago${overdue ? " ← OVERDUE" : ""}`
       );
     }
   }

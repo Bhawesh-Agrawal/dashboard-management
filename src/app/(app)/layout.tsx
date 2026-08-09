@@ -4,19 +4,23 @@ import { FabCluster } from "@/components/layout/fab-cluster";
 import { SearchOverlay } from "@/features/search/components/search-overlay";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { PageTransition } from "@/components/shared/page-transition";
+import { AccentSetter } from "@/components/shared/accent-setter";
+import { getDashboardLayout } from "@/features/dashboard/lib/actions";
 
-
-
+export const dynamic = "force-dynamic";
 
 import { OverdueBanner } from "@/components/layout/overdue-banner";
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const layout = await getDashboardLayout();
+
   return (
     <div className="min-h-screen bg-background">
+      <AccentSetter accentColor={layout.accentColor} />
       {/* Offline banner */}
       <OfflineBanner />
 

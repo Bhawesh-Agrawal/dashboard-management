@@ -30,7 +30,7 @@ OUTPUT FORMAT:
 Return a JSON array of insights. No markdown, no backticks, no explanation — ONLY the JSON array.
 Each insight must have: type, title, description, severity, evidence (array of objects with metric, value, threshold, context).
 
-Valid types: declining_skill, burnout_risk, missed_opportunity, relationship_drift, energy_mismatch, budget_anomaly, knowledge_gap, focus_fragmentation, achievement, positive_trend, streak_milestone
+Valid types: declining_skill, burnout_risk, missed_opportunity, relationship_drift, budget_anomaly, knowledge_gap, focus_fragmentation, achievement, positive_trend, streak_milestone
 Valid severities: info, warning, critical, positive`;
 
 // ─── Data Summary Builder ────────────────────────────────────
@@ -70,7 +70,6 @@ async function buildDataSummary(userId: string): Promise<string> {
       where: { userId },
       select: {
         name: true,
-        energyImpact: true,
         activeDays: true,
         category: true,
         completions: {
@@ -182,7 +181,7 @@ async function buildDataSummary(userId: string): Promise<string> {
           ? Math.round((r.completions.length / activeDaysInPeriod) * 100)
           : 0;
       lines.push(
-        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)${r.energyImpact !== "neutral" ? ` | energy: ${r.energyImpact}` : ""}`
+        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)`
       );
     }
   }
@@ -370,7 +369,6 @@ export async function generateAIInsights(
         "burnout_risk",
         "missed_opportunity",
         "relationship_drift",
-        "energy_mismatch",
         "budget_anomaly",
         "knowledge_gap",
         "focus_fragmentation",

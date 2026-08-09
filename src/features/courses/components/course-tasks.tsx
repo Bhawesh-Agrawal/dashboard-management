@@ -4,6 +4,7 @@ import { useState, useOptimistic, useTransition } from "react";
 import { createTask } from "@/features/tasks/lib/actions";
 import type { Task } from "@prisma/client";
 import { toggleTaskDone } from "@/features/tasks/lib/actions";
+import { TaskForm, type TaskFormData } from "@/features/tasks/components/TaskForm";
 
 export function CourseTasksSection({
   courseId,
@@ -22,7 +23,7 @@ export function CourseTasksSection({
           onClick={() => setShowForm(!showForm)}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          + Add
+          {showForm ? "Cancel" : "+ Add"}
         </button>
       </div>
 
@@ -48,46 +49,29 @@ function AddTaskForm({
 }) {
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleSubmit(data: TaskFormData) {
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-
     await createTask({
-      title: formData.get("title") as string,
+      title: data.title,
       courseId,
-      dueDate: (formData.get("dueDate") as string) || undefined,
+      dueDate: data.dueDate,
+      priority: data.priority,
     });
-
     setLoading(false);
     onDone();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-3 p-3 rounded-md border border-border bg-card mb-3">
-      <div className="flex-1 space-y-1">
-        <input
-          name="title"
-          required
-          placeholder="Task title..."
-          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-        />
-      </div>
-      <div className="space-y-1">
-        <input
-          name="dueDate"
-          type="date"
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 touch-manipulation"
-      >
-        {loading ? "..." : "Add"}
-      </button>
-    </form>
+    <div className="p-3 rounded-md border border-border bg-card mb-3">
+      <TaskForm
+        mode="quick"
+        courseId={courseId}
+        onSubmit={handleSubmit}
+        onDone={onDone}
+        loading={loading}
+        submitLabel={loading ? "..." : "Add Task"}
+      />
+    </div>
   );
 }
 

@@ -23,6 +23,7 @@ export async function createNote(data: {
   courseId?: string;
   taskId?: string;
   projectId?: string;
+  folderId?: string | null;
   attachments?: AttachmentInput[];
 }): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
   try {

@@ -104,6 +104,7 @@ export type IdentityProgress = {
     completions: { date: Date }[];
   }[];
   lastActivity: Date | null;
+  daysSinceLastActivity: number | null;
 };
 
 const stopWords = new Set([
@@ -264,6 +265,9 @@ export async function getIdentityProgress(
         completions: r.completions.map((c) => ({ date: c.date })),
       })),
       lastActivity,
+      daysSinceLastActivity: lastActivity
+        ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+        : null,
     });
   }
 

@@ -17,7 +17,6 @@ function hasAnyMetrics(metrics: ReviewMetrics): boolean {
     metrics.tasksTotal > 0 ||
     metrics.routineAdherence > 0 ||
     metrics.moodAverage != null ||
-    metrics.energyAverage != null ||
     metrics.sleepAverage != null ||
     metrics.totalSpent != null ||
     metrics.attendanceRate != null ||

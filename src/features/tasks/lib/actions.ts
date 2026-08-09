@@ -43,7 +43,6 @@ export async function createTask(data: {
   courseId?: string;
   projectId?: string;
   starred?: boolean;
-  energyRequirement?: string;
   estimatedDuration?: number;
   optimalTimeOfDay?: string;
 }) {
@@ -69,7 +68,6 @@ export async function createTask(data: {
       projectId: data.projectId || null,
       domainId,
       starred: data.starred ?? false,
-      energyRequirement: data.energyRequirement || null,
       estimatedDuration: data.estimatedDuration ?? null,
       optimalTimeOfDay: data.optimalTimeOfDay || null,
       userId,
@@ -94,7 +92,6 @@ export async function updateTask(
     courseId?: string | null;
     projectId?: string | null;
     starred?: boolean;
-    energyRequirement?: string | null;
     estimatedDuration?: number | null;
     optimalTimeOfDay?: string | null;
   }
@@ -133,7 +130,6 @@ export async function updateTask(
       projectId: data.projectId,
       domainId,
       starred: data.starred,
-      energyRequirement: data.energyRequirement,
       estimatedDuration: data.estimatedDuration,
       optimalTimeOfDay: data.optimalTimeOfDay,
       ...completedAtUpdate,

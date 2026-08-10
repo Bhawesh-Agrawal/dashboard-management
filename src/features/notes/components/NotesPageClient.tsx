@@ -11,16 +11,12 @@ import { QuickCapture } from "./quick-capture";
 import { VaultImportDialog } from "./VaultImportDialog";
 import { DailyNoteButton } from "./DailyNoteButton";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import type { NoteWithCourse } from "@/types";
+import { useNotes } from "@/lib/sync/hooks";
+import type { SyncNote } from "@/lib/sync/db";
 
 type QuickFilter = "all" | "favorites" | "recent" | "links";
 
-export interface NotesPageClientProps {
-  initialNotes: NoteWithCourse[];
-  noteCount: number;
-}
-
-export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProps) {
+export function NotesPageClient() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter>("all");
   const [activeFolderId, setActiveFolderId] = useState<string | undefined>();
@@ -28,11 +24,14 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  const initialNotes = useNotes();
+  const noteCount = initialNotes.length;
+
   // Compute counts
   const counts = {
     all: noteCount,
     documents: initialNotes.filter((n) => n.isDocumentLibraryEntry).length,
-    links: initialNotes.filter((n) => n.sourceLink || n.noteAttachments.some((a) => a.type === "LINK")).length,
+    links: initialNotes.filter((n) => n.sourceLink).length,
     favorites: initialNotes.filter((n) => n.isFavorite).length,
   };
 
@@ -50,13 +49,13 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
           return new Date(note.createdAt) > weekAgo;
         }
         if (activeQuickFilter === "links") {
-          return !!note.sourceLink || note.noteAttachments.some((a) => a.type === "LINK");
+          return !!note.sourceLink;
         }
         return true;
       case "favorites":
         return note.isFavorite;
       case "links":
-        return !!note.sourceLink || note.noteAttachments.some((a) => a.type === "LINK");
+        return !!note.sourceLink;
       default:
         return true;
     }
@@ -72,9 +71,7 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
     : filteredNotes;
 
   const linkNotes = initialNotes.filter(
-    (n) =>
-      !n.isDocumentLibraryEntry &&
-      (!!n.sourceLink || n.noteAttachments.some((a) => a.type === "LINK"))
+    (n) => !n.isDocumentLibraryEntry && !!n.sourceLink
   );
 
   const handleTabChange = useCallback((tab: TabValue) => {
@@ -206,7 +203,7 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
                 {!searchQuery && <QuickCapture />}
               </div>
             ) : (
-              <NoteList notes={searchFilteredNotes} />
+              <NoteList notes={searchFilteredNotes as any} />
             )
           ) : activeTab === "documents" ? (
             <DocumentLibrary
@@ -215,7 +212,7 @@ export function NotesPageClient({ initialNotes, noteCount }: NotesPageClientProp
               searchQuery={searchQuery}
             />
           ) : activeTab === "links" ? (
-            <LinkList links={linkNotes} />
+            <LinkList links={linkNotes as any} />
           ) : null}
         </main>
       </div>

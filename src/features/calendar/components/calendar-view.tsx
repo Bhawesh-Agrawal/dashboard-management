@@ -409,6 +409,96 @@ export function WeekView({
   );
 }
 
+// ─── Mobile Week Strip (compact horizontal week for iOS-style mobile) ──────────
+
+export function MobileWeekStrip({
+  weekStart,
+  eventsByDate,
+  today,
+  selectedDate,
+  onSelectDate,
+}: {
+  weekStart: Date;
+  eventsByDate: Record<string, CalendarEvent[]>;
+  today: Date;
+  selectedDate: Date;
+  onSelectDate: (d: Date) => void;
+}) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  return (
+    <div className="grid grid-cols-7 border-b border-border">
+      {days.map((day) => {
+        const dateStr = toDateStr(day);
+        const dayEvents = eventsByDate[dateStr] || [];
+        const isToday = isSameDay(day, today);
+        const isSelected = isSameDay(day, selectedDate);
+
+        return (
+          <button
+            key={day.toISOString()}
+            onClick={() => onSelectDate(day)}
+            className="flex flex-col items-center py-2 gap-1 hover:bg-accent/50 transition-colors"
+          >
+            <span
+              className={cn(
+                "text-[0.6rem] tracking-widest uppercase font-medium",
+                isToday ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              {SHORT_DAY_NAMES[day.getDay()]}
+            </span>
+            <span
+              className={cn(
+                "text-sm font-semibold w-8 h-8 flex items-center justify-center rounded-full transition-colors",
+                isToday && "bg-primary text-primary-foreground",
+                isSelected && !isToday && "bg-muted ring-2 ring-primary/40",
+                !isToday && !isSelected && "text-foreground"
+              )}
+            >
+              {day.getDate()}
+            </span>
+            {/* Event indicator dots */}
+            <div className="flex gap-0.5 h-1.5">
+              {dayEvents.length > 0 && (
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    dayEvents.some((e) => e.type === "class")
+                      ? "bg-blue-500"
+                      : dayEvents.some((e) => e.type === "assessment")
+                        ? "bg-amber-500"
+                        : dayEvents.some((e) => e.type === "task")
+                          ? "bg-emerald-500"
+                          : "bg-violet-500"
+                  )}
+                />
+              )}
+              {dayEvents.length > 1 && (
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    dayEvents[1].type === "class"
+                      ? "bg-blue-500"
+                      : dayEvents[1].type === "assessment"
+                        ? "bg-amber-500"
+                        : dayEvents[1].type === "task"
+                          ? "bg-emerald-500"
+                          : "bg-violet-500"
+                  )}
+                />
+              )}
+              {dayEvents.length > 2 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Day View ─────────────────────────────────────────────────────────────────
 
 export function DayView({
@@ -952,7 +1042,13 @@ function CalendarLegend() {
 
 // ─── Main CalendarView ────────────────────────────────────────────────────────
 
-export function CalendarView() {
+export function CalendarView({
+  externalTasks,
+  externalEvents,
+}: {
+  externalTasks?: { id: string; title: string; dueDate: string | null; courseId: string | null; courseName: string | null; courseColor: string | null }[];
+  externalEvents?: { id: string; title: string; dateTime: string; location: string | null; eventType: string | null }[];
+} = {}) {
   const isMobile = useIsMobile();
   const [view, setView] = useState<CalendarViewType>("week");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -969,18 +1065,44 @@ export function CalendarView() {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Fetch events for current view range
+  // Fetch events for current view range — uses Dexie data when available
   const fetchEvents = useCallback(async (year: number, month: number) => {
     setLoading(true);
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month + 2, 0);
-    const result = await getCalendarEventsAction(
-      startOfMonth.toISOString(),
-      endOfMonth.toISOString()
-    );
-    setEvents(result.events as unknown as CalendarEvent[]);
+
+    // If external data is provided (from Dexie), use the sync API route
+    if (externalTasks || externalEvents) {
+      try {
+        const res = await fetch(
+          `/api/sync/calendar?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tasks: externalTasks ?? [],
+              events: externalEvents ?? [],
+            }),
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setEvents(data.events as CalendarEvent[]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch calendar events:", error);
+      }
+    } else {
+      // Fallback to original server action
+      const result = await getCalendarEventsAction(
+        startOfMonth.toISOString(),
+        endOfMonth.toISOString()
+      );
+      setEvents(result.events as unknown as CalendarEvent[]);
+    }
     setLoading(false);
-  }, []);
+  }, [externalTasks, externalEvents]);
 
   useEffect(() => {
     fetchEvents(currentYear, currentMonth);

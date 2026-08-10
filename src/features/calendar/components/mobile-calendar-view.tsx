@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { CalendarEvent } from "@/types";
 import {
   CalendarDays,
@@ -16,22 +16,141 @@ import {
   getWeekStart,
   isSameDay,
   toDateStr,
-  WeekView,
-  DayView,
+  formatTime,
+  getEventStyle,
   MonthView,
+  MobileWeekStrip,
   DayDetailPanel,
 } from "./calendar-view";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const VIEW_ORDER: CalendarViewType[] = ["month", "week", "day"];
-const MIN_SPLIT = 30; // minimum percentage for calendar half
-const MAX_SPLIT = 70; // maximum percentage for calendar half
-const DEFAULT_SPLIT = 50; // default split percentage
-const SWIPE_THRESHOLD = 80; // minimum vertical swipe distance to switch views
-const DRAG_HANDLE_HEIGHT = 24; // height of the drag handle area in px
+const SWIPE_THRESHOLD = 80;
 
-// ─── Mobile Calendar View ─────────────────────────────────────────────────────
+// ─── Mobile Event List (iOS-style) ────────────────────────────────────────────
+
+function MobileEventList({
+  date,
+  events,
+  onSelectEvent,
+}: {
+  date: Date;
+  events: CalendarEvent[];
+  onSelectEvent: (e: CalendarEvent) => void;
+}) {
+  const timedEvents = events
+    .filter((e) => e.time)
+    .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  const allDayEvents = events.filter((e) => !e.time);
+
+  const today = new Date();
+  const isToday = isSameDay(date, today);
+  const tomorrow = addDays(today, 1);
+  const isTomorrow = isSameDay(date, tomorrow);
+
+  const dateLabel = (() => {
+    if (isToday) return "TODAY";
+    if (isTomorrow) return "TOMORROW";
+    return FULL_DAY_NAMES[date.getDay()]?.toUpperCase();
+  })();
+
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <CalendarDays className="h-8 w-8 text-muted-foreground/30 mb-3" />
+        <p className="text-sm text-muted-foreground">No events</p>
+        <p className="text-xs text-muted-foreground/50 mt-1">Enjoy your free time!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* All-day events */}
+      {allDayEvents.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold text-primary">{dateLabel}</span>
+            <span className="text-[0.65rem] text-muted-foreground">
+              {date.getMonth() + 1}/{date.getDate()}/{date.getFullYear()}
+            </span>
+          </div>
+          <div className="space-y-0">
+            {allDayEvents.map((event) => (
+              <MobileEventRow
+                key={event.id}
+                event={event}
+                onClick={() => onSelectEvent(event)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Timed events */}
+      {timedEvents.length > 0 && (
+        <div>
+          {allDayEvents.length === 0 && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-primary">{dateLabel}</span>
+              <span className="text-[0.65rem] text-muted-foreground">
+                {date.getMonth() + 1}/{date.getDate()}/{date.getFullYear()}
+              </span>
+            </div>
+          )}
+          <div className="space-y-0">
+            {timedEvents.map((event) => (
+              <MobileEventRow
+                key={event.id}
+                event={event}
+                onClick={() => onSelectEvent(event)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileEventRow({
+  event,
+  onClick,
+}: {
+  event: CalendarEvent;
+  onClick: () => void;
+}) {
+  const style = getEventStyle(event);
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full text-left flex items-center gap-3 py-2.5 border-b border-border/50",
+        "hover:bg-accent/30 transition-colors active:bg-accent/50"
+      )}
+    >
+      {/* Color dot */}
+      <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", style.dot)} />
+
+      {/* Time range */}
+      <span className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">
+        {event.time && formatTime(event.time)}
+        {event.time && event.endTime && " – "}
+        {event.endTime && formatTime(event.endTime)}
+        {!event.time && !event.endTime && "All Day"}
+      </span>
+
+      {/* Event title */}
+      <span className="text-sm font-medium text-foreground truncate">
+        {event.title}
+      </span>
+    </button>
+  );
+}
+
+// ─── Mobile Calendar View (iOS-style) ────────────────────────────────────────
 
 export function MobileCalendarView({
   events,
@@ -76,20 +195,10 @@ export function MobileCalendarView({
   goToToday: () => void;
   handleSelectDate: (d: Date) => void;
 }) {
-  // ── Split state ──
-  const [splitPercent, setSplitPercent] = useState(DEFAULT_SPLIT);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState<"calendar" | "events" | null>(null);
-
-  // ── Touch state for swipe view switching ──
+  // ── Touch state for swipe ──
   const touchStartY = useRef<number | null>(null);
   const touchStartX = useRef<number | null>(null);
-  const isSwiping = useRef(false);
-
-  // ── Drag state ──
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dragStartY = useRef<number>(0);
-  const dragStartSplit = useRef(DEFAULT_SPLIT);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Header label ──
   const headerLabel = (() => {
@@ -106,139 +215,56 @@ export function MobileCalendarView({
     return `${MONTH_NAMES[currentMonth]} ${currentYear}`;
   })();
 
-  // ── Drag handlers ──
-  const handleDragStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    isSwiping.current = false;
-
-    if ("touches" in e) {
-      dragStartY.current = e.touches[0].clientY;
-    } else {
-      dragStartY.current = e.clientY;
-    }
-    dragStartSplit.current = splitPercent;
-  }, [splitPercent]);
-
-  const handleDragMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDragging || !containerRef.current) return;
-
-    const currentY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    const deltaY = currentY - dragStartY.current;
-    const containerHeight = containerRef.current.offsetHeight;
-    const deltaPercent = (deltaY / containerHeight) * 100;
-
-    const newSplit = Math.max(MIN_SPLIT, Math.min(MAX_SPLIT, dragStartSplit.current + deltaPercent));
-    setSplitPercent(newSplit);
-  }, [isDragging]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // ── Touch handlers for swipe view switching ──
+  // ── Touch handlers for swipe navigation ──
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Don't interfere with drag handle
-    if ((e.target as HTMLElement).closest("[data-drag-handle]")) return;
-
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
-    isSwiping.current = false;
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartY.current === null || touchStartX.current === null) return;
-    if ((e.target as HTMLElement).closest("[data-drag-handle]")) return;
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartY.current === null || touchStartX.current === null) return;
 
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
+      const dy = e.changedTouches[0].clientY - touchStartY.current;
+      const dx = e.changedTouches[0].clientX - touchStartX.current;
 
-    // Only handle vertical swipes that are primarily vertical
-    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > SWIPE_THRESHOLD) {
-      isSwiping.current = true;
-      const currentViewIdx = VIEW_ORDER.indexOf(view);
-
-      if (dy < 0 && currentViewIdx < VIEW_ORDER.length - 1) {
-        // Swipe up → go to more detailed view (month → week → day)
-        setView(VIEW_ORDER[currentViewIdx + 1]);
-      } else if (dy > 0 && currentViewIdx > 0) {
-        // Swipe down → go to less detailed view (day → week → month)
-        setView(VIEW_ORDER[currentViewIdx - 1]);
+      // Horizontal swipe: navigate prev/next
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        if (dx < 0) navigateNext();
+        else navigatePrev();
       }
-    }
 
-    touchStartY.current = null;
-    touchStartX.current = null;
-  }, [view, setView]);
-
-  // ── Double-tap to fullscreen ──
-  const lastTap = useRef<number>(0);
-  const handleDoubleClick = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTap.current < 300) {
-      // Double tap detected
-      if (isFullscreen === null) {
-        // If at default split, maximize calendar
-        if (splitPercent === DEFAULT_SPLIT) {
-          setIsFullscreen("calendar");
-          setSplitPercent(MAX_SPLIT);
-        } else if (splitPercent === MAX_SPLIT) {
-          setIsFullscreen("events");
-          setSplitPercent(MIN_SPLIT);
-        } else {
-          setIsFullscreen(null);
-          setSplitPercent(DEFAULT_SPLIT);
+      // Vertical swipe: switch views
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > SWIPE_THRESHOLD) {
+        const currentIdx = VIEW_ORDER.indexOf(view);
+        if (dy < 0 && currentIdx < VIEW_ORDER.length - 1) {
+          setView(VIEW_ORDER[currentIdx + 1]);
+        } else if (dy > 0 && currentIdx > 0) {
+          setView(VIEW_ORDER[currentIdx - 1]);
         }
-      } else {
-        setIsFullscreen(null);
-        setSplitPercent(DEFAULT_SPLIT);
       }
-    }
-    lastTap.current = now;
-  }, [isFullscreen, splitPercent]);
 
-  // ── Prevent scroll when dragging ──
-  useEffect(() => {
-    if (isDragging) {
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-    } else {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-  }, [isDragging]);
+      touchStartY.current = null;
+      touchStartX.current = null;
+    },
+    [view, setView, navigatePrev, navigateNext]
+  );
 
-  // ── Keyboard navigation for view switching ──
+  // ── Scroll to top when selected date changes ──
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        const currentIdx = VIEW_ORDER.indexOf(view);
-        if (currentIdx > 0) setView(VIEW_ORDER[currentIdx - 1]);
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        const currentIdx = VIEW_ORDER.indexOf(view);
-        if (currentIdx < VIEW_ORDER.length - 1) setView(VIEW_ORDER[currentIdx + 1]);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [view, setView]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [selectedDate]);
 
   return (
     <div
-      ref={containerRef}
-      className="flex flex-col h-full overflow-hidden select-none"
+      className="flex flex-col h-full overflow-hidden select-none bg-background"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onClick={handleDoubleClick}
     >
       {/* ── Top toolbar ── */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background shrink-0">
         {/* Left: navigation */}
         <div className="flex items-center gap-2">
           <button
@@ -287,89 +313,135 @@ export function MobileCalendarView({
         </div>
       </div>
 
-      {/* ── Calendar half (top) ── */}
-      <div
-        className="overflow-hidden relative"
-        style={{
-          height: isFullscreen === "events" ? "0%" : `${isFullscreen === "calendar" ? 100 : splitPercent}%`,
-          transition: isDragging ? "none" : "height 0.2s ease-out",
-        }}
-      >
-        <div className="h-full overflow-hidden">
-          {view === "week" && (
-            <WeekView
-              weekStart={weekStart}
-              eventsByDate={eventsByDate}
-              today={today}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              onSelectEvent={setSelectedEvent}
-            />
-          )}
-          {view === "day" && (
-            <DayView
-              date={selectedDate}
-              eventsByDate={eventsByDate}
-              today={today}
-              onSelectEvent={setSelectedEvent}
-            />
-          )}
-          {view === "month" && (
-            <MonthView
-              year={currentYear}
-              month={currentMonth}
-              eventsByDate={eventsByDate}
-              today={today}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              onSelectEvent={setSelectedEvent}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* ── Drag handle ── */}
-      <div
-        data-drag-handle
-        onTouchStart={handleDragStart}
-        onTouchMove={handleDragMove}
-        onTouchEnd={handleDragEnd}
-        onMouseDown={handleDragStart}
-        onMouseMove={isDragging ? handleDragMove : undefined}
-        onMouseUp={handleDragEnd}
-        onMouseLeave={isDragging ? handleDragEnd : undefined}
-        className={cn(
-          "flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing",
-          "bg-background border-y border-border hover:bg-accent/50 transition-colors",
-          isDragging && "bg-accent/50"
+      {/* ── Calendar section (top ~40%) ── */}
+      <div className="shrink-0 border-b border-border">
+        {view === "month" && (
+          <MonthView
+            year={currentYear}
+            month={currentMonth}
+            eventsByDate={eventsByDate}
+            today={today}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            onSelectEvent={setSelectedEvent}
+          />
         )}
-        style={{ height: DRAG_HANDLE_HEIGHT }}
-      >
-        <div className={cn(
-          "w-8 h-1 rounded-full transition-colors",
-          isDragging ? "bg-primary/60" : "bg-border"
-        )} />
+        {view === "week" && (
+          <MobileWeekStrip
+            weekStart={weekStart}
+            eventsByDate={eventsByDate}
+            today={today}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+          />
+        )}
+        {view === "day" && (
+          <MobileWeekStrip
+            weekStart={getWeekStart(selectedDate)}
+            eventsByDate={eventsByDate}
+            today={today}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+          />
+        )}
       </div>
 
-      {/* ── Events half (bottom) ── */}
-      <div
-        className="overflow-hidden relative"
-        style={{
-          height: isFullscreen === "calendar" ? "0%" : `${isFullscreen === "events" ? 100 : 100 - splitPercent}%`,
-          transition: isDragging ? "none" : "height 0.2s ease-out",
-        }}
-      >
-        <div className="h-full overflow-hidden">
-          <DayDetailPanel
+      {/* ── Event list section (bottom ~60%, scrollable) ── */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-none p-4">
+        {view === "month" ? (
+          <MobileEventList
             date={selectedDate}
             events={selectedDayEvents}
             onSelectEvent={setSelectedEvent}
           />
-        </div>
+        ) : view === "week" ? (
+          <WeekEventList
+            weekStart={weekStart}
+            eventsByDate={eventsByDate}
+            onSelectEvent={setSelectedEvent}
+          />
+        ) : (
+          <MobileEventList
+            date={selectedDate}
+            events={selectedDayEvents}
+            onSelectEvent={setSelectedEvent}
+          />
+        )}
       </div>
 
       {/* ── Swipe hint (shown briefly) ── */}
       <SwipeHint />
+    </div>
+  );
+}
+
+// ─── Week Event List (events grouped by day for the current week) ────────────
+
+function WeekEventList({
+  weekStart,
+  eventsByDate,
+  onSelectEvent,
+}: {
+  weekStart: Date;
+  eventsByDate: Record<string, CalendarEvent[]>;
+  onSelectEvent: (e: CalendarEvent) => void;
+}) {
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const sections = days
+    .map((day) => {
+      const dateStr = toDateStr(day);
+      const dayEvents = eventsByDate[dateStr] || [];
+      return { date: day, events: dayEvents };
+    })
+    .filter((s) => s.events.length > 0);
+
+  if (sections.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <CalendarDays className="h-8 w-8 text-muted-foreground/30 mb-3" />
+        <p className="text-sm text-muted-foreground">No events this week</p>
+        <p className="text-xs text-muted-foreground/50 mt-1">Enjoy your free time!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {sections.map(({ date, events }) => {
+        const isToday = isSameDay(date, today);
+        const tomorrow = addDays(today, 1);
+        const isTomorrow = isSameDay(date, tomorrow);
+
+        const dateLabel = (() => {
+          if (isToday) return "TODAY";
+          if (isTomorrow) return "TOMORROW";
+          return FULL_DAY_NAMES[date.getDay()]?.toUpperCase();
+        })();
+
+        return (
+          <div key={toDateStr(date)}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-primary">{dateLabel}</span>
+              <span className="text-[0.65rem] text-muted-foreground">
+                {date.getMonth() + 1}/{date.getDate()}/{date.getFullYear()}
+              </span>
+            </div>
+            <div className="space-y-0">
+              {events
+                .sort((a, b) => (a.time || "").localeCompare(b.time || ""))
+                .map((event) => (
+                  <MobileEventRow
+                    key={event.id}
+                    event={event}
+                    onClick={() => onSelectEvent(event)}
+                  />
+                ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

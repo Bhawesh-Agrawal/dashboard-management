@@ -1,21 +1,28 @@
-import { getNoteById } from "@/features/notes/lib/queries";
-import { notFound } from "next/navigation";
+"use client";
+
+import { use } from "react";
+import { useNoteById } from "@/lib/sync/hooks";
 import { PageHeader } from "@/components/shared/page-header";
-import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { RelatedNotesPanel, BacklinksPanel } from "@/features/notes/components/related-notes-panel";
 import { ReviewButton } from "@/features/notes/components/review-button";
 import { EditNoteDialog } from "@/features/notes/components/edit-note-dialog";
 
-export default async function NoteDetailPage({
+export default function NoteDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const note = await getNoteById(id);
+  const { id } = use(params);
+  const note = useNoteById(id);
 
-  if (!note) notFound();
+  if (!note) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -31,7 +38,7 @@ export default async function NoteDetailPage({
         action={
           <div className="flex items-center gap-2">
             <ReviewButton noteId={note.id} />
-            <EditNoteDialog note={note} />
+            <EditNoteDialog note={note as any} />
           </div>
         }
       />
@@ -72,13 +79,10 @@ export default async function NoteDetailPage({
           </div>
 
           <div className="flex items-center gap-3 pt-4 border-t border-border">
-            {note.course && (
-              <Link
-                href={`/courses/${note.course.id}`}
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-              >
-                {note.course.name}
-              </Link>
+            {note.courseName && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                {note.courseName}
+              </span>
             )}
             {note.tags.length > 0 && (
               <div className="flex gap-1">

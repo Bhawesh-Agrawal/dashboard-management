@@ -5,14 +5,15 @@
  * - Push subscription management
  * - Receiving push events and displaying notifications
  * - Notification click handling (open relevant page)
- * - Offline caching for app shell and read-only data
+ * - Offline caching for app shell (JS/CSS bundles, not API responses)
+ *
+ * Local-first architecture: data is stored in IndexedDB (Dexie),
+ * so API responses don't need to be cached in the service worker.
  */
 
-const CACHE_NAME = "academic-command-center-v1";
-const APP_SHELL_CACHE = "app-shell-v1";
-const DATA_CACHE = "data-cache-v1";
+const APP_SHELL_CACHE = "app-shell-v2";
 
-// App shell files to cache (JS/CSS bundles, fonts)
+// App shell files to cache (navigation routes)
 const APP_SHELL_FILES = [
   "/",
   "/today",
@@ -27,6 +28,7 @@ const APP_SHELL_FILES = [
   "/search",
   "/ask",
   "/settings",
+  "/routines",
 ];
 
 // Install event — cache app shell robustly
@@ -34,12 +36,12 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(APP_SHELL_CACHE).then(async (cache) => {
-      console.log("Caching app shell");
+      console.log("[SW] Caching app shell");
       for (const file of APP_SHELL_FILES) {
         try {
           await cache.add(file);
         } catch (error) {
-          console.warn(`Failed to cache ${file}:`, error);
+          console.warn(`[SW] Failed to cache ${file}:`, error);
         }
       }
     })
@@ -52,8 +54,9 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== APP_SHELL_CACHE && cacheName !== DATA_CACHE) {
-            console.log("Deleting old cache:", cacheName);
+          // Delete old cache versions
+          if (cacheName !== APP_SHELL_CACHE) {
+            console.log("[SW] Deleting old cache:", cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -74,8 +77,7 @@ self.addEventListener("fetch", (event) => {
   // Skip external requests
   if (url.origin !== location.origin) return;
 
-  // Skip HMR and RSC streaming requests — cloning them detaches the
-  // underlying ArrayBuffer and crashes the dev server's HMR stream.
+  // Skip HMR and RSC streaming requests
   if (
     url.pathname.startsWith("/_next/webpack-hmr") ||
     url.pathname.startsWith("/_next/static/chunks/webpack") ||
@@ -87,32 +89,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API requests — network-first with cache fallback
+  // API requests — network only (data is in IndexedDB)
+  // Don't cache API responses since we use local-first reads
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone the response before caching
-          const responseClone = response.clone();
-          caches.open(DATA_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request);
-        })
-    );
     return;
   }
 
-  // Static assets — cache-first with network fallback
+  // Static assets (JS/CSS bundles, fonts) — cache-first with network fallback
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/static/") ||
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
-    url.pathname.endsWith(".woff2")
+    url.pathname.endsWith(".woff2") ||
+    url.pathname.endsWith(".woff") ||
+    url.pathname.endsWith(".ttf")
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
@@ -120,10 +111,13 @@ self.addEventListener("fetch", (event) => {
           return cachedResponse;
         }
         return fetch(request).then((response) => {
-          const responseClone = response.clone();
-          caches.open(APP_SHELL_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+          // Only cache successful responses
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(APP_SHELL_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
           return response;
         });
       })
@@ -136,10 +130,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(APP_SHELL_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+          // Cache successful navigation responses
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(APP_SHELL_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
           return response;
         })
         .catch(() => {
@@ -159,10 +156,12 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const responseClone = response.clone();
-        caches.open(DATA_CACHE).then((cache) => {
-          cache.put(request, responseClone);
-        });
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(APP_SHELL_CACHE).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
         return response;
       })
       .catch(() => {
@@ -187,13 +186,13 @@ self.addEventListener("push", (event) => {
       data: data.data || {},
       actions: data.actions || [],
       requireInteraction: data.requireInteraction || false,
-      renotify: false, // Don't re-alert for same tag — dedup handled by scheduler
-      vibrate: [200, 100, 200], // Vibration pattern for mobile devices
+      renotify: false,
+      vibrate: [200, 100, 200],
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (error) {
-    console.error("Failed to parse push data:", error);
+    console.error("[SW] Failed to parse push data:", error);
   }
 });
 
@@ -206,8 +205,6 @@ self.addEventListener("notificationclick", (event) => {
   // Track notification open for weekly stats (fire-and-forget)
   const tag = event.notification.tag;
   if (tag && tag !== "default") {
-    // Best-effort: try to get userId from the push payload
-    // The push payload includes userId in data; we stored it on notification show
     const userId = data.userId || null;
     if (userId) {
       fetch("/api/notifications/mark-opened", {
@@ -215,7 +212,7 @@ self.addEventListener("notificationclick", (event) => {
         credentials: "include",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
         body: JSON.stringify({ tag }),
-      }).catch(() => {}); // non-critical
+      }).catch(() => {});
     }
   }
 
@@ -230,36 +227,35 @@ self.addEventListener("notificationclick", (event) => {
         body: JSON.stringify({
           courseId: data.courseId,
           date: data.date,
-          status: status
+          status: status,
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
         })
-      })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then(() => {
-        self.registration.showNotification("Attendance Marked", {
-          body: `Marked as ${status} for ${data.date}`,
-          tag: `attendance-confirm-${data.courseId}-${data.date}`,
-          icon: "/icon-192x192.png",
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to mark attendance from push:", err);
-        // Fallback: open the app so user can mark manually
-        const url = data.url || "/today";
-        self.clients.matchAll({ type: "window" }).then((clients) => {
-          for (const client of clients) {
-            if (client.url.includes(self.location.origin) && "focus" in client) {
-              client.navigate(url);
-              return client.focus();
+        .then(() => {
+          self.registration.showNotification("Attendance Marked", {
+            body: `Marked as ${status} for ${data.date}`,
+            tag: `attendance-confirm-${data.courseId}-${data.date}`,
+            icon: "/icon-192x192.png",
+          });
+        })
+        .catch((err) => {
+          console.error("[SW] Failed to mark attendance from push:", err);
+          const url = data.url || "/today";
+          self.clients.matchAll({ type: "window" }).then((clients) => {
+            for (const client of clients) {
+              if (client.url.includes(self.location.origin) && "focus" in client) {
+                client.navigate(url);
+                return client.focus();
+              }
             }
-          }
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(url);
-          }
-        });
-      })
+            if (self.clients.openWindow) {
+              return self.clients.openWindow(url);
+            }
+          });
+        })
     );
     return;
   }
@@ -268,7 +264,6 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clients) => {
-      // Check if there's already a window open
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
           client.navigate(url);
@@ -276,7 +271,6 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
 
-      // Open a new window if none exists
       if (self.clients.openWindow) {
         return self.clients.openWindow(url);
       }

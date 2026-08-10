@@ -17,23 +17,27 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
+import { MobileCalendarView } from "./mobile-calendar-view";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type CalendarView = "week" | "month" | "day";
+export type CalendarViewType = "week" | "month" | "day";
 
-const SHORT_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const FULL_DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTH_NAMES = [
+export const SHORT_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const FULL_DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const MONTH_NAMES = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+export const HOURS = Array.from({ length: 24 }, (_, i) => i);
+export const SLOT_HEIGHT = 60; // px per hour
+export const TIME_COL_WIDTH = 48; // px
 
 // ─── Event color system (matches warm editorial palette) ─────────────────────
 
-const EVENT_STYLES: Record<string, { bg: string; text: string; dot: string; border: string }> = {
+export const EVENT_STYLES: Record<string, { bg: string; text: string; dot: string; border: string }> = {
   class:      { bg: "bg-blue-50 dark:bg-blue-950/40",   text: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   border: "border-blue-200 dark:border-blue-800" },
   assessment: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500", border: "border-amber-200 dark:border-amber-800" },
   task:       { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500", border: "border-emerald-200 dark:border-emerald-800" },
@@ -41,12 +45,12 @@ const EVENT_STYLES: Record<string, { bg: string; text: string; dot: string; bord
   birthday:   { bg: "bg-pink-50 dark:bg-pink-950/40",   text: "text-pink-700 dark:text-pink-300",   dot: "bg-pink-500",   border: "border-pink-200 dark:border-pink-800" },
 };
 
-function getEventStyle(event: CalendarEvent) {
+export function getEventStyle(event: CalendarEvent) {
   if (event.isBirthday) return EVENT_STYLES.birthday;
   return EVENT_STYLES[event.type] ?? EVENT_STYLES.event;
 }
 
-function getEventIcon(event: CalendarEvent) {
+export function getEventIcon(event: CalendarEvent) {
   if (event.isBirthday) return <Cake className="h-3 w-3 shrink-0" />;
   if (event.type === "class") return <BookOpen className="h-3 w-3 shrink-0" />;
   if (event.type === "assessment") return <Sparkles className="h-3 w-3 shrink-0" />;
@@ -56,24 +60,24 @@ function getEventIcon(event: CalendarEvent) {
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
-function toDateStr(date: Date): string {
+export function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function parseTime(t?: string): number {
+export function parseTime(t?: string): number {
   if (!t) return 0;
   const [h, m] = t.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
-function formatHour(h: number): string {
+export function formatHour(h: number): string {
   if (h === 0) return "12 AM";
   if (h < 12) return `${h} AM`;
   if (h === 12) return "12 PM";
   return `${h - 12} PM`;
 }
 
-function formatTime(t?: string): string {
+export function formatTime(t?: string): string {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
   const ampm = h < 12 ? "AM" : "PM";
@@ -81,20 +85,20 @@ function formatTime(t?: string): string {
   return `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
-function getWeekStart(date: Date): Date {
+export function getWeekStart(date: Date): Date {
   const d = new Date(date);
   d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function addDays(date: Date, n: number): Date {
+export function addDays(date: Date, n: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
   return d;
 }
 
-function isSameDay(a: Date, b: Date): boolean {
+export function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
@@ -131,7 +135,7 @@ function CalendarSkeleton() {
 
 // ─── Event chip (used in month view and day panel) ────────────────────────────
 
-function EventChip({
+export function EventChip({
   event,
   onClick,
   compact = false,
@@ -164,7 +168,7 @@ function EventChip({
 
 // ─── Week/Day event block (positioned in time grid) ───────────────────────────
 
-function TimeEventBlock({
+export function TimeEventBlock({
   event,
   slotHeight,
   onClick,
@@ -217,10 +221,7 @@ function TimeEventBlock({
 
 // ─── Week View ────────────────────────────────────────────────────────────────
 
-const SLOT_HEIGHT = 60; // px per hour
-const TIME_COL_WIDTH = 48; // px
-
-function WeekView({
+export function WeekView({
   weekStart,
   eventsByDate,
   today,
@@ -410,7 +411,7 @@ function WeekView({
 
 // ─── Day View ─────────────────────────────────────────────────────────────────
 
-function DayView({
+export function DayView({
   date,
   eventsByDate,
   today,
@@ -517,7 +518,7 @@ function DayView({
 
 // ─── Month View ───────────────────────────────────────────────────────────────
 
-function MonthView({
+export function MonthView({
   year,
   month,
   eventsByDate,
@@ -727,7 +728,7 @@ function MiniCalendar({
 
 // ─── Day Detail Panel (sidebar) ───────────────────────────────────────────────
 
-function DayDetailPanel({
+export function DayDetailPanel({
   date,
   events,
   onSelectEvent,
@@ -797,7 +798,7 @@ function DayDetailPanel({
   );
 }
 
-function DetailEventCard({ event, onClick }: { event: CalendarEvent; onClick: () => void }) {
+export function DetailEventCard({ event, onClick }: { event: CalendarEvent; onClick: () => void }) {
   const style = getEventStyle(event);
   return (
     <button
@@ -952,7 +953,8 @@ function CalendarLegend() {
 // ─── Main CalendarView ────────────────────────────────────────────────────────
 
 export function CalendarView() {
-  const [view, setView] = useState<CalendarView>("week");
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<CalendarViewType>("week");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [today] = useState(() => new Date());
@@ -1102,6 +1104,45 @@ export function CalendarView() {
 
   if (loading) return <CalendarSkeleton />;
 
+  // Mobile layout: Samsung Calendar-style split view
+  if (isMobile) {
+    return (
+      <>
+        <MobileCalendarView
+          events={events}
+          loading={loading}
+          view={view}
+          setView={setView}
+          today={today}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          currentMonth={currentMonth}
+          setCurrentMonth={setCurrentMonth}
+          currentYear={currentYear}
+          setCurrentYear={setCurrentYear}
+          eventsByDate={eventsByDate}
+          selectedDayEvents={selectedDayEvents}
+          setSelectedEvent={setSelectedEvent}
+          navigatePrev={navigatePrev}
+          navigateNext={navigateNext}
+          goToToday={goToToday}
+          handleSelectDate={handleSelectDate}
+        />
+
+        {/* Event detail modal */}
+        {selectedEvent && (
+          <EventDetailModal
+            event={selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Desktop layout: traditional sidebar layout
   return (
     <div
       className="flex flex-col gap-0 -mx-4 sm:-mx-6 md:-mx-8"
@@ -1141,7 +1182,7 @@ export function CalendarView() {
 
         {/* Right: view switcher */}
         <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
-          {(["day", "week", "month"] as CalendarView[]).map((v) => (
+          {(["day", "week", "month"] as CalendarViewType[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -1152,8 +1193,7 @@ export function CalendarView() {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {v === "day" ? <span className="sm:hidden"><CalendarDays className="h-3.5 w-3.5" /></span> : null}
-              <span className={v === "day" ? "hidden sm:inline" : ""}>{v}</span>
+              {v}
             </button>
           ))}
         </div>
@@ -1218,41 +1258,6 @@ export function CalendarView() {
           <CalendarLegend />
         </div>
       </div>
-
-      {/* Mobile: day detail bottom sheet */}
-      {showDetailPanel && (
-        <div className="lg:hidden fixed inset-0 z-40 flex flex-col justify-end">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowDetailPanel(false)}
-          />
-          <div className={cn(
-            "relative bg-card rounded-t-2xl border-t border-border shadow-2xl max-h-[70vh] flex flex-col",
-            "animate-in slide-in-from-bottom-4 duration-300"
-          )}>
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-border" />
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <DayDetailPanel
-                date={selectedDate}
-                events={selectedDayEvents}
-                onSelectEvent={(e) => { setSelectedEvent(e); setShowDetailPanel(false); }}
-                onClose={() => setShowDetailPanel(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile today button (floating) */}
-      <button
-        onClick={goToToday}
-        className="sm:hidden fixed bottom-24 right-4 z-30 px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-semibold shadow-lg"
-      >
-        Today
-      </button>
 
       {/* Event detail modal */}
       {selectedEvent && (

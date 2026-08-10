@@ -96,7 +96,7 @@ export async function chatCompletion(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://academic-command-center.vercel.app",
-      "X-Title": "Academic Command Center",
+      "X-Title": "CodexDash",
     },
     body: JSON.stringify({
       model,

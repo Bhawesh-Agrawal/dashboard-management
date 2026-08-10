@@ -1,7 +1,7 @@
 {
-  "name": "Academic Command Center",
-  "short_name": "Academic",
-  "description": "Your personal academic command center — courses, attendance, grades, tasks, and more.",
+  "name": "CodexDash",
+  "short_name": "CodexDash",
+  "description": "Your personal dashboard — courses, attendance, grades, tasks, and more.",
   "start_url": "/today",
   "display": "standalone",
   "background_color": "#FAF8F5",

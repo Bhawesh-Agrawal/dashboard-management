@@ -1,31 +1,45 @@
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs');
-
-// Simple graduation cap SVG
-const iconSvg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="128" fill="#FAF8F5"/>
-  <path d="M256 128L64 224L256 320L448 224L256 128Z" fill="#1A1A1A"/>
-  <path d="M128 256V352C128 352 192 416 256 416C320 416 384 352 384 352V256L256 320L128 256Z" fill="#1A1A1A"/>
-  <path d="M416 224V340C416 340 368 384 256 384" stroke="#1A1A1A" stroke-width="24" stroke-linecap="round"/>
-  <circle cx="416" cy="348" r="12" fill="#1A1A1A"/>
-</svg>`;
 
 const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
 const publicDir = path.join(__dirname, '..', 'public');
+const sourceIcon = path.join(publicDir, 'CodexDash Abstract Dashboard Icon.png');
 
 async function generateIcons() {
   for (const size of sizes) {
     const filename = `icon-${size}x${size}.png`;
     const filepath = path.join(publicDir, filename);
-    
-    await sharp(Buffer.from(iconSvg))
+
+    await sharp(sourceIcon)
       .resize(size, size)
       .png()
       .toFile(filepath);
-    
+
     console.log(`Generated ${filename}`);
   }
+
+  // Generate favicon.ico (16x16, 32x32, 48x48 multi-resolution)
+  const faviconPath = path.join(publicDir, 'favicon.ico');
+  const faviconSizes = [16, 32, 48];
+  const faviconBuffers = await Promise.all(
+    faviconSizes.map(async (size) => {
+      const buf = await sharp(sourceIcon).resize(size).png().toBuffer();
+      return buf;
+    })
+  );
+
+  // ICO format: write PNG buffers directly (modern browsers accept PNG-based ICO)
+  // For simplicity, use the 32x32 version as the favicon
+  await sharp(sourceIcon).resize(32, 32).png().toFile(faviconPath.replace('.ico', '-32.png'));
+  const { execSync } = require('child_process');
+  // Use sharp to create a proper .ico by writing the 32px PNG with .ico extension
+  // Most modern browsers accept PNGs with .ico extension
+  const ico32 = await sharp(sourceIcon).resize(32, 32).png().toBuffer();
+  require('fs').writeFileSync(faviconPath, ico32);
+  console.log('Generated favicon.ico');
+
+  // Clean up temp file
+  try { require('fs').unlinkSync(faviconPath.replace('.ico', '-32.png')); } catch {}
 }
 
 generateIcons().catch(console.error);

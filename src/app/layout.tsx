@@ -23,13 +23,13 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Academic Command Center",
-  description: "Your personal academic command center — courses, attendance, grades, tasks, and more.",
+  title: "CodexDash",
+  description: "Your personal dashboard — courses, attendance, grades, tasks, and more.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Academic",
+    title: "CodexDash",
   },
 };
 

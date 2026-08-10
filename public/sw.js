@@ -177,7 +177,7 @@ self.addEventListener("push", (event) => {
   try {
     const data = event.data.json();
 
-    const title = data.title || "Academic Command Center";
+    const title = data.title || "CodexDash";
     const options = {
       body: data.body || "You have a new notification",
       icon: data.icon || "/icon-192x192.png",

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRoutines, useRoutineCompletions } from "@/lib/sync/hooks";
 import { db } from "@/lib/sync/db";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -156,7 +157,16 @@ export default function RoutinesPageClient() {
           <p className="section-label">IDENTITIES</p>
           <IdentityForm userId="local" />
         </div>
-        <IdentityGrid userId="local" />
+        <Suspense
+          fallback={
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="h-32 bg-muted/40 rounded-xl animate-pulse" />
+              <div className="h-32 bg-muted/40 rounded-xl animate-pulse" />
+            </div>
+          }
+        >
+          <IdentityGrid userId="local" />
+        </Suspense>
       </div>
 
       {/* Routines section */}

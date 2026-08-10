@@ -126,153 +126,158 @@ function extractKeywords(text: string): string[] {
 export async function getIdentityProgress(
   userId: string
 ): Promise<IdentityProgress[]> {
-  const identities = await prisma.identity.findMany({
-    where: { userId },
-    include: {
-      routines: {
-        include: {
-          completions: {
-            where: {
-              date: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+  try {
+    const identities = await prisma.identity.findMany({
+      where: { userId },
+      include: {
+        routines: {
+          include: {
+            completions: {
+              where: {
+                date: {
+                  gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                },
               },
+              orderBy: { date: "desc" },
             },
-            orderBy: { date: "desc" },
           },
         },
       },
-    },
-  });
+    });
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  const twentyEightDaysAgo = new Date(
-    now.getTime() - 28 * 24 * 60 * 60 * 1000
-  );
-
-  // Fetch tasks and notes for keyword matching
-  const [tasks, notes] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        userId,
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: { title: true, status: true, createdAt: true },
-    }),
-    prisma.note.findMany({
-      where: {
-        userId,
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: { tags: true, createdAt: true },
-    }),
-  ]);
-
-  const results: IdentityProgress[] = [];
-
-  for (const identity of identities) {
-    const keywords = extractKeywords(identity.statement);
-
-    // 1. Routine adherence (50% weight)
-    let routineAdherence = 0;
-    if (identity.routines.length > 0) {
-      const totalPossible = identity.routines.reduce((sum, r) => {
-        const days = r.activeDays.length;
-        return sum + Math.ceil((30 * days) / 7);
-      }, 0);
-      const completed = identity.routines.reduce(
-        (sum, r) => sum + r.completions.length,
-        0
-      );
-      routineAdherence = totalPossible > 0 ? (completed / totalPossible) * 100 : 0;
-    }
-
-    // 2. Task completion (30% weight)
-    let taskCompletion = 0;
-    if (keywords.length > 0) {
-      const matchedTasks = tasks.filter((t) =>
-        keywords.some(
-          (kw) =>
-            t.title.toLowerCase().includes(kw)
-        )
-      );
-      if (matchedTasks.length > 0) {
-        const done = matchedTasks.filter((t) => t.status === "done").length;
-        taskCompletion = (done / matchedTasks.length) * 100;
-      }
-    }
-
-    // 3. Note activity (20% weight)
-    let noteActivity = 0;
-    if (keywords.length > 0) {
-      const matchedNotes = notes.filter((n) =>
-        n.tags.some((tag) =>
-          keywords.some((kw) => tag.toLowerCase().includes(kw))
-        )
-      );
-      // Scale: 1 note = 25%, 4+ notes = 100%
-      noteActivity = Math.min(matchedNotes.length * 25, 100);
-    }
-
-    // Weighted composite
-    const strength = Math.round(
-      routineAdherence * 0.5 + taskCompletion * 0.3 + noteActivity * 0.2
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const twentyEightDaysAgo = new Date(
+      now.getTime() - 28 * 24 * 60 * 60 * 1000
     );
 
-    // Trend: compare last 14 days vs prior 14 days
-    const recentCompletions = identity.routines.flatMap((r) =>
-      r.completions.filter((c) => c.date >= fourteenDaysAgo)
-    ).length;
-    const priorCompletions = identity.routines.flatMap((r) =>
-      r.completions.filter(
-        (c) => c.date >= twentyEightDaysAgo && c.date < fourteenDaysAgo
-      )
-    ).length;
+    // Fetch tasks and notes for keyword matching
+    const [tasks, notes] = await Promise.all([
+      prisma.task.findMany({
+        where: {
+          userId,
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        select: { title: true, status: true, createdAt: true },
+      }),
+      prisma.note.findMany({
+        where: {
+          userId,
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        select: { tags: true, createdAt: true },
+      }),
+    ]);
 
-    let trend: "up" | "down" | "stable" = "stable";
-    const diff = recentCompletions - priorCompletions;
-    if (diff > 1) trend = "up";
-    else if (diff < -1) trend = "down";
+    const results: IdentityProgress[] = [];
 
-    // Last activity
-    const allCompletions = identity.routines.flatMap((r) => r.completions);
-    const lastActivity =
-      allCompletions.length > 0
-        ? allCompletions.reduce((latest, c) =>
-            c.date > latest.date ? c : latest
-          ).date
-        : null;
+    for (const identity of identities) {
+      const keywords = extractKeywords(identity.statement);
 
-    results.push({
-      identity: {
-        id: identity.id,
-        statement: identity.statement,
-        description: identity.description,
-        status: identity.status,
-        color: identity.color,
-        icon: identity.icon,
-        createdAt: identity.createdAt,
-        updatedAt: identity.updatedAt,
-      },
-      strength: Math.min(strength, 100),
-      trend,
-      relatedRoutines: identity.routines.map((r) => ({
-        id: r.id,
-        name: r.name,
-        timeOfDay: r.timeOfDay,
-        activeDays: r.activeDays,
-        completions: r.completions.map((c) => ({ date: c.date })),
-      })),
-      lastActivity,
-      daysSinceLastActivity: lastActivity
-        ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
-        : null,
-    });
+      // 1. Routine adherence (50% weight)
+      let routineAdherence = 0;
+      if (identity.routines.length > 0) {
+        const totalPossible = identity.routines.reduce((sum, r) => {
+          const days = r.activeDays.length;
+          return sum + Math.ceil((30 * days) / 7);
+        }, 0);
+        const completed = identity.routines.reduce(
+          (sum, r) => sum + r.completions.length,
+          0
+        );
+        routineAdherence = totalPossible > 0 ? (completed / totalPossible) * 100 : 0;
+      }
+
+      // 2. Task completion (30% weight)
+      let taskCompletion = 0;
+      if (keywords.length > 0) {
+        const matchedTasks = tasks.filter((t) =>
+          keywords.some(
+            (kw) =>
+              t.title.toLowerCase().includes(kw)
+          )
+        );
+        if (matchedTasks.length > 0) {
+          const done = matchedTasks.filter((t) => t.status === "done").length;
+          taskCompletion = (done / matchedTasks.length) * 100;
+        }
+      }
+
+      // 3. Note activity (20% weight)
+      let noteActivity = 0;
+      if (keywords.length > 0) {
+        const matchedNotes = notes.filter((n) =>
+          n.tags.some((tag) =>
+            keywords.some((kw) => tag.toLowerCase().includes(kw))
+          )
+        );
+        // Scale: 1 note = 25%, 4+ notes = 100%
+        noteActivity = Math.min(matchedNotes.length * 25, 100);
+      }
+
+      // Weighted composite
+      const strength = Math.round(
+        routineAdherence * 0.5 + taskCompletion * 0.3 + noteActivity * 0.2
+      );
+
+      // Trend: compare last 14 days vs prior 14 days
+      const recentCompletions = identity.routines.flatMap((r) =>
+        r.completions.filter((c) => c.date >= fourteenDaysAgo)
+      ).length;
+      const priorCompletions = identity.routines.flatMap((r) =>
+        r.completions.filter(
+          (c) => c.date >= twentyEightDaysAgo && c.date < fourteenDaysAgo
+        )
+      ).length;
+
+      let trend: "up" | "down" | "stable" = "stable";
+      const diff = recentCompletions - priorCompletions;
+      if (diff > 1) trend = "up";
+      else if (diff < -1) trend = "down";
+
+      // Last activity
+      const allCompletions = identity.routines.flatMap((r) => r.completions);
+      const lastActivity =
+        allCompletions.length > 0
+          ? allCompletions.reduce((latest, c) =>
+              c.date > latest.date ? c : latest
+            ).date
+          : null;
+
+      results.push({
+        identity: {
+          id: identity.id,
+          statement: identity.statement,
+          description: identity.description,
+          status: identity.status,
+          color: identity.color,
+          icon: identity.icon,
+          createdAt: identity.createdAt,
+          updatedAt: identity.updatedAt,
+        },
+        strength: Math.min(strength, 100),
+        trend,
+        relatedRoutines: identity.routines.map((r) => ({
+          id: r.id,
+          name: r.name,
+          timeOfDay: r.timeOfDay,
+          activeDays: r.activeDays,
+          completions: r.completions.map((c) => ({ date: c.date })),
+        })),
+        lastActivity,
+        daysSinceLastActivity: lastActivity
+          ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+          : null,
+      });
+    }
+
+    // Sort by strength descending
+    results.sort((a, b) => b.strength - a.strength);
+
+    return results;
+  } catch (error) {
+    console.error("Failed to fetch identity progress:", error);
+    return [];
   }
-
-  // Sort by strength descending
-  results.sort((a, b) => b.strength - a.strength);
-
-  return results;
 }

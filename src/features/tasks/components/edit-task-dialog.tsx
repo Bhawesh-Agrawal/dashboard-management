@@ -48,11 +48,15 @@ export function EditTaskDialog({
     setOpen(false);
   }
 
+  const isControlled = controlledOpen !== undefined;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<button className="p-1 rounded hover:bg-accent transition-colors" />}>
-        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger render={<button className="p-1 rounded hover:bg-accent transition-colors" />}>
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Edit Task</DialogTitle>

@@ -228,7 +228,7 @@ export function DashboardGrid({
       {/* Desktop: 3-column layout. Mobile: stacked. Tablet: 2-column */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-12">
         {/* Main column (2/3 width on desktop) */}
-        <div className="md:col-span-2 lg:col-span-2 space-y-6 md:space-y-8 pl-8">
+        <div className="md:col-span-2 lg:col-span-2 space-y-6 md:space-y-8 md:pl-8">
           <SortableContext
             items={mainWidgets}
             strategy={verticalListSortingStrategy}
@@ -247,7 +247,7 @@ export function DashboardGrid({
         </div>
 
         {/* Right sidebar (1/3 width on desktop) */}
-        <div className="space-y-6 md:space-y-8 pl-8">
+        <div className="space-y-6 md:space-y-8 md:pl-8">
           <SortableContext
             items={sidebarWidgets}
             strategy={verticalListSortingStrategy}

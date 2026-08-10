@@ -19,12 +19,31 @@ import {
 } from "@/features/notifications/lib/actions";
 
 export default async function SettingsPage() {
-  const courses = await getAllCourses();
-  const [notificationPreferences, dailySummaryPrefs, dashboardLayout] = await Promise.all([
-    getNotificationPreferences(),
-    getDailySummaryPreferences(),
-    getDashboardLayout(),
-  ]);
+  let courses: Awaited<ReturnType<typeof getAllCourses>> = [];
+  let notificationPreferences: Awaited<ReturnType<typeof getNotificationPreferences>> = [];
+  let dailySummaryPrefs: Awaited<ReturnType<typeof getDailySummaryPreferences>> = null;
+  let dashboardLayout: Awaited<ReturnType<typeof getDashboardLayout>> = {
+    widgetOrder: [],
+    hiddenWidgets: [],
+    accentColor: null,
+    themeMode: "light",
+  };
+
+  try {
+    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout] = await Promise.all([
+      getAllCourses().catch(() => []),
+      getNotificationPreferences().catch(() => []),
+      getDailySummaryPreferences().catch(() => null),
+      getDashboardLayout().catch(() => ({
+        widgetOrder: [],
+        hiddenWidgets: [],
+        accentColor: null,
+        themeMode: "light",
+      })),
+    ]);
+  } catch {
+    // All fallbacks are already set above
+  }
 
   return (
     <div>

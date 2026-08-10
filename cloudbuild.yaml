@@ -1,16 +1,17 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     secretEnv: ['NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY']
+    entrypoint: 'sh'
     args:
-      - 'build'
-      - '--build-arg=NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL'
-      - '--build-arg=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'
-      - '--build-arg=NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY'
-      - '-t'
-      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:$BUILD_ID'
-      - '-t'
-      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:latest'
-      - '.'
+      - '-c'
+      - |
+        docker build \
+          --build-arg=NEXT_PUBLIC_SUPABASE_URL=$$NEXT_PUBLIC_SUPABASE_URL \
+          --build-arg=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+          --build-arg=NEXT_PUBLIC_VAPID_PUBLIC_KEY=$$NEXT_PUBLIC_VAPID_PUBLIC_KEY \
+          -t $_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:$BUILD_ID \
+          -t $_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:latest \
+          .
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -36,6 +37,19 @@ steps:
       - --set-env-vars=NODE_ENV=production
       - --allow-unauthenticated
 
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'sh'
+    secretEnv: ['CRON_SECRET']
+    args:
+      - '-c'
+      - |
+        SERVICE_URL=$$(gcloud run services describe $_SERVICE_NAME --region=$_REGION --format="value(status.url)")
+        CRON_URL="$$SERVICE_URL/api/cron/daily-diagnostics?secret=$$CRON_SECRET"
+        NOTIF_URL="$$SERVICE_URL/api/notifications/trigger?secret=$$CRON_SECRET"
+        gcloud scheduler jobs update http daily-diagnostics --location=$_REGION --uri="$$CRON_URL" --clear-headers
+        gcloud scheduler jobs update http notifications --location=$_REGION --uri="$$NOTIF_URL" --clear-headers
+        echo "Updated Cloud Scheduler URLs to $$SERVICE_URL"
+
 substitutions:
   _REGION: asia-south1
   _AR_HOSTNAME: asia-south1-docker.pkg.dev
@@ -50,6 +64,8 @@ availableSecrets:
       env: NEXT_PUBLIC_SUPABASE_URL
     - versionName: projects/dashboard-management-prod/secrets/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/versions/latest
       env: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    - versionName: projects/dashboard-management-prod/secrets/CRON_SECRET/versions/latest
+      env: CRON_SECRET
 
 options:
   dynamic_substitutions: true

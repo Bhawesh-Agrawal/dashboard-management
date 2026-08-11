@@ -18,16 +18,57 @@ const JS_DAY_TO_ENUM: DayOfWeekEnum[] = [
   "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT",
 ];
 
+/**
+ * Get the user's local time from a timezone string.
+ * Falls back to server time if no timezone is provided.
+ */
+function getUserLocalTime(timezone: string | null | undefined): Date {
+  if (!timezone) return new Date();
+
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(now);
+    const get = (type: string) =>
+      parts.find((p) => p.type === type)?.value || "0";
+
+    return new Date(
+      parseInt(get("year")),
+      parseInt(get("month")) - 1,
+      parseInt(get("day")),
+      parseInt(get("hour")),
+      parseInt(get("minute")),
+      parseInt(get("second"))
+    );
+  } catch {
+    return new Date();
+  }
+}
+
 export function getPeriodBounds(
   type: ReviewType,
-  date: Date
+  date: Date,
+  timezone?: string
 ): { periodStart: Date; periodEnd: Date } {
   switch (type) {
     case "daily": {
-      const start = new Date(date);
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(date);
-      end.setUTCHours(23, 59, 59, 999);
+      const userLocalTime = getUserLocalTime(timezone);
+      const localYear = userLocalTime.getFullYear();
+      const localMonth = userLocalTime.getMonth();
+      const localDay = userLocalTime.getDate();
+
+      const start = new Date(localYear, localMonth, localDay, 0, 0, 0, 0);
+      const end = new Date(localYear, localMonth, localDay, 23, 59, 59, 999);
       return { periodStart: start, periodEnd: end };
     }
     case "weekly":
@@ -51,9 +92,10 @@ export function getPeriodBounds(
 export async function fetchReviewData(
   userId: string,
   type: ReviewType,
-  date: Date
+  date: Date,
+  timezone?: string
 ): Promise<ReviewDataSummary> {
-  const { periodStart, periodEnd } = getPeriodBounds(type, date);
+  const { periodStart, periodEnd } = getPeriodBounds(type, date, timezone);
 
   const lookbackDays =
     type === "daily"
@@ -225,7 +267,8 @@ export async function fetchReviewData(
     }),
   ]);
 
-  const dayEnum = JS_DAY_TO_ENUM[date.getUTCDay()] as any;
+  const userLocalTime = getUserLocalTime(timezone);
+  const dayEnum = JS_DAY_TO_ENUM[userLocalTime.getDay()] as any;
   const classes = type === "daily"
     ? classSchedules
         .filter((c) => c.dayOfWeek === dayEnum)
@@ -387,8 +430,8 @@ export function formatReviewDataSummary(
       const periodDays = differenceInCalendarDays(data.periodEnd, data.periodStart) + 1;
       for (let i = 0; i < periodDays; i++) {
         const day = new Date(data.periodStart);
-        day.setUTCDate(day.getUTCDate() + i);
-        const dayEnum = JS_DAY_TO_ENUM[day.getUTCDay()];
+        day.setDate(day.getDate() + i);
+        const dayEnum = JS_DAY_TO_ENUM[day.getDay()];
         if (r.activeDays.includes(dayEnum)) {
           activeDaysInPeriod++;
         }

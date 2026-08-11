@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { completeRoutineAction, uncompleteRoutineAction } from "@/features/routines/lib/actions-completions";
+import { db } from "@/lib/sync/db";
 import type { RoutineWithStreak } from "@/features/routines/types";
 import { Check, Flame } from "lucide-react";
 import { EditRoutineDialog } from "./edit-routine-dialog";
@@ -33,30 +34,51 @@ export function RoutineList({ routines, identities }: { routines: RoutineWithStr
 
   function handleToggle(routine: RoutineWithStreak) {
     startTransition(async () => {
+      const nowCompleted = !routine.completedToday;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split("T")[0];
+      const nowStr = new Date().toISOString();
+      const completionId = `${routine.id}_${todayStr}`;
+
       // Optimistic update
       setOptimisticRoutines((prev) =>
         prev.map((r) =>
           r.id === routine.id
-            ? { ...r, completedToday: !r.completedToday }
+            ? { ...r, completedToday: nowCompleted }
             : r
         )
       );
 
+      // Write to local Dexie immediately (local-first)
       try {
-        if (routine.completedToday) {
-          await uncompleteRoutineAction(routine.id);
+        if (nowCompleted) {
+          await db.routineCompletions.put({
+            id: completionId,
+            routineId: routine.id,
+            date: todayStr,
+            completedAt: nowStr,
+          });
         } else {
-          await completeRoutineAction(routine.id);
+          await db.routineCompletions
+            .where("routineId")
+            .equals(routine.id)
+            .and((c) => c.date === todayStr)
+            .delete();
         }
       } catch {
-        // Revert on error
-        setOptimisticRoutines((prev) =>
-          prev.map((r) =>
-            r.id === routine.id
-              ? { ...r, completedToday: !r.completedToday }
-              : r
-          )
-        );
+        // Dexie write failed — still proceed with server sync
+      }
+
+      // Sync to server in background
+      try {
+        if (nowCompleted) {
+          await completeRoutineAction(routine.id);
+        } else {
+          await uncompleteRoutineAction(routine.id);
+        }
+      } catch {
+        // Server sync failed — local Dexie still has the data
       }
     });
   }

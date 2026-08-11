@@ -187,16 +187,17 @@ const TIME_OF_DAY_DEFAULTS: Record<string, string> = {
 
 /**
  * Get the user's current time based on their timezone preference.
- * Falls back to server time if no timezone is configured.
+ * Falls back to server local time if no timezone is configured.
  */
 function getUserLocalTime(timezone: string | null | undefined): Date {
-  if (!timezone) return new Date();
+  // If no timezone set, try to detect from server's local timezone
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   try {
     const now = new Date();
     // Format current UTC time in the user's timezone
     const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
+      timeZone: tz,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

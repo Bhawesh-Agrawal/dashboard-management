@@ -50,10 +50,22 @@ export async function GET(request: Request) {
     // Process all users sequentially or in parallel depending on scale
     // Doing it sequentially here to avoid blasting the DB/AI API
     for (const userId of userIds) {
+      // Look up user's timezone for correct local day calculation
+      let timezone: string | null = null;
+      try {
+        const pref = await prisma.notificationPreference.findFirst({
+          where: { userId, timezone: { not: null } },
+          select: { timezone: true },
+        });
+        timezone = pref?.timezone || null;
+      } catch {
+        // No timezone set — use default
+      }
+
       const [ruleBased, aiBased, dailyReview] = await Promise.all([
         generateAllInsights(userId),
         generateAIInsights(userId),
-        generateReview(userId, "daily", new Date()),
+        generateReview(userId, "daily", new Date(), { timezone: timezone || undefined }),
       ]);
 
       const combined = combineInsights(ruleBased, aiBased);

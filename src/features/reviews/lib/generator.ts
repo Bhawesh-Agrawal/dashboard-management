@@ -154,7 +154,7 @@ export async function generateReview(
   userId: string,
   type: ReviewType,
   date: Date,
-  options?: { replaceExisting?: boolean }
+  options?: { replaceExisting?: boolean; timezone?: string }
 ): Promise<{
   id: string;
   type: ReviewType;
@@ -163,7 +163,7 @@ export async function generateReview(
   summary: string;
 }> {
   const config = getReviewPrompt(type);
-  const { periodStart, periodEnd } = getPeriodBounds(type, date);
+  const { periodStart, periodEnd } = getPeriodBounds(type, date, options?.timezone);
 
   // Dedup: check if a review already exists for this period
   const existing = await prisma.review.findFirst({
@@ -191,7 +191,7 @@ export async function generateReview(
   }
 
   // 1. Fetch data
-  const data = await fetchReviewData(userId, type, date);
+  const data = await fetchReviewData(userId, type, date, options?.timezone);
   const dataSummary = formatReviewDataSummary(data, type);
 
   // 2. Build prompts

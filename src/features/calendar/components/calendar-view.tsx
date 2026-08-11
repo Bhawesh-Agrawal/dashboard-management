@@ -647,6 +647,8 @@ export function MonthView({
     cells.push({ date: new Date(year, month + 1, d), isCurrentMonth: false });
   }
 
+  const MAX_LINES = 4;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Day name headers */}
@@ -672,7 +674,7 @@ export function MonthView({
               key={idx}
               onClick={() => onSelectDate(date)}
               className={cn(
-                "border-b border-r border-border p-1.5 cursor-pointer min-h-[80px] sm:min-h-[100px]",
+                "border-b border-r border-border p-1 cursor-pointer min-h-[80px] sm:min-h-[100px]",
                 "hover:bg-accent/30 transition-colors group",
                 isToday && "bg-primary/[0.03]",
                 isSelected && !isToday && "bg-accent/50",
@@ -692,24 +694,27 @@ export function MonthView({
                 </span>
               </div>
 
-              {/* Events */}
-              <div className="space-y-0.5">
-                {dayEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} onClick={(e) => e.stopPropagation()}>
-                    <EventChip
-                      event={event}
-                      compact
-                      onClick={() => onSelectEvent(event)}
-                    />
-                  </div>
-                ))}
-                {dayEvents.length > 3 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onSelectDate(date); }}
-                    className="text-[0.55rem] text-muted-foreground hover:text-foreground transition-colors w-full text-left pl-1"
-                  >
-                    +{dayEvents.length - 3} more
-                  </button>
+              {/* Event lines — colored accent bars */}
+              <div className="space-y-[3px]">
+                {dayEvents.slice(0, MAX_LINES).map((event) => {
+                  const style = getEventStyle(event);
+                  return (
+                    <button
+                      key={event.id}
+                      onClick={(e) => { e.stopPropagation(); onSelectEvent(event); }}
+                      className={cn(
+                        "w-full flex items-center gap-1 rounded-sm text-left transition-all",
+                        "hover:ring-1 hover:ring-foreground/20"
+                      )}
+                    >
+                      <span className={cn("w-full h-[3px] rounded-full shrink-0", style.dot)} />
+                    </button>
+                  );
+                })}
+                {dayEvents.length > MAX_LINES && (
+                  <span className="text-[0.5rem] text-muted-foreground leading-none block">
+                    +{dayEvents.length - MAX_LINES}
+                  </span>
                 )}
               </div>
             </div>

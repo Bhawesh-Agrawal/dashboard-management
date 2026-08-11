@@ -86,7 +86,10 @@ export default async function SettingsPage() {
           <h2 className="page-heading text-lg mb-6">Notifications</h2>
           <div className="space-y-6">
             <NotificationSettings />
-            <NotificationTypeToggles initialPreferences={notificationPreferences} />
+            <NotificationTypeToggles
+              key={JSON.stringify(notificationPreferences)}
+              initialPreferences={notificationPreferences}
+            />
             {dailySummaryPrefs && (
               <DailySummarySettings
                 initialTime={dailySummaryPrefs.time}

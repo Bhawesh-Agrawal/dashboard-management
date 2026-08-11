@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/features/auth/lib/actions";
+import { useSync } from "@/lib/sync/provider";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -21,8 +22,10 @@ import {
   LogOut,
   Newspaper,
   GitBranch,
+  RefreshCw,
 } from "lucide-react";
 import { DailyNoteButton } from "@/features/notes/components/DailyNoteButton";
+import { useState } from "react";
 
 const navItems = [
   { label: "Today", href: "/today", icon: Calendar },
@@ -43,6 +46,21 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isSyncing, pullAll } = useSync();
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  async function handleSync() {
+    if (isSyncing) return;
+    setSyncMessage(null);
+    try {
+      await pullAll();
+      setSyncMessage("Synced!");
+      setTimeout(() => setSyncMessage(null), 2000);
+    } catch {
+      setSyncMessage("Sync failed");
+      setTimeout(() => setSyncMessage(null), 3000);
+    }
+  }
 
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-sidebar-border bg-sidebar">
@@ -99,6 +117,22 @@ export function Sidebar() {
           <kbd className="ml-auto px-1.5 py-0.5 rounded border border-sidebar-border bg-sidebar text-[0.6rem] text-muted-foreground">
             ⌘K
           </kbd>
+        </button>
+        <button
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full disabled:opacity-50"
+        >
+          <RefreshCw className={cn("h-4 w-4 shrink-0 opacity-60", isSyncing && "animate-spin")} />
+          {isSyncing ? "Syncing..." : "Sync"}
+          {syncMessage && (
+            <span className={cn(
+              "ml-auto text-[0.6rem]",
+              syncMessage === "Synced!" ? "text-emerald-500" : "text-destructive"
+            )}>
+              {syncMessage}
+            </span>
+          )}
         </button>
         <Link
           href="/settings"

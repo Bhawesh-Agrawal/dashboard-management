@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
-import { toggleTaskDone, toggleTaskStarred, deleteTask } from "@/features/tasks/lib/actions";
+import { useToggleTaskDone, useToggleTaskStarred, useDeleteTask } from "@/lib/sync/hooks";
 import type { TaskWithCourse } from "@/types";
 import { Star, Pencil, Check } from "lucide-react";
 import { EditTaskDialog } from "./edit-task-dialog";
@@ -59,6 +59,9 @@ function TaskRow({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [, startTransition] = useTransition();
+  const toggleDone = useToggleTaskDone();
+  const toggleStarred = useToggleTaskStarred();
+  const deleteTaskHook = useDeleteTask();
 
   // Optimistic local state — UI reflects changes immediately
   const [optimisticTask, updateOptimistic] = useOptimistic(
@@ -86,20 +89,20 @@ function TaskRow({
   function handleToggleDone() {
     startTransition(() => {
       updateOptimistic({ status: optimisticTask.status === "done" ? "open" : "done" });
-      toggleTaskDone(task.id);
+      toggleDone(task.id);
     });
   }
 
   function handleToggleStar() {
     startTransition(() => {
       updateOptimistic({ starred: !optimisticTask.starred });
-      toggleTaskStarred(task.id);
+      toggleStarred(task.id);
     });
   }
 
   function handleDelete() {
     if (confirm("Delete this task?")) {
-      deleteTask(task.id);
+      deleteTaskHook(task.id);
     }
   }
 

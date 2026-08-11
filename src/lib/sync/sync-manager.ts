@@ -344,6 +344,61 @@ class SyncManager {
     this._realtimeUnsubscribe?.();
     this._realtimeUnsubscribe = null;
   }
+
+  // ─── Pull: Smart merge from server → Dexie ───────────────
+  // Pushes dirty rows first, then upserts server data without clearing local changes.
+
+  async pullAll(): Promise<void> {
+    if (this._isSeeding) return;
+    this._isSeeding = true;
+
+    try {
+      // Push dirty rows first so server has latest local changes
+      await this.pushDirtyRows();
+
+      const response = await fetch("/api/sync/seed", { credentials: "include" });
+      if (!response.ok) throw new Error(`Pull failed: ${response.status}`);
+
+      const data = await response.json();
+
+      // Smart merge: upsert server data, preserving local dirty rows
+      await this.mergeTable("tasks", data.tasks);
+      await this.mergeTable("courses", data.courses);
+      await this.mergeTable("notes", data.notes);
+      await this.mergeTable("routines", data.routines);
+      await this.mergeTable("events", data.events);
+
+      if (data.routineCompletions?.length) {
+        await db.routineCompletions.bulkPut(data.routineCompletions);
+      }
+      await this.mergeTable("attendance", data.attendance);
+      await this.mergeTable("classSchedules", data.classSchedules);
+      await this.mergeTable("assessments", data.assessments);
+    } catch (error) {
+      console.error("[SyncManager] Pull failed:", error);
+      throw error;
+    } finally {
+      this._isSeeding = false;
+    }
+  }
+
+  private async mergeTable<T extends { id: string }>(
+    tableName: SyncableTable,
+    serverRows: T[] | undefined
+  ): Promise<void> {
+    if (!serverRows?.length) return;
+    const table = db[tableName];
+
+    for (const row of serverRows) {
+      const local = await table.get(row.id);
+      if (local && (local as any).dirty) {
+        // Local has unsynced changes — skip this row (don't overwrite)
+        continue;
+      }
+      // Upsert server data
+      await table.put({ ...row, dirty: 0, _deleted: 0 } as any);
+    }
+  }
 }
 
 // Singleton

@@ -8,14 +8,18 @@ interface SyncContextValue {
   isSeeding: boolean;
   isReady: boolean;
   isOnline: boolean;
+  isSyncing: boolean;
   pushDirtyRows: () => Promise<void>;
+  pullAll: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextValue>({
   isSeeding: false,
   isReady: false,
   isOnline: true,
+  isSyncing: false,
   pushDirtyRows: async () => {},
+  pullAll: async () => {},
 });
 
 export function useSync() {
@@ -26,6 +30,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [isSeeding, setIsSeeding] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -125,8 +130,17 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     await syncManager.pushDirtyRows();
   }, []);
 
+  const pullAll = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await syncManager.pullAll();
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
   return (
-    <SyncContext.Provider value={{ isSeeding, isReady, isOnline, pushDirtyRows }}>
+    <SyncContext.Provider value={{ isSeeding, isReady, isOnline, isSyncing, pushDirtyRows, pullAll }}>
       {children}
     </SyncContext.Provider>
   );

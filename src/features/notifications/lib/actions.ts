@@ -164,7 +164,6 @@ export async function toggleNotificationType(
       },
     });
 
-    revalidatePath("/settings");
     return { success: true };
   } catch (error) {
     console.error("Failed to toggle notification type:", error);
@@ -208,7 +207,6 @@ export async function updateNotificationPriority(
       update: { priority },
     });
 
-    revalidatePath("/settings");
     return { success: true };
   } catch (error) {
     console.error("Failed to update notification priority:", error);
@@ -244,7 +242,6 @@ export async function updateQuietHours(
       },
     });
 
-    revalidatePath("/settings");
     return { success: true };
   } catch (error) {
     console.error("Failed to update quiet hours:", error);
@@ -306,7 +303,6 @@ export async function resetToDefaultPreferences(): Promise<{ success: boolean }>
       }
     }
 
-    revalidatePath("/settings");
     return { success: true };
   } catch (error) {
     console.error("Failed to reset notification preferences:", error);

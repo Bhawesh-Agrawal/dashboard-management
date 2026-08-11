@@ -31,10 +31,11 @@ import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
  */
 export const getDashboardData = async (): Promise<DashboardData> => {
   const userId = await getCurrentUserId();
+  const todayKey = new Date().toDateString();
   const getCachedData = unstable_cache(
     async () => _getDashboardData(userId),
-    [`dashboard-${userId}`],
-    { tags: ["dashboard", `dashboard-${userId}`] }
+    [`dashboard-${userId}-${todayKey}`],
+    { tags: ["dashboard", `dashboard-${userId}`], revalidate: 0 }
   );
   return getCachedData();
 };

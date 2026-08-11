@@ -421,7 +421,14 @@ function WeekEventList({
       const dayEvents = eventsByDate[dateStr] || [];
       return { date: day, events: dayEvents };
     })
-    .filter((s) => s.events.length > 0);
+    .filter((s) => s.events.length > 0)
+    .sort((a, b) => {
+      const todayStr = toDateStr(today);
+      const aIsTodayOrFuture = toDateStr(a.date) >= todayStr;
+      const bIsTodayOrFuture = toDateStr(b.date) >= todayStr;
+      if (aIsTodayOrFuture !== bIsTodayOrFuture) return aIsTodayOrFuture ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
 
   if (sections.length === 0) {
     return (

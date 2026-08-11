@@ -130,9 +130,15 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
     });
   }
 
-  // Sort by date then time
+  // Sort by date then time, with today's events first
+  const todayStr = new Date().toISOString().slice(0, 10);
   calendarEvents.sort((a, b) => {
-    const dateCompare = a.date.localeCompare(b.date);
+    const aDate = a.date.slice(0, 10);
+    const bDate = b.date.slice(0, 10);
+    const aIsTodayOrFuture = aDate >= todayStr;
+    const bIsTodayOrFuture = bDate >= todayStr;
+    if (aIsTodayOrFuture !== bIsTodayOrFuture) return aIsTodayOrFuture ? -1 : 1;
+    const dateCompare = aDate.localeCompare(bDate);
     if (dateCompare !== 0) return dateCompare;
     return (a.time || "").localeCompare(b.time || "");
   });

@@ -77,7 +77,16 @@ export function TodayDashboard({
         return (
           <UpNext
             deadlines={data.upcomingDeadlines.filter(
-              (d) => new Date(d.date).toDateString() !== today.toDateString()
+              (d) => {
+                const itemDate = new Date(d.date);
+                const isToday = itemDate.toDateString() === today.toDateString();
+                const isPast = itemDate < today && !isToday;
+                // Remove overdue tasks (already shown in Overdue Banner + Task tab)
+                if (isPast && d.type === "task") return false;
+                // Remove today's deadlines (shown in DailyTimeline)
+                if (isToday) return false;
+                return true;
+              }
             )}
           />
         );

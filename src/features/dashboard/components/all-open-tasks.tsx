@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
 import type { TaskWithCourse } from "@/types";
-import { toggleTaskDone, toggleTaskStarred } from "@/features/tasks/lib/actions";
+import { useToggleTaskDone, useToggleTaskStarred } from "@/lib/sync/hooks";
 import { Star, Check } from "lucide-react";
 import { TaskLinkBadge } from "@/features/tasks/components/task-link-badge";
 
 export function AllOpenTasks({ tasks }: { tasks: TaskWithCourse[] }) {
+  const toggleDone = useToggleTaskDone();
+  const toggleStarred = useToggleTaskStarred();
+
   const [optimisticTasks, updateOptimistic] = useOptimistic(
     tasks,
     (state, { id, field }: { id: string; field: "status" | "starred" }) =>
@@ -25,14 +28,14 @@ export function AllOpenTasks({ tasks }: { tasks: TaskWithCourse[] }) {
   function handleToggleDone(id: string) {
     startTransition(() => {
       updateOptimistic({ id, field: "status" });
-      toggleTaskDone(id);
+      toggleDone(id);
     });
   }
 
   function handleToggleStar(id: string) {
     startTransition(() => {
       updateOptimistic({ id, field: "starred" });
-      toggleTaskStarred(id);
+      toggleStarred(id);
     });
   }
 

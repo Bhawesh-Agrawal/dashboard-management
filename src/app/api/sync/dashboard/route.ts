@@ -314,6 +314,8 @@ export async function GET() {
       cgpa,
       widgetOrder: (dashboardPref?.widgetOrder as string[]) || [],
       hiddenWidgets: dashboardPref?.hiddenWidgets || [],
+    }, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (error) {
     console.error("[Sync Dashboard] Failed:", error);

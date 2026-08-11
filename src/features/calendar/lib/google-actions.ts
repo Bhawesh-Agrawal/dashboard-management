@@ -88,7 +88,7 @@ export async function getCalendarEventsAction(
     date: string;
     time?: string;
     endTime?: string;
-    type: "class" | "assessment" | "task" | "event";
+    type: "class" | "assessment" | "task" | "event" | "birthday";
     courseId?: string;
     courseName?: string;
     courseColor?: string;

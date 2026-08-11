@@ -224,10 +224,9 @@ class SyncManager {
           await this.apiDelete("attendance", item.id);
           await db.attendance.delete(item.id);
         } else {
-          const serverItem = await this.apiWrite("attendance", item);
+          await this.apiWrite("attendance", item);
           await db.attendance.update(item.id, {
             dirty: 0,
-            updatedAt: serverItem.updatedAt,
           });
         }
       } catch {
@@ -244,7 +243,7 @@ class SyncManager {
           await this.apiDelete("classSchedules", item.id);
           await db.classSchedules.delete(item.id);
         } else {
-          const serverItem = await this.apiWrite("classSchedules", item);
+          await this.apiWrite("classSchedules", item);
           await db.classSchedules.update(item.id, {
             dirty: 0,
           });
@@ -263,7 +262,7 @@ class SyncManager {
           await this.apiDelete("assessments", item.id);
           await db.assessments.delete(item.id);
         } else {
-          const serverItem = await this.apiWrite("assessments", item);
+          await this.apiWrite("assessments", item);
           await db.assessments.update(item.id, {
             dirty: 0,
           });

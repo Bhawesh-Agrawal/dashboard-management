@@ -18,7 +18,9 @@ export type NotificationType =
   | "review_daily"
   | "review_weekly"
   | "review_monthly"
-  | "class_end";
+  | "class_end"
+  | "class_cancelled"
+  | "class_rescheduled";
 
 export type NotificationPriority = "critical" | "normal" | "low";
 
@@ -38,6 +40,8 @@ export const DEFAULT_ENABLED_TYPES: NotificationType[] = [
 export const DEFAULT_PRIORITY: Record<NotificationType, NotificationPriority> = {
   class_start: "critical",
   class_end: "critical",
+  class_cancelled: "critical",
+  class_rescheduled: "critical",
   overdue_task: "critical",
   daily_summary: "normal",
   task_due: "normal",
@@ -146,7 +150,27 @@ async function wasNotificationSent(userId: string, tag: string): Promise<boolean
     const existing = await prisma.sentNotification.findUnique({
       where: { userId_tag: { userId, tag } },
     });
-    return !!existing;
+    if (!existing) return false;
+    // Check if snoozed until a future time
+    if (existing.snoozedUntil && existing.snoozedUntil > new Date()) {
+      return true; // Treat snoozed as "sent" to prevent re-triggering
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a notification is snoozed (user tapped snooze to suppress until class starts).
+ */
+async function isNotificationSnoozed(userId: string, tag: string): Promise<boolean> {
+  try {
+    const existing = await prisma.sentNotification.findUnique({
+      where: { userId_tag: { userId, tag } },
+    });
+    if (!existing || !existing.snoozedUntil) return false;
+    return existing.snoozedUntil > new Date();
   } catch {
     return false;
   }
@@ -334,23 +358,55 @@ async function generateTaskNotifications(
     orderBy: { priority: "asc" },
   });
 
-  for (const task of tasks) {
-    const dueDate = new Date(task.dueDate!);
-    const isToday = dueDate.toDateString() === now.toDateString();
-    const coursePart = task.course ? ` | ${task.course.name}` : "";
+  if (tasks.length === 0) return [];
+
+  // Group tasks by due date for better formatting
+  const todayTasks = tasks.filter(t => new Date(t.dueDate!).toDateString() === now.toDateString());
+  const tomorrowTasks = tasks.filter(t => new Date(t.dueDate!).toDateString() === tomorrow.toDateString());
+
+  // Format today's tasks
+  if (todayTasks.length > 0) {
+    const lines = todayTasks.map(task => {
+      const coursePart = task.course ? ` | ${task.course.name}` : "";
+      const priorityLabel = task.priority === 1 ? " [HIGH]" : task.priority === 2 ? " [MED]" : "";
+      return `- ${task.title}${coursePart}${priorityLabel}`;
+    });
 
     notifications.push({
       userId,
-      title: isToday ? "Task Due Today" : "Task Due Tomorrow",
-      body: `${task.title}${coursePart} | Priority P${task.priority}`,
-      tag: `task-${task.id}`,
+      title: `${todayTasks.length} Task${todayTasks.length > 1 ? "s" : ""} Due Today`,
+      body: lines.join("\n"),
+      tag: "tasks-due-today",
       data: {
         url: "/tasks",
         type: "task_due",
       },
       actions: [
-        { action: "done", title: "Mark Done" },
-        { action: "view", title: "View" },
+        { action: "view", title: "View Tasks" }
+      ],
+      requireInteraction: true,
+    });
+  }
+
+  // Format tomorrow's tasks
+  if (tomorrowTasks.length > 0) {
+    const lines = tomorrowTasks.map(task => {
+      const coursePart = task.course ? ` | ${task.course.name}` : "";
+      const priorityLabel = task.priority === 1 ? " [HIGH]" : task.priority === 2 ? " [MED]" : "";
+      return `- ${task.title}${coursePart}${priorityLabel}`;
+    });
+
+    notifications.push({
+      userId,
+      title: `${tomorrowTasks.length} Task${tomorrowTasks.length > 1 ? "s" : ""} Due Tomorrow`,
+      body: lines.join("\n"),
+      tag: "tasks-due-tomorrow",
+      data: {
+        url: "/tasks",
+        type: "task_due",
+      },
+      actions: [
+        { action: "view", title: "View Tasks" }
       ],
       requireInteraction: true,
     });
@@ -419,9 +475,13 @@ async function generateClassNotifications(
     if (diffFromStart >= 0 && diffFromStart <= 20) {
       const tag = `class-${schedule.id}`;
       const todayStr = userLocalTime.toISOString().split("T")[0];
+      const fullTag = `${tag}-${todayStr}`;
 
-      // Dedup: skip if already sent today for this class
-      if (await wasNotificationSent(userId, `${tag}-${todayStr}`)) continue;
+      // Skip if already sent today for this class
+      if (await wasNotificationSent(userId, fullTag)) continue;
+
+      // Skip if snoozed (user tapped snooze)
+      if (await isNotificationSnoozed(userId, fullTag)) continue;
 
       const locationPart = exception?.type === "rescheduled" && exception.newLocation
         ? ` | ${exception.newLocation}`
@@ -433,12 +493,15 @@ async function generateClassNotifications(
         userId,
         title: "Class Starting Soon",
         body: `${schedule.course.name} at ${startTimeStr}${locationPart}`,
-        tag: `${tag}-${todayStr}`,
+        tag: fullTag,
         data: {
           url: `/courses/${schedule.courseId}`,
           type: "class_start",
         },
-        actions: [{ action: "view", title: "View Course" }],
+        actions: [
+          { action: "snooze", title: "Snooze" },
+          { action: "view", title: "View Course" }
+        ],
         requireInteraction: true,
       });
     }
@@ -507,14 +570,27 @@ async function generateClassEndNotifications(
     if (diffFromEnd >= -2 && diffFromEnd <= 20) {
       const tag = `attendance-${schedule.id}-${todayStr}`;
 
-      // Dedup: skip if already sent
+      // Skip if already sent (includes snoozed check)
       if (await wasNotificationSent(userId, tag)) continue;
+
+      // Skip if snoozed (user tapped snooze)
+      if (await isNotificationSnoozed(userId, tag)) continue;
 
       // Skip if attendance already recorded for this course+date
       const existing = await prisma.attendanceRecord.findUnique({
         where: { courseId_date: { courseId: schedule.courseId, date: today } },
       });
       if (existing && existing.status !== "not_marked") continue;
+
+      // Additional check: skip if attendance was marked in the last 5 minutes
+      // This prevents re-triggering after user marks via push notification
+      if (existing && existing.status !== "not_marked") {
+        // Use the id timestamp as a proxy for when it was created/updated
+        // UUID v7 timestamps or created_at would be better, but this works
+        const recordTime = new Date(existing.id).getTime() || Date.now();
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        if (recordTime > fiveMinutesAgo) continue;
+      }
 
       const locationPart = exception?.type === "rescheduled" && exception.newLocation
         ? ` | ${exception.newLocation}`
@@ -534,12 +610,148 @@ async function generateClassEndNotifications(
           date: todayStr,
         },
         actions: [
-          { action: "mark_present", title: "✅ Present" },
-          { action: "mark_absent", title: "❌ Absent" }
+          { action: "mark_present", title: "Present" },
+          { action: "mark_absent", title: "Absent" },
+          { action: "snooze", title: "Snooze" }
         ],
         requireInteraction: true,
       });
     }
+  }
+
+  return notifications;
+}
+
+/**
+ * Generate class cancellation notifications.
+ * Notifies users when a class is cancelled via schedule exception.
+ */
+async function generateClassCancellationNotifications(
+  userId: string,
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
+  const today = new Date(userLocalTime);
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+
+  const notifications: NotificationPayload[] = [];
+
+  // Find cancelled class exceptions for today
+  const cancelledExceptions = await prisma.scheduleException.findMany({
+    where: {
+      type: "cancelled",
+      date: today,
+      classSchedule: {
+        course: {
+          semester: {
+            OR: [{ userId }, { userId: null }],
+            isActive: true,
+          },
+        },
+      },
+    },
+    include: {
+      classSchedule: {
+        include: {
+          course: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  for (const exception of cancelledExceptions) {
+    const tag = `cancelled-${exception.classScheduleId}-${todayStr}`;
+
+    // Skip if already sent
+    if (await wasNotificationSent(userId, tag)) continue;
+
+    // Skip if snoozed
+    if (await isNotificationSnoozed(userId, tag)) continue;
+
+    notifications.push({
+      userId,
+      title: "Class Cancelled",
+      body: `${exception.classSchedule.course.name} has been cancelled for today`,
+      tag,
+      data: {
+        url: `/courses/${exception.classSchedule.courseId}`,
+        type: "class_cancelled",
+      },
+      actions: [{ action: "view", title: "View Course" }],
+      requireInteraction: true,
+    });
+  }
+
+  return notifications;
+}
+
+/**
+ * Generate class reschedule notifications.
+ * Notifies users when a class is rescheduled via schedule exception.
+ */
+async function generateClassRescheduleNotifications(
+  userId: string,
+  userLocalTime: Date
+): Promise<NotificationPayload[]> {
+  const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
+  const today = new Date(userLocalTime);
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+
+  const notifications: NotificationPayload[] = [];
+
+  // Find rescheduled exceptions for today
+  const rescheduledExceptions = await prisma.scheduleException.findMany({
+    where: {
+      type: "rescheduled",
+      date: today,
+      classSchedule: {
+        course: {
+          semester: {
+            OR: [{ userId }, { userId: null }],
+            isActive: true,
+          },
+        },
+      },
+    },
+    include: {
+      classSchedule: {
+        include: {
+          course: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  for (const exception of rescheduledExceptions) {
+    const tag = `rescheduled-${exception.classScheduleId}-${todayStr}`;
+
+    // Skip if already sent
+    if (await wasNotificationSent(userId, tag)) continue;
+
+    // Skip if snoozed
+    if (await isNotificationSnoozed(userId, tag)) continue;
+
+    const timeChange = exception.newStartTime
+      ? ` from ${exception.classSchedule.startTime} to ${exception.newStartTime}`
+      : "";
+    const locationChange = exception.newLocation
+      ? ` at ${exception.newLocation}`
+      : "";
+
+    notifications.push({
+      userId,
+      title: "Class Rescheduled",
+      body: `${exception.classSchedule.course.name}${timeChange}${locationChange}`,
+      tag,
+      data: {
+        url: `/courses/${exception.classSchedule.courseId}`,
+        type: "class_rescheduled",
+      },
+      actions: [{ action: "view", title: "View Course" }],
+      requireInteraction: true,
+    });
   }
 
   return notifications;
@@ -724,14 +936,47 @@ async function generateOverdueTaskNotifications(
 
   if (overdueTasks.length === 0) return [];
 
+  // Group by severity (1-3 days, 4-7 days, 7+ days)
+  const recent = overdueTasks.filter(t => {
+    const days = Math.ceil((now.getTime() - new Date(t.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+    return days <= 3;
+  });
+  const moderate = overdueTasks.filter(t => {
+    const days = Math.ceil((now.getTime() - new Date(t.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+    return days > 3 && days <= 7;
+  });
+  const severe = overdueTasks.filter(t => {
+    const days = Math.ceil((now.getTime() - new Date(t.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+    return days > 7;
+  });
+
   const lines: string[] = [];
-  for (const task of overdueTasks) {
-    const daysOverdue = Math.ceil(
-      (now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const coursePart = task.course ? ` | ${task.course.name}` : "";
-    const daysLabel = daysOverdue === 1 ? "1 day overdue" : `${daysOverdue} days overdue`;
-    lines.push(`- ${task.title} (${daysLabel}${coursePart})`);
+  
+  if (recent.length > 0) {
+    lines.push(`Recent (1-3 days):`);
+    for (const task of recent.slice(0, 3)) {
+      const daysOverdue = Math.ceil((now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+      const coursePart = task.course ? ` | ${task.course.name}` : "";
+      lines.push(`- ${task.title} (${daysOverdue}d overdue${coursePart})`);
+    }
+  }
+
+  if (moderate.length > 0) {
+    lines.push(`Moderate (4-7 days):`);
+    for (const task of moderate.slice(0, 3)) {
+      const daysOverdue = Math.ceil((now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+      const coursePart = task.course ? ` | ${task.course.name}` : "";
+      lines.push(`- ${task.title} (${daysOverdue}d overdue${coursePart})`);
+    }
+  }
+
+  if (severe.length > 0) {
+    lines.push(`Critical (7+ days):`);
+    for (const task of severe.slice(0, 3)) {
+      const daysOverdue = Math.ceil((now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+      const coursePart = task.course ? ` | ${task.course.name}` : "";
+      lines.push(`- ${task.title} (${daysOverdue}d overdue${coursePart})`);
+    }
   }
 
   return [
@@ -1263,6 +1508,14 @@ export async function runNotificationScheduler(force: boolean = false): Promise<
 
     if (await shouldSend("class_end")) {
       allNotifications.push(...(await generateClassEndNotifications(userId, userLocalTime)));
+    }
+
+    if (await shouldSend("class_cancelled")) {
+      allNotifications.push(...(await generateClassCancellationNotifications(userId, userLocalTime)));
+    }
+
+    if (await shouldSend("class_rescheduled")) {
+      allNotifications.push(...(await generateClassRescheduleNotifications(userId, userLocalTime)));
     }
 
     if (await shouldSend("assessment")) {

@@ -15,10 +15,12 @@ import {
   Sparkles,
   Cake,
   X,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { MobileCalendarView } from "./mobile-calendar-view";
+import { EventCreationDialog } from "./event-creation-dialog";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1060,10 +1062,18 @@ export function CalendarView({
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [showEventCreation, setShowEventCreation] = useState(false);
 
   // Touch / swipe state
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+
+  // Listen for custom event from mobile FAB
+  useEffect(() => {
+    const handler = () => setShowEventCreation(true);
+    window.addEventListener("open-event-creation", handler);
+    return () => window.removeEventListener("open-event-creation", handler);
+  }, []);
 
   // Fetch events for current view range — uses Dexie data when available
   const fetchEvents = useCallback(async (year: number, month: number) => {
@@ -1260,6 +1270,13 @@ export function CalendarView({
             onClose={() => setSelectedEvent(null)}
           />
         )}
+
+        {/* Event creation dialog */}
+        <EventCreationDialog
+          open={showEventCreation}
+          onOpenChange={setShowEventCreation}
+          selectedDate={selectedDate}
+        />
       </>
     );
   }
@@ -1302,22 +1319,31 @@ export function CalendarView({
           </button>
         </div>
 
-        {/* Right: view switcher */}
-        <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
-          {(["day", "week", "month"] as CalendarViewType[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize",
-                view === v
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {v}
-            </button>
-          ))}
+        {/* Right: view switcher + Add Event button */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEventCreation(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Event
+          </button>
+          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
+            {(["day", "week", "month"] as CalendarViewType[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize",
+                  view === v
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1388,6 +1414,13 @@ export function CalendarView({
           onClose={() => setSelectedEvent(null)}
         />
       )}
+
+      {/* Event creation dialog */}
+      <EventCreationDialog
+        open={showEventCreation}
+        onOpenChange={setShowEventCreation}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 }

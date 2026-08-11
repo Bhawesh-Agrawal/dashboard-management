@@ -1,9 +1,9 @@
-import { db, type SyncTask, type SyncCourse, type SyncNote, type SyncRoutine, type SyncEvent } from "./db";
+import { db, type SyncTask, type SyncCourse, type SyncNote, type SyncRoutine, type SyncEvent, type SyncAttendanceRecord, type SyncClassSchedule, type SyncAssessment } from "./db";
 
 // ─── Sync Manager ──────────────────────────────────────────
 // Orchestrates local-first data flow: Dexie ↔ API ↔ Supabase Realtime.
 
-type SyncableTable = "tasks" | "courses" | "notes" | "routines" | "events";
+type SyncableTable = "tasks" | "courses" | "notes" | "routines" | "events" | "attendance" | "classSchedules" | "assessments";
 
 class SyncManager {
   private _isSeeding = false;
@@ -37,6 +37,9 @@ class SyncManager {
       await db.routines.clear();
       await db.events.clear();
       await db.routineCompletions.clear();
+      await db.attendance.clear();
+      await db.classSchedules.clear();
+      await db.assessments.clear();
 
       // Upsert seed data
       if (data.tasks?.length) {
@@ -67,6 +70,22 @@ class SyncManager {
       if (data.routineCompletions?.length) {
         await db.routineCompletions.bulkPut(data.routineCompletions);
       }
+      // Seed extended tables
+      if (data.attendance?.length) {
+        await db.attendance.bulkPut(
+          data.attendance.map((a: SyncAttendanceRecord) => ({ ...a, dirty: 0, _deleted: 0 }))
+        );
+      }
+      if (data.classSchedules?.length) {
+        await db.classSchedules.bulkPut(
+          data.classSchedules.map((cs: SyncClassSchedule) => ({ ...cs, dirty: 0, _deleted: 0 }))
+        );
+      }
+      if (data.assessments?.length) {
+        await db.assessments.bulkPut(
+          data.assessments.map((a: SyncAssessment) => ({ ...a, dirty: 0, _deleted: 0 }))
+        );
+      }
     } catch (error) {
       console.error("[SyncManager] Seed failed:", error);
       throw error;
@@ -88,6 +107,9 @@ class SyncManager {
         this.pushDirtyNotes(),
         this.pushDirtyRoutines(),
         this.pushDirtyEvents(),
+        this.pushDirtyAttendance(),
+        this.pushDirtyClassSchedules(),
+        this.pushDirtyAssessments(),
       ]);
     } finally {
       this._isPushing = false;
@@ -186,6 +208,64 @@ class SyncManager {
           await db.events.update(item.id, {
             dirty: 0,
             updatedAt: serverItem.updatedAt,
+          });
+        }
+      } catch {
+        // Will retry
+      }
+    }
+  }
+
+  private async pushDirtyAttendance(): Promise<void> {
+    const dirty = await db.attendance.where("dirty").equals(1).toArray();
+    for (const item of dirty) {
+      try {
+        if (item._deleted) {
+          await this.apiDelete("attendance", item.id);
+          await db.attendance.delete(item.id);
+        } else {
+          const serverItem = await this.apiWrite("attendance", item);
+          await db.attendance.update(item.id, {
+            dirty: 0,
+            updatedAt: serverItem.updatedAt,
+          });
+        }
+      } catch {
+        // Will retry
+      }
+    }
+  }
+
+  private async pushDirtyClassSchedules(): Promise<void> {
+    const dirty = await db.classSchedules.where("dirty").equals(1).toArray();
+    for (const item of dirty) {
+      try {
+        if (item._deleted) {
+          await this.apiDelete("classSchedules", item.id);
+          await db.classSchedules.delete(item.id);
+        } else {
+          const serverItem = await this.apiWrite("classSchedules", item);
+          await db.classSchedules.update(item.id, {
+            dirty: 0,
+          });
+        }
+      } catch {
+        // Will retry
+      }
+    }
+  }
+
+  private async pushDirtyAssessments(): Promise<void> {
+    const dirty = await db.assessments.where("dirty").equals(1).toArray();
+    for (const item of dirty) {
+      try {
+        if (item._deleted) {
+          await this.apiDelete("assessments", item.id);
+          await db.assessments.delete(item.id);
+        } else {
+          const serverItem = await this.apiWrite("assessments", item);
+          await db.assessments.update(item.id, {
+            dirty: 0,
           });
         }
       } catch {

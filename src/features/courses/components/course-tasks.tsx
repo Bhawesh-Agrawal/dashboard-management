@@ -5,6 +5,7 @@ import { createTask } from "@/features/tasks/lib/actions";
 import type { Task } from "@prisma/client";
 import { toggleTaskDone } from "@/features/tasks/lib/actions";
 import { TaskForm, type TaskFormData } from "@/features/tasks/components/TaskForm";
+import { Check } from "lucide-react";
 
 export function CourseTasksSection({
   courseId,
@@ -100,13 +101,13 @@ function CourseTaskList({ tasks }: { tasks: Task[] }) {
         <div key={task.id} className="list-row items-center">
           <button
             onClick={() => handleToggle(task.id)}
-            className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation ${
+            className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation flex items-center justify-center ${
               task.status === "done"
                 ? "bg-primary border-primary text-primary-foreground"
                 : "border-border"
             }`}
           >
-            {task.status === "done" && "✓"}
+            {task.status === "done" && <Check className="h-3 w-3" />}
           </button>
           <div className="flex-1 min-w-0">
             <span className={`text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>

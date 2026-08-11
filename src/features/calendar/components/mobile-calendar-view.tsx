@@ -371,6 +371,32 @@ export function MobileCalendarView({
 
       {/* ── Swipe hint (shown briefly) ── */}
       <SwipeHint />
+
+      {/* ── Floating action button for adding events ── */}
+      <button
+        onClick={() => {
+          // This will be handled by the parent CalendarView component
+          // We'll dispatch a custom event to trigger the dialog
+          window.dispatchEvent(new CustomEvent("open-event-creation"));
+        }}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+        aria-label="Add Event"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
     </div>
   );
 }

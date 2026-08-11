@@ -1,7 +1,7 @@
 "use client";
 
 import { toggleMilestoneDone, deleteMilestone } from "@/features/projects/lib/actions";
-import { Pencil } from "lucide-react";
+import { Pencil, Check } from "lucide-react";
 import { useState, useOptimistic, useTransition } from "react";
 import { updateMilestone } from "@/features/projects/lib/actions";
 
@@ -100,13 +100,13 @@ function MilestoneRow({
             toggleMilestoneDone(milestone.id, projectId);
           });
         }}
-        className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation ${
+        className={`shrink-0 h-4 w-4 rounded border transition-colors touch-manipulation flex items-center justify-center ${
           optimisticDone
             ? "bg-primary border-primary text-primary-foreground"
             : "border-border"
         }`}
       >
-        {optimisticDone && "✓"}
+        {optimisticDone && <Check className="h-3 w-3" />}
       </button>
 
       <span

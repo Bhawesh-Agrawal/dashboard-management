@@ -7,7 +7,7 @@ export async function GET() {
     const userId = await getCurrentUserId();
 
     // Fire all queries in parallel for speed
-    const [tasks, courses, notes, routines, events, routineCompletions] = await Promise.all([
+    const [tasks, courses, notes, routines, events, routineCompletions, attendance, classSchedules, assessments] = await Promise.all([
       // Tasks with denormalized course/project names
       prisma.task.findMany({
         where: {
@@ -65,6 +65,37 @@ export async function GET() {
           },
         },
         orderBy: { date: "desc" },
+      }),
+
+      // Attendance records (last 90 days)
+      prisma.attendanceRecord.findMany({
+        where: {
+          date: {
+            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+          },
+        },
+        orderBy: { date: "desc" },
+      }),
+
+      // Class schedules with course data
+      prisma.classSchedule.findMany({
+        include: {
+          course: { select: { id: true, name: true, code: true, color: true } },
+        },
+      }),
+
+      // Assessments with course data (next 90 days)
+      prisma.assessment.findMany({
+        where: {
+          date: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            lte: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          course: { select: { id: true, name: true, color: true } },
+        },
+        orderBy: { date: "asc" },
       }),
     ]);
 
@@ -189,6 +220,41 @@ export async function GET() {
       completedAt: rc.completedAt.toISOString(),
     }));
 
+    // Transform attendance records
+    const transformedAttendance = attendance.map((a) => ({
+      id: a.id,
+      courseId: a.courseId,
+      date: a.date.toISOString().split("T")[0], // YYYY-MM-DD
+      status: a.status,
+    }));
+
+    // Transform class schedules
+    const transformedClassSchedules = classSchedules.map((cs) => ({
+      id: cs.id,
+      courseId: cs.courseId,
+      dayOfWeek: cs.dayOfWeek,
+      startTime: cs.startTime,
+      endTime: cs.endTime,
+      location: cs.location,
+      effectiveStartDate: cs.effectiveStartDate?.toISOString() ?? null,
+      effectiveEndDate: cs.effectiveEndDate?.toISOString() ?? null,
+      courseName: cs.course.name,
+      courseCode: cs.course.code,
+      courseColor: cs.course.color,
+    }));
+
+    // Transform assessments
+    const transformedAssessments = assessments.map((a) => ({
+      id: a.id,
+      courseId: a.courseId,
+      componentType: a.componentType,
+      date: a.date?.toISOString() ?? null,
+      maxMarks: a.maxMarks,
+      obtainedMarks: a.obtainedMarks,
+      courseName: a.course.name,
+      courseColor: a.course.color,
+    }));
+
     return NextResponse.json({
       tasks: transformedTasks,
       courses: transformedCourses,
@@ -196,6 +262,9 @@ export async function GET() {
       routines: transformedRoutines,
       events: transformedEvents,
       routineCompletions: transformedCompletions,
+      attendance: transformedAttendance,
+      classSchedules: transformedClassSchedules,
+      assessments: transformedAssessments,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {

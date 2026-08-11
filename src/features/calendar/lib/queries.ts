@@ -123,10 +123,10 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
       date: event.start.toISOString(),
       time: event.start.toTimeString().slice(0, 5),
       endTime: event.end?.toTimeString().slice(0, 5),
-      type: event.isBirthday ? "event" : "event",
+      type: event.isBirthday ? "birthday" : "event",
       location: event.location ?? undefined,
       // Tag birthday events so the UI can render them distinctly
-      ...(event.isBirthday ? { courseName: "🎂 Birthday" } : {}),
+      ...(event.isBirthday ? { courseName: "Birthday" } : {}),
     });
   }
 

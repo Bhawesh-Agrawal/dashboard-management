@@ -117,9 +117,14 @@ export interface SyncEvent {
   userId: string | null;
   title: string;
   dateTime: string; // ISO string
+  endTime: string | null; // ISO string for event end time
   location: string | null;
   notes: string | null;
   eventType: string | null;
+  // Recurring event support
+  recurrenceRule: string | null; // iCal RRULE format
+  recurrenceEnd: string | null; // ISO string when recurrence stops
+  parentEventId: string | null; // Link to parent event for instances
   createdAt: string;
   updatedAt: string;
   // Sync metadata
@@ -134,6 +139,51 @@ export interface SyncRoutineCompletion {
   completedAt: string;
 }
 
+// ─── Extended sync types for caching ────────────────────────
+
+export interface SyncAttendanceRecord {
+  id: string;
+  courseId: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  status: "present" | "absent" | "cancelled" | "not_marked";
+  // Sync metadata
+  dirty: 0 | 1;
+  _deleted: 0 | 1;
+}
+
+export interface SyncClassSchedule {
+  id: string;
+  courseId: string;
+  dayOfWeek: string; // "MON", "TUE", etc.
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
+  location: string | null;
+  effectiveStartDate: string | null;
+  effectiveEndDate: string | null;
+  // Denormalized course data
+  courseName: string;
+  courseCode: string | null;
+  courseColor: string | null;
+  // Sync metadata
+  dirty: 0 | 1;
+  _deleted: 0 | 1;
+}
+
+export interface SyncAssessment {
+  id: string;
+  courseId: string;
+  componentType: string;
+  date: string | null;
+  maxMarks: number;
+  obtainedMarks: number | null;
+  // Denormalized course data
+  courseName: string;
+  courseColor: string | null;
+  // Sync metadata
+  dirty: 0 | 1;
+  _deleted: 0 | 1;
+}
+
 // ─── Database ──────────────────────────────────────────────
 
 class SyncDatabase extends Dexie {
@@ -143,17 +193,24 @@ class SyncDatabase extends Dexie {
   routines!: Table<SyncRoutine, string>;
   events!: Table<SyncEvent, string>;
   routineCompletions!: Table<SyncRoutineCompletion, string>;
+  // Extended tables for better caching
+  attendance!: Table<SyncAttendanceRecord, string>;
+  classSchedules!: Table<SyncClassSchedule, string>;
+  assessments!: Table<SyncAssessment, string>;
 
   constructor() {
     super("AcademicCommandCenter");
 
-    this.version(1).stores({
+    this.version(2).stores({
       tasks: "id, userId, status, courseId, projectId, starred, dirty, _deleted, [userId+status], [userId+courseId]",
       courses: "id, semesterId, dirty, _deleted",
       notes: "id, userId, courseId, taskId, projectId, folderId, isDocumentLibraryEntry, dirty, _deleted, [userId+courseId]",
       routines: "id, userId, identityId, dirty, _deleted",
-      events: "id, userId, dateTime, eventType, dirty, _deleted",
+      events: "id, userId, dateTime, eventType, parentEventId, dirty, _deleted",
       routineCompletions: "id, routineId, date, [routineId+date]",
+      attendance: "id, courseId, date, status, dirty, _deleted, [courseId+date]",
+      classSchedules: "id, courseId, dayOfWeek, dirty, _deleted, [courseId+dayOfWeek]",
+      assessments: "id, courseId, date, dirty, _deleted, [courseId+date]",
     });
   }
 }

@@ -555,9 +555,13 @@ export function useCreateEvent() {
   return useCallback(async (data: {
     title: string;
     dateTime: string;
+    endTime?: string;
     location?: string;
     notes?: string;
     eventType?: string;
+    recurrenceRule?: string;
+    recurrenceEnd?: string;
+    parentEventId?: string;
   }) => {
     const id = generateId();
     const createdAt = nowIso();
@@ -567,9 +571,13 @@ export function useCreateEvent() {
       userId: null,
       title: data.title,
       dateTime: data.dateTime,
+      endTime: data.endTime ?? null,
       location: data.location ?? null,
       notes: data.notes ?? null,
       eventType: data.eventType ?? "general",
+      recurrenceRule: data.recurrenceRule ?? null,
+      recurrenceEnd: data.recurrenceEnd ?? null,
+      parentEventId: data.parentEventId ?? null,
       createdAt,
       updatedAt: createdAt,
       dirty: 1,

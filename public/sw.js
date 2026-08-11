@@ -177,11 +177,12 @@ self.addEventListener("push", (event) => {
   try {
     const data = event.data.json();
 
-    const title = data.title || "CodexDash";
+    const title = data.title || "Academic Dashboard";
     const options = {
       body: data.body || "You have a new notification",
-      icon: data.icon || "/icon-192x192.png",
-      badge: data.badge || "/icon-72x72.png",
+      // Don't set icon explicitly - let browser use app icon automatically
+      // This prevents duplicate icons (browser shows app icon on left automatically)
+      badge: "/icon-72x72.png",
       tag: data.tag || "default",
       data: data.data || {},
       actions: data.actions || [],
@@ -216,6 +217,34 @@ self.addEventListener("notificationclick", (event) => {
     }
   }
 
+  // Handle snooze action — suppress notifications until class starts
+  if (event.action === "snooze") {
+    event.waitUntil(
+      fetch("/api/notifications/snooze", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: tag }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then(() => {
+          // Show confirmation
+          self.registration.showNotification("Snoozed", {
+            body: "Notifications snoozed until class starts",
+            tag: `snooze-confirm-${tag}`,
+            // Don't set icon - let browser use app icon
+          });
+        })
+        .catch((err) => {
+          console.error("[SW] Failed to snooze notification:", err);
+        })
+    );
+    return;
+  }
+
   // Handle interactive notification actions (e.g., mark attendance)
   if (event.action === "mark_present" || event.action === "mark_absent") {
     const status = event.action === "mark_present" ? "present" : "absent";
@@ -235,10 +264,19 @@ self.addEventListener("notificationclick", (event) => {
           return response.json();
         })
         .then(() => {
+          // Mark the notification as snoozed to prevent re-triggering
+          return fetch("/api/notifications/snooze", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tag: tag, duration: 300000 }), // 5 minutes
+          });
+        })
+        .then(() => {
           self.registration.showNotification("Attendance Marked", {
             body: `Marked as ${status} for ${data.date}`,
             tag: `attendance-confirm-${data.courseId}-${data.date}`,
-            icon: "/icon-192x192.png",
+            // Don't set icon - let browser use app icon
           });
         })
         .catch((err) => {

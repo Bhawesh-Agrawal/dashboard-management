@@ -3,7 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { toggleTaskDone, toggleTaskStarred, deleteTask } from "@/features/tasks/lib/actions";
 import type { TaskWithCourse } from "@/types";
-import { Star, Pencil } from "lucide-react";
+import { Star, Pencil, Check } from "lucide-react";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { TaskLinkBadge } from "./task-link-badge";
 import type { LinkToOption } from "./link-to-picker";
@@ -118,7 +118,7 @@ function TaskRow({
                 : "border-border"
             }`}
           >
-            {optimisticTask.status === "done" && "✓"}
+            {optimisticTask.status === "done" && <Check className="h-4 w-4" />}
           </button>
 
           <div className="flex-1 min-w-0">

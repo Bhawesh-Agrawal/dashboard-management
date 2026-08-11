@@ -10,6 +10,8 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   task_due: "Task Due Dates",
   class_start: "Class Start",
   class_end: "Class End / Attendance",
+  class_cancelled: "Class Cancelled",
+  class_rescheduled: "Class Rescheduled",
   assessment: "Assessment Reminders",
   daily_summary: "Daily Summary",
   missed_routine: "Missed Routines",

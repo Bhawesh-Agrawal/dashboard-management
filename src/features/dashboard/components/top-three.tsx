@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
 import type { TaskWithCourse } from "@/types";
 import { toggleTaskDone, toggleTaskStarred } from "@/features/tasks/lib/actions";
-import { Star } from "lucide-react";
+import { Star, Check } from "lucide-react";
 import { EditTaskDialog } from "@/features/tasks/components/edit-task-dialog";
 import { TaskLinkBadge } from "@/features/tasks/components/task-link-badge";
 
@@ -53,7 +53,7 @@ export function TopThree({ tasks }: { tasks: TaskWithCourse[] }) {
                   : "border-border"
               }`}
             >
-              {task.status === "done" && "✓"}
+              {task.status === "done" && <Check className="h-4 w-4" />}
             </button>
             <div className="flex-1 min-w-0">
               <Link

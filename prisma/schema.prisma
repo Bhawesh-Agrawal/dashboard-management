@@ -432,16 +432,23 @@ enum EventType {
 // ─── Event ─────────────────────────────────────────────────
 // Manually created events for the calendar.
 model Event {
-  id        String     @id @default(uuid())
-  userId    String?    @map("user_id")
-  title     String
-  dateTime  DateTime   @map("date_time")
-  location  String?
-  notes     String?
-  eventType EventType? @default(general) @map("event_type")
-  createdAt DateTime   @default(now()) @map("created_at")
+  id              String     @id @default(uuid())
+  userId          String?    @map("user_id")
+  title           String
+  dateTime        DateTime   @map("date_time")
+  endTime         DateTime?  @map("end_time")
+  location        String?
+  notes           String?
+  eventType       EventType? @default(general) @map("event_type")
+  // Recurring event support (iCal RRULE format)
+  recurrenceRule  String?    @map("recurrence_rule") // e.g., "FREQ=WEEKLY;BYDAY=MO" for weekly on Monday
+  recurrenceEnd   DateTime?  @map("recurrence_end") // When recurrence stops (null = forever)
+  parentEventId   String?    @map("parent_event_id") // Link to parent event for instances
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@index([parentEventId])
   @@map("events")
 }
 
@@ -561,12 +568,13 @@ model NotificationPreference {
 // ─── Sent Notification ──────────────────────────────────────
 // Tracks which notifications have already been sent to prevent duplicates.
 model SentNotification {
-  id        String    @id @default(uuid())
-  userId    String    @map("user_id")
-  tag       String
-  type      String    // NotificationType — e.g. 'class_start', 'task_due'
-  sentAt    DateTime  @default(now()) @map("sent_at")
-  openedAt  DateTime? @map("opened_at") // Set when user clicks the notification
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  tag          String
+  type         String    // NotificationType — e.g. 'class_start', 'task_due'
+  sentAt       DateTime  @default(now()) @map("sent_at")
+  openedAt     DateTime? @map("opened_at") // Set when user clicks the notification
+  snoozedUntil DateTime? @map("snoozed_until") // Snooze until this time (stops repeated notifications)
 
   @@unique([userId, tag])
   @@index([userId])

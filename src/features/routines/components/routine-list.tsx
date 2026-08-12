@@ -122,7 +122,9 @@ export function RoutineList({ routines, identities }: { routines: RoutineWithStr
               {items.map((routine) => (
                 <div
                   key={routine.id}
-                  className="list-row items-center group hover:bg-muted/50 transition-colors"
+                  className={`list-row items-center group hover:bg-muted/50 transition-colors ${
+                    !routine.isActiveToday ? "opacity-40" : ""
+                  }`}
                 >
                   {/* Checkbox */}
                   <button
@@ -151,6 +153,11 @@ export function RoutineList({ routines, identities }: { routines: RoutineWithStr
                       }`}
                     >
                       {routine.name}
+                      {!routine.isActiveToday && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (not today)
+                        </span>
+                      )}
                     </span>
 
                     {/* Streak + metadata */}

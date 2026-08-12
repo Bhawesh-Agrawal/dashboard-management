@@ -49,9 +49,7 @@ export default function TodayPageClient({ unifiedInsights }: { unifiedInsights: 
       completionsByRoutine.set(c.routineId, list);
     }
 
-    const activeRoutines = routines.filter((r) => r.activeDays.includes(todayDayOfWeek));
-
-    return activeRoutines.map((routine) => {
+    return routines.map((routine) => {
       const routineCompletions = completionsByRoutine.get(routine.id) ?? [];
       const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
       const completedToday = routineCompletions.some(
@@ -92,6 +90,7 @@ export default function TodayPageClient({ unifiedInsights }: { unifiedInsights: 
         currentStreak: streak,
         completedToday,
         lastCompletedAt: lastCompleted ? new Date(lastCompleted.completedAt) : null,
+        isActiveToday: routine.activeDays.includes(todayDayOfWeek),
       };
     });
   }, [routines]) ?? [];

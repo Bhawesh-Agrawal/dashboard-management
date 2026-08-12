@@ -60,7 +60,7 @@ function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#E5E2DD"
+          stroke="var(--border)"
           strokeWidth={stroke}
         />
         <circle
@@ -138,7 +138,7 @@ export function IdentityCard({
       <Link
         href={`/routines/identities/${identity.id}`}
         className={cn(
-          "block rounded-lg border border-[#E5E2DD] bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
+          "block rounded-lg border border-border bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
           isNeglected && "border-l-[3px] border-l-[#C4868C]"
         )}
       >

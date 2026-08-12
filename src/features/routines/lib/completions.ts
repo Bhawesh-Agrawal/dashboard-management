@@ -76,6 +76,7 @@ export const getRoutinesWithStreaks = cache(
         currentStreak,
         completedToday,
         lastCompletedAt: completions[0]?.completedAt ?? null,
+        isActiveToday: true,
       };
     });
 

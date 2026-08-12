@@ -14,4 +14,5 @@ export type RoutineWithStreak = {
   currentStreak: number;
   completedToday: boolean;
   lastCompletedAt: Date | null;
+  isActiveToday: boolean;
 };

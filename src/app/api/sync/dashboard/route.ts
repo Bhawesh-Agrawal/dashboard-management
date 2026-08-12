@@ -134,13 +134,6 @@ export async function GET() {
               where: {
                 dayOfWeek: todayDayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
                 course: { semesterId: activeSemester.id },
-                OR: [
-                  { effectiveStartDate: null },
-                  { effectiveStartDate: { lte: todayStart } },
-                ],
-                AND: [
-                  { OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayStart } }] },
-                ],
               },
               orderBy: { startTime: "asc" },
               include: {

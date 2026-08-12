@@ -21,6 +21,7 @@ type RoutineWithStreak = {
   currentStreak: number;
   completedToday: boolean;
   lastCompletedAt: Date | null;
+  isActiveToday: boolean;
 };
 
 function getDayOfWeekEnum(day: number): string {
@@ -102,10 +103,8 @@ function useRoutinesWithStreaks(): RoutineWithStreak[] {
   const today = new Date();
   const todayDayOfWeek = getDayOfWeekEnum(today.getDay());
 
-  // Filter routines active today
-  const activeRoutines = routines.filter((r) => r.activeDays.includes(todayDayOfWeek));
-
-  return activeRoutines.map((routine) => {
+  // Show all routines, but mark which ones are active today
+  return routines.map((routine) => {
     const completions = completionsByRoutine.get(routine.id) ?? [];
     const todayTime = normalizeDate(today).getTime();
     const completedToday = completions.some(
@@ -132,6 +131,7 @@ function useRoutinesWithStreaks(): RoutineWithStreak[] {
       currentStreak,
       completedToday,
       lastCompletedAt: lastCompleted ? new Date(lastCompleted.completedAt) : null,
+      isActiveToday: routine.activeDays.includes(todayDayOfWeek),
     };
   });
 }

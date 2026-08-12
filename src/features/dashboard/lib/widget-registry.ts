@@ -16,7 +16,8 @@ export type WidgetId =
   | "FocusCarousel"
   | "UnifiedInsights"
   | "SemesterSnapshot"
-  | "ContributionGraph";
+  | "ContributionGraph"
+  | "ActiveUpcoming";
 
 export type WidgetColumn = "main" | "sidebar";
 
@@ -39,6 +40,7 @@ export const WIDGET_REGISTRY: Record<
   UnifiedInsights: { label: "Insights", defaultColumn: "sidebar" },
   SemesterSnapshot: { label: "Semester Snapshot", defaultColumn: "sidebar" },
   ContributionGraph: { label: "Contribution Graph", defaultColumn: "sidebar" },
+  ActiveUpcoming: { label: "Active & Upcoming", defaultColumn: "sidebar" },
 };
 
 export const DEFAULT_MAIN_ORDER: WidgetId[] = [
@@ -50,6 +52,7 @@ export const DEFAULT_MAIN_ORDER: WidgetId[] = [
 ];
 
 export const DEFAULT_SIDEBAR_ORDER: WidgetId[] = [
+  "ActiveUpcoming",
   "ReviewPreviewWidget",
   "IdentityHealthWidget",
   "KnowledgeHealthWidget",

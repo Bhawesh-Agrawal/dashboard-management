@@ -13,6 +13,7 @@ import { OngoingProjects } from "@/features/dashboard/components/ongoing-project
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import { KnowledgeHealthWidget } from "@/features/dashboard/components/knowledge-health-widget";
 import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
+import { ActiveUpcoming } from "@/features/dashboard/components/active-upcoming";
 import dynamic from "next/dynamic";
 import { resolveLayout, type WidgetId } from "../lib/widget-registry";
 import type { DashboardData } from "@/types";
@@ -139,6 +140,8 @@ export function TodayDashboard({
         return <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />;
       case "ContributionGraph":
         return <ContributionGraph streakData={data.streakData} />;
+      case "ActiveUpcoming":
+        return <ActiveUpcoming todayClasses={data.todayClasses} />;
       default:
         return null;
     }

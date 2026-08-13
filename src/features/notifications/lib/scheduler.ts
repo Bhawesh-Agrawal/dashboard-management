@@ -582,16 +582,6 @@ async function generateClassEndNotifications(
       });
       if (existing && existing.status !== "not_marked") continue;
 
-      // Additional check: skip if attendance was marked in the last 5 minutes
-      // This prevents re-triggering after user marks via push notification
-      if (existing && existing.status !== "not_marked") {
-        // Use the id timestamp as a proxy for when it was created/updated
-        // UUID v7 timestamps or created_at would be better, but this works
-        const recordTime = new Date(existing.id).getTime() || Date.now();
-        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        if (recordTime > fiveMinutesAgo) continue;
-      }
-
       const locationPart = exception?.type === "rescheduled" && exception.newLocation
         ? ` | ${exception.newLocation}`
         : schedule.location
@@ -1299,7 +1289,18 @@ async function sendPushNotifications(
     vapidPrivateKey
   );
 
+  // Deduplicate subscriptions per user — only send to the most recent subscription per user.
+  // This prevents duplicate notifications when a user has multiple subscriptions
+  // (e.g., from multiple browser tabs or devices).
+  const latestSubByUser = new Map<string, typeof subscriptions[0]>();
   for (const sub of subscriptions) {
+    const existing = latestSubByUser.get(sub.userId);
+    if (!existing || sub.createdAt > existing.createdAt) {
+      latestSubByUser.set(sub.userId, sub);
+    }
+  }
+
+  for (const [, sub] of latestSubByUser) {
     const pushSubscription = {
       endpoint: sub.endpoint,
       keys: {
@@ -1308,7 +1309,6 @@ async function sendPushNotifications(
       },
     };
 
-    // Filter notifications for this subscription's user
     const userNotifications = notifications.filter((n) => n.userId === sub.userId);
 
     for (const notification of userNotifications) {

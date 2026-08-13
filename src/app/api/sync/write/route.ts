@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { memCache } from "@/lib/mem-cache";
 
 type SyncTable = "tasks" | "courses" | "notes" | "routines" | "events";
 type SyncAction = "upsert" | "delete";
@@ -108,6 +109,7 @@ async function handleUpsert(
         },
       });
 
+      memCache.invalidatePrefix("ai-insights:");
       return { updatedAt: task.updatedAt.toISOString() };
     }
 
@@ -278,6 +280,7 @@ async function handleDelete(
       await prisma.task.delete({
         where: { id, OR: [{ userId }, { userId: null }] },
       });
+      memCache.invalidatePrefix("ai-insights:");
       break;
     case "courses":
       await prisma.course.delete({ where: { id } });

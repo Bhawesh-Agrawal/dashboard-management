@@ -62,10 +62,12 @@ export function getPeriodBounds(
 ): { periodStart: Date; periodEnd: Date } {
   switch (type) {
     case "daily": {
-      const userLocalTime = getUserLocalTime(timezone);
-      const localYear = userLocalTime.getFullYear();
-      const localMonth = userLocalTime.getMonth();
-      const localDay = userLocalTime.getDate();
+      // Use the provided date parameter for consistency with callers.
+      // Only fall back to getUserLocalTime if no date is provided.
+      const ref = date || getUserLocalTime(timezone);
+      const localYear = ref.getFullYear();
+      const localMonth = ref.getMonth();
+      const localDay = ref.getDate();
 
       const start = new Date(localYear, localMonth, localDay, 0, 0, 0, 0);
       const end = new Date(localYear, localMonth, localDay, 23, 59, 59, 999);

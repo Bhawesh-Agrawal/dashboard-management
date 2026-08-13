@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
+import { memCache } from "@/lib/mem-cache";
 
 /**
  * Lightweight course list for the Link-to picker (called from client components).
@@ -78,6 +79,7 @@ export async function createTask(data: {
   revalidatePath("/today");
   if (data.projectId) revalidatePath(`/projects/${data.projectId}`);
   if (data.courseId) revalidatePath(`/courses/${data.courseId}`);
+  memCache.invalidatePrefix("ai-insights:");
   return task;
 }
 
@@ -141,6 +143,7 @@ export async function updateTask(
   revalidatePath("/today");
   if (task.courseId) revalidatePath(`/courses/${task.courseId}`);
   if (task.projectId) revalidatePath(`/projects/${task.projectId}`);
+  memCache.invalidatePrefix("ai-insights:");
   return task;
 }
 
@@ -158,6 +161,7 @@ export async function deleteTask(id: string) {
   revalidatePath("/today");
   if (task.courseId) revalidatePath(`/courses/${task.courseId}`);
   if (task.projectId) revalidatePath(`/projects/${task.projectId}`);
+  memCache.invalidatePrefix("ai-insights:");
 }
 
 export async function toggleTaskDone(id: string) {
@@ -182,6 +186,7 @@ export async function toggleTaskDone(id: string) {
   revalidatePath("/tasks");
   revalidatePath("/today");
   if (task.courseId) revalidatePath(`/courses/${task.courseId}`);
+  memCache.invalidatePrefix("ai-insights:");
 }
 
 export async function toggleTaskStarred(id: string) {

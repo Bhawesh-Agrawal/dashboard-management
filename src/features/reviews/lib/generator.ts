@@ -175,9 +175,10 @@ export async function generateReview(
     },
   });
 
-  // If replaceExisting, delete the old one; otherwise return existing
+  // For daily reviews, always regenerate to ensure fresh data.
+  // For other types, return existing unless replaceExisting is set.
   if (existing) {
-    if (options?.replaceExisting) {
+    if (options?.replaceExisting || type === "daily") {
       await prisma.review.delete({ where: { id: existing.id } });
     } else {
       return {

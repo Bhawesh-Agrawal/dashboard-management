@@ -219,15 +219,12 @@ self.addEventListener("notificationclick", (event) => {
   // Track notification open for weekly stats (fire-and-forget)
   const tag = event.notification.tag;
   if (tag && tag !== "default") {
-    const userId = data.userId || null;
-    if (userId) {
-      fetch("/api/notifications/mark-opened", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", "x-user-id": userId },
-        body: JSON.stringify({ tag }),
-      }).catch(() => {});
-    }
+    fetch("/api/notifications/mark-opened", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tag }),
+    }).catch(() => {});
   }
 
   // Handle snooze action — suppress notifications until class starts

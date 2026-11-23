@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 
@@ -6,23 +7,17 @@ import { getNow } from "@/lib/clock";
  * POST /api/notifications/mark-opened
  * Records that a user clicked/opened a notification (for weekly stats).
  * Body: { tag: string }
- * Uses a cookie-based or header-based user ID for auth.
+ * Authenticated via Supabase session cookie (same-origin request).
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
+    const userId = await getCurrentUserId();
+
     const body = await request.json();
     const { tag } = body;
 
     if (!tag || typeof tag !== "string") {
       return NextResponse.json({ error: "tag is required" }, { status: 400 });
-    }
-
-    // Extract userId from the authenticated session
-    // The service worker sends this from the push payload's data
-    const userId = request.headers.get("x-user-id");
-
-    if (!userId) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
     await prisma.sentNotification.updateMany({
@@ -31,7 +26,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     // Non-critical — don't fail the click handler
     return NextResponse.json({ ok: true });
   }

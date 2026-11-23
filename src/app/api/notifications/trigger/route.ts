@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { runNotificationScheduler } from "@/features/notifications/lib/scheduler";
 import { verifyCronRequest } from "@/lib/cron-auth";
-import { getNow, isProductionEnv, setSimulatedTime, resetClock } from "@/lib/clock";
+import { getNow, isProductionEnv, withSimulatedTime } from "@/lib/clock";
 
 /**
  * Notification scheduler trigger endpoint.
@@ -10,6 +10,7 @@ import { getNow, isProductionEnv, setSimulatedTime, resetClock } from "@/lib/clo
  *
  * Accepts ?asOf=ISO_TIMESTAMP to simulate time in non-production environments only.
  * In production, asOf is ignored and rejected with HTTP 400.
+ * Simulated time is strictly request-scoped using AsyncLocalStorage.
  */
 export async function GET(request: Request) {
   const isAuthorized = await verifyCronRequest(request);
@@ -34,22 +35,26 @@ export async function GET(request: Request) {
         { status: 400 }
       );
     }
-    setSimulatedTime(parsed);
   }
 
-  try {
-    const force = url.searchParams.get("force") === "true";
-    await runNotificationScheduler(force);
-    return NextResponse.json({ ok: true, timestamp: getNow().toISOString() });
-  } catch (error) {
-    console.error("Notification scheduler error:", error);
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
-  } finally {
-    if (asOf !== null && !isProductionEnv()) {
-      resetClock();
+  const force = url.searchParams.get("force") === "true";
+
+  const executeHandler = async () => {
+    try {
+      await runNotificationScheduler(force);
+      return NextResponse.json({ ok: true, timestamp: getNow().toISOString() });
+    } catch (error) {
+      console.error("Notification scheduler error:", error);
+      return NextResponse.json(
+        { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
+        { status: 500 }
+      );
     }
+  };
+
+  if (asOf !== null) {
+    return withSimulatedTime(asOf, executeHandler);
   }
+
+  return executeHandler();
 }

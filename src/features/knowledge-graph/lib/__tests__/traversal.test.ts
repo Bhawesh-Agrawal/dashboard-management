@@ -1,117 +1,186 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { traverseGraph, formatGraphContext } from "../traversal";
+import { prisma } from "@/lib/prisma";
 
-/**
- * Knowledge Graph traversal tests.
- *
- * These tests create real data in the database, traverse the graph,
- * and verify that connected nodes are returned correctly.
- *
- * Run with: npx vitest run src/features/knowledge-graph/lib/__tests__/traversal.test.ts
- *
- * Requires a running PostgreSQL database. Tests skip if DB is unreachable.
- */
+// Mock auth so getCurrentUserId returns a test user ID without Supabase cookies
+vi.mock("@/lib/auth", () => ({
+  getCurrentUserId: vi.fn(async () => "test-user-123"),
+  UnauthorizedError: class UnauthorizedError extends Error {
+    constructor(msg = "Unauthorized") {
+      super(msg);
+      this.name = "UnauthorizedError";
+    }
+  },
+}));
 
-const DB_TIMEOUT = 5000;
-let dbAvailable = false;
+// Mock Prisma client methods used by traversal
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    course: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    semester: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    task: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    note: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    assessment: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    classSchedule: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    attendanceRecord: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    project: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    domain: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    milestone: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    routine: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    event: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    quote: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    budgetEntry: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    resource: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    person: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+  },
+}));
 
 describe("Knowledge Graph Traversal", () => {
-  let semesterId: string;
-  let courseId: string;
-  let taskId: string;
-  let noteId: string;
-  let assessmentId: string;
+  const semesterId = "sem-101";
+  const courseId = "course-101";
+  const taskId = "task-101";
+  const noteId = "note-101";
+  const assessmentId = "assess-101";
 
-  beforeAll(async () => {
-    try {
-      await Promise.race([
-        prisma.$connect(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("DB timeout")), DB_TIMEOUT)
-        ),
-      ]);
-      dbAvailable = true;
-    } catch {
-      console.warn("Database not available, skipping integration tests");
-      return;
-    }
+  const mockSemester = {
+    id: semesterId,
+    name: "Test Semester",
+    startDate: new Date("2026-01-01"),
+    endDate: new Date("2026-06-30"),
+  };
 
-    // Create a semester
-    const semester = await prisma.semester.create({
-      data: {
-        name: "Test Semester",
-        startDate: new Date("2026-01-01"),
-        endDate: new Date("2026-06-30"),
-      },
+  const mockCourse = {
+    id: courseId,
+    semesterId,
+    name: "Test Physics",
+    code: "PHY101",
+    credits: 3,
+    instructor: "Dr. Test",
+  };
+
+  const mockTask = {
+    id: taskId,
+    title: "Physics Assignment 3",
+    courseId,
+    dueDate: new Date("2026-07-15"),
+    priority: 1,
+    userId: "test-user-123",
+  };
+
+  const mockNote = {
+    id: noteId,
+    content: "Thermodynamics chapter 5 is important for exam",
+    courseId,
+    tags: ["exam-prep", "thermodynamics"],
+  };
+
+  const mockAssessment = {
+    id: assessmentId,
+    courseId,
+    componentType: "mid_sem",
+    maxMarks: 30,
+    date: new Date("2026-08-01"),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Default mock implementations for entities
+    (prisma.course.findUnique as any).mockImplementation(({ where }: any) => {
+      if (where.id === courseId) return Promise.resolve(mockCourse);
+      return Promise.resolve(null);
     });
-    semesterId = semester.id;
 
-    // Create a course
-    const course = await prisma.course.create({
-      data: {
-        semesterId,
-        name: "Test Physics",
-        code: "PHY101",
-        credits: 3,
-        instructor: "Dr. Test",
-      },
+    (prisma.semester.findUnique as any).mockImplementation(({ where }: any) => {
+      if (where.id === semesterId) return Promise.resolve(mockSemester);
+      return Promise.resolve(null);
     });
-    courseId = course.id;
 
-    // Create a task linked to the course
-    const task = await prisma.task.create({
-      data: {
-        title: "Physics Assignment 3",
-        courseId,
-        dueDate: new Date("2026-07-15"),
-        priority: 1,
-        userId: "default-user",
-      },
+    (prisma.task.findUnique as any).mockImplementation(({ where }: any) => {
+      if (where.id === taskId) return Promise.resolve(mockTask);
+      return Promise.resolve(null);
     });
-    taskId = task.id;
 
-    // Create a note linked to the course
-    const note = await prisma.note.create({
-      data: {
-        content: "Thermodynamics chapter 5 is important for exam",
-        courseId,
-        tags: ["exam-prep", "thermodynamics"],
-      },
+    (prisma.note.findUnique as any).mockImplementation(({ where }: any) => {
+      if (where.id === noteId) return Promise.resolve(mockNote);
+      return Promise.resolve(null);
     });
-    noteId = note.id;
 
-    // Create an assessment linked to the course
-    const assessment = await prisma.assessment.create({
-      data: {
-        courseId,
-        componentType: "mid_sem",
-        maxMarks: 30,
-        date: new Date("2026-08-01"),
-      },
+    (prisma.assessment.findUnique as any).mockImplementation(({ where }: any) => {
+      if (where.id === assessmentId) return Promise.resolve(mockAssessment);
+      return Promise.resolve(null);
     });
-    assessmentId = assessment.id;
-  });
 
-  afterAll(async () => {
-    if (!dbAvailable) return;
+    // Default mock implementations for course connections
+    (prisma.task.findMany as any).mockImplementation(({ where }: any) => {
+      if (where?.courseId === courseId) return Promise.resolve([{ id: taskId }]);
+      return Promise.resolve([]);
+    });
 
-    // Clean up test data (order matters due to foreign keys)
-    await prisma.assessment.deleteMany({ where: { courseId } });
-    await prisma.note.deleteMany({ where: { courseId } });
-    await prisma.task.deleteMany({ where: { courseId } });
-    await prisma.course.deleteMany({ where: { semesterId } });
-    await prisma.semester.deleteMany({ where: { id: semesterId } });
+    (prisma.note.findMany as any).mockImplementation(({ where }: any) => {
+      if (where?.courseId === courseId) return Promise.resolve([{ id: noteId }]);
+      return Promise.resolve([]);
+    });
 
-    await prisma.$disconnect();
+    (prisma.assessment.findMany as any).mockImplementation(({ where }: any) => {
+      if (where?.courseId === courseId) return Promise.resolve([{ id: assessmentId }]);
+      return Promise.resolve([]);
+    });
+
+    (prisma.classSchedule.findMany as any).mockResolvedValue([]);
+    (prisma.attendanceRecord.findMany as any).mockResolvedValue([]);
+    (prisma.course.findMany as any).mockResolvedValue([]);
   });
 
   it("should traverse from course to all connected entities", async () => {
-    if (!dbAvailable) {
-      console.warn("Skipping: database not available");
-      return;
-    }
-
     const result = await traverseGraph({
       sourceType: "course",
       sourceId: courseId,
@@ -135,11 +204,6 @@ describe("Knowledge Graph Traversal", () => {
   });
 
   it("should include correct node data", async () => {
-    if (!dbAvailable) {
-      console.warn("Skipping: database not available");
-      return;
-    }
-
     const result = await traverseGraph({
       sourceType: "course",
       sourceId: courseId,
@@ -176,28 +240,17 @@ describe("Knowledge Graph Traversal", () => {
   });
 
   it("should traverse 2 hops without duplicates", async () => {
-    if (!dbAvailable) {
-      console.warn("Skipping: database not available");
-      return;
-    }
-
     const result = await traverseGraph({
       sourceType: "course",
       sourceId: courseId,
       maxHops: 2,
     });
 
-    // Should still have all nodes (no duplicates)
     const uniqueIds = new Set(result.nodes.map((n) => n.id));
     expect(uniqueIds.size).toBe(result.nodes.length);
   });
 
   it("should respect nodeTypes filter", async () => {
-    if (!dbAvailable) {
-      console.warn("Skipping: database not available");
-      return;
-    }
-
     const result = await traverseGraph({
       sourceType: "course",
       sourceId: courseId,
@@ -205,7 +258,6 @@ describe("Knowledge Graph Traversal", () => {
       nodeTypes: ["task", "note"],
     });
 
-    // Should only have task and note nodes (not course, semester, assessment)
     const nodeTypes = new Set(result.nodes.map((n) => n.type));
     expect(nodeTypes.has("task")).toBe(true);
     expect(nodeTypes.has("note")).toBe(true);
@@ -215,11 +267,6 @@ describe("Knowledge Graph Traversal", () => {
   });
 
   it("should format graph context into readable string", async () => {
-    if (!dbAvailable) {
-      console.warn("Skipping: database not available");
-      return;
-    }
-
     const result = await traverseGraph({
       sourceType: "course",
       sourceId: courseId,

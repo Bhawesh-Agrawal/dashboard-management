@@ -69,7 +69,29 @@ This document records all changes made during Phase 1 implementation according t
 - **Mocked Prisma in Traversal Tests:** Rewrote `src/features/knowledge-graph/lib/__tests__/traversal.test.ts` using Vitest `vi.mock("@/lib/prisma")` and `vi.mock("@/lib/auth")`. Tests now execute in-memory with zero reliance on a live PostgreSQL instance.
 - **Auth Unit Tests (`src/lib/__tests__/auth.test.ts`):** Verified that `getCurrentUserId()` throws `UnauthorizedError` when no session is present, returns the user ID when authenticated, and maintains isolation between requests.
 - **Ownership Unit Tests:** Added `src/features/attendance/lib/__tests__/ownership.test.ts` and `src/features/semesters/lib/__tests__/ownership.test.ts` verifying ownership scoping on academic actions.
-- Total Vitest tests: 17 passed across 4 test suites (100% pass rate).
+- **Clock & Time Simulation Unit Tests:** Added `src/lib/__tests__/clock.test.ts` and `src/app/api/notifications/trigger/__tests__/trigger-asof.test.ts` verifying simulated time travel in dev/staging and fail-closed rejection in production.
+- Total Vitest tests: 32 passed across 6 test suites (100% pass rate).
+
+### Local-First Engineering Workflow
+- **Production Safety Guard (`scripts/guard.ts`):**
+  - Requires `DEPLOY_ENV` to be explicitly set to `'local'`, `'staging'`, or `'production'`.
+  - When `DEPLOY_ENV === 'production'`, requires `--i-know-this-is-production` CLI flag to prevent accidental destructive execution.
+  - Automatically parses `DATABASE_URL` / `DIRECT_URL` and logs the masked target host (`host:port/database`) with all credentials completely stripped.
+  - Integrated into `scripts/backfill-semester-user.ts` and `prisma/seed.ts`.
+  - Documented as a required pre-hook before running `prisma migrate deploy` against production.
+- **Injectable Simulated Clock (`src/lib/clock.ts`):**
+  - Centralized time provider exporting `getNow()`, `getNowMs()`, `getNowIso()`, `setSimulatedTime()`, `resetClock()`, `isSimulated()`.
+  - Replaced direct `new Date()` calls where "now" drives scheduling, time-window evaluation, or date defaulting across `notifications` (`scheduler.ts`, `actions.ts`), `attendance` (`actions.ts`), and `briefs/reviews` (`generator.ts`, `data-summary.ts`, `actions.ts`, `/api/cron/*`).
+  - `/api/notifications/trigger` accepts `?asOf=ISO_TIMESTAMP` in non-production environments to simulate time for testing notifications and briefs.
+  - In production (`NODE_ENV === "production" || DEPLOY_ENV === "production"`), `asOf` is strictly rejected with HTTP 400 Bad Request.
+- **NPM Quality Scripts (`package.json`):**
+  - `dev:prod-like`: Runs `npm run build && npm run start` to test Turbopack compilation and standalone runtime locally.
+  - `docker:smoke`: Runs multi-stage Docker build and starts container limited to `--memory=512m --cpus=1` matching Cloud Run constraints.
+  - `test:ci`: Unified gate running `tsc --noEmit && npm run lint && vitest run`.
+- **Engineering Documentation Suite:**
+  - `docs/LOCAL_DEV.md`: End-to-end local development guide covering Supabase local CLI / cloud dev, `pg_dump` restore, `prisma migrate dev`, comprehensive `.env.local` template, dev MinIO S3 bucket and CORS, VAPID dev keys, Docker smoke testing, and Cloudflare Tunnel setup for phone testing.
+  - `docs/TEST_PLAN.md`: 9-part manual testing matrix and step-by-step verification plan with expected results and per-environment flags (`Local`, `Tunnel-on-phone`, `GCP only`).
+  - `docs/RELEASE.md`: Pre-release verification gates, zero-downtime expand/contract schema migration rules, tagged no-traffic Cloud Run deployments (`--no-traffic --tag staging`), mobile verification, traffic shifting, and instant 2-second rollback command.
 
 ---
 

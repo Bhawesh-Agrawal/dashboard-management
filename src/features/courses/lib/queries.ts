@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
+import { getCurrentUserId } from "@/lib/auth";
 
 const courseInclude = {
   semester: true,
@@ -16,8 +17,9 @@ const courseInclude = {
 };
 
 export const getCourseById = cache(async (id: string) => {
-  let course = await prisma.course.findUnique({
-    where: { id },
+  const userId = await getCurrentUserId();
+  let course = await prisma.course.findFirst({
+    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
     include: courseInclude,
   });
 
@@ -46,8 +48,8 @@ export const getCourseById = cache(async (id: string) => {
     }
 
     // Re-fetch to include the new assessment in the returned data
-    course = await prisma.course.findUnique({
-      where: { id },
+    course = await prisma.course.findFirst({
+      where: { id, semester: { OR: [{ userId }, { userId: null }] } },
       include: courseInclude,
     });
   }
@@ -56,8 +58,9 @@ export const getCourseById = cache(async (id: string) => {
 });
 
 export const getCoursesBySemester = cache(async (semesterId: string) => {
+  const userId = await getCurrentUserId();
   return prisma.course.findMany({
-    where: { semesterId },
+    where: { semesterId, semester: { OR: [{ userId }, { userId: null }] } },
     orderBy: { name: "asc" },
     include: {
       _count: { select: { tasks: true, notes: true } },
@@ -70,7 +73,9 @@ export const getCoursesBySemester = cache(async (semesterId: string) => {
  * Includes semester endDate so isCourseEnded can filter on the client.
  */
 export const getAllCoursesForPicker = cache(async () => {
+  const userId = await getCurrentUserId();
   return prisma.course.findMany({
+    where: { semester: { OR: [{ userId }, { userId: null }] } },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -83,8 +88,12 @@ export const getAllCoursesForPicker = cache(async () => {
 });
 
 export const getCoursesForSelect = cache(async (semesterId?: string) => {
+  const userId = await getCurrentUserId();
   return prisma.course.findMany({
-    where: semesterId ? { semesterId } : undefined,
+    where: {
+      ...(semesterId ? { semesterId } : {}),
+      semester: { OR: [{ userId }, { userId: null }] },
+    },
     orderBy: { name: "asc" },
     select: {
       id: true,

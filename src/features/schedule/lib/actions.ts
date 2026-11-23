@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function createClassSchedule(data: {
   courseId: string;
@@ -12,6 +13,14 @@ export async function createClassSchedule(data: {
   effectiveStartDate?: string;
   effectiveEndDate?: string;
 }) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   const schedule = await prisma.classSchedule.create({
     data: {
       courseId: data.courseId,
@@ -38,6 +47,14 @@ export async function updateClassSchedule(
     effectiveEndDate?: string | null;
   }
 ) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.classSchedule.findFirst({
+    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Class schedule not found or unauthorized");
+  }
+
   const schedule = await prisma.classSchedule.update({
     where: { id },
     data: {
@@ -57,6 +74,14 @@ export async function updateClassSchedule(
 }
 
 export async function deleteClassSchedule(id: string, courseId: string) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.classSchedule.findFirst({
+    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Class schedule not found or unauthorized");
+  }
+
   await prisma.classSchedule.delete({ where: { id } });
   revalidatePath(`/courses/${courseId}`);
 }
@@ -71,6 +96,14 @@ export async function createScheduleException(data: {
   newEndTime?: string;
   newLocation?: string;
 }) {
+  const userId = await getCurrentUserId();
+  const schedule = await prisma.classSchedule.findFirst({
+    where: { id: data.classScheduleId, course: { semester: { OR: [{ userId }, { userId: null }] } } },
+  });
+  if (!schedule) {
+    throw new UnauthorizedError("Class schedule not found or unauthorized");
+  }
+
   const exception = await prisma.scheduleException.upsert({
     where: {
       classScheduleId_date: {
@@ -96,26 +129,20 @@ export async function createScheduleException(data: {
 
   // Also mark attendance as cancelled if the class is cancelled
   if (data.type === "cancelled") {
-    const schedule = await prisma.classSchedule.findUnique({
-      where: { id: data.classScheduleId },
-      select: { courseId: true },
-    });
-    if (schedule) {
-      await prisma.attendanceRecord.upsert({
-        where: {
-          courseId_date: {
-            courseId: schedule.courseId,
-            date: new Date(data.date),
-          },
-        },
-        create: {
+    await prisma.attendanceRecord.upsert({
+      where: {
+        courseId_date: {
           courseId: schedule.courseId,
           date: new Date(data.date),
-          status: "cancelled",
         },
-        update: { status: "cancelled" },
-      });
-    }
+      },
+      create: {
+        courseId: schedule.courseId,
+        date: new Date(data.date),
+        status: "cancelled",
+      },
+      update: { status: "cancelled" },
+    });
   }
 
   revalidatePath(`/courses`);
@@ -123,32 +150,39 @@ export async function createScheduleException(data: {
 }
 
 export async function deleteScheduleException(id: string) {
-  const exception = await prisma.scheduleException.findUnique({
-    where: { id },
+  const userId = await getCurrentUserId();
+  const exception = await prisma.scheduleException.findFirst({
+    where: { id, classSchedule: { course: { semester: { OR: [{ userId }, { userId: null }] } } } },
     include: { classSchedule: { select: { courseId: true } } },
   });
 
-  if (exception) {
-    // If it was a cancellation, restore attendance to not_marked
-    if (exception.type === "cancelled") {
-      await prisma.attendanceRecord.updateMany({
-        where: {
-          courseId: exception.classSchedule.courseId,
-          date: exception.date,
-          status: "cancelled",
-        },
-        data: { status: "not_marked" },
-      });
-    }
-
-    await prisma.scheduleException.delete({ where: { id } });
-    revalidatePath(`/courses`);
+  if (!exception) {
+    throw new UnauthorizedError("Schedule exception not found or unauthorized");
   }
+
+  // If it was a cancellation, restore attendance to not_marked
+  if (exception.type === "cancelled") {
+    await prisma.attendanceRecord.updateMany({
+      where: {
+        courseId: exception.classSchedule.courseId,
+        date: exception.date,
+        status: "cancelled",
+      },
+      data: { status: "not_marked" },
+    });
+  }
+
+  await prisma.scheduleException.delete({ where: { id } });
+  revalidatePath(`/courses`);
 }
 
 export async function getScheduleExceptions(classScheduleId: string) {
+  const userId = await getCurrentUserId();
   return prisma.scheduleException.findMany({
-    where: { classScheduleId },
+    where: {
+      classScheduleId,
+      classSchedule: { course: { semester: { OR: [{ userId }, { userId: null }] } } },
+    },
     orderBy: { date: "asc" },
   });
 }

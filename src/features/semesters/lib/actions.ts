@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function createSemester(data: {
   name: string;
@@ -9,12 +10,14 @@ export async function createSemester(data: {
   endDate: string;
   gradingScale?: "ten_point" | "four_point";
 }) {
+  const userId = await getCurrentUserId();
   const semester = await prisma.semester.create({
     data: {
       name: data.name,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
       gradingScale: data.gradingScale || "ten_point",
+      userId,
     },
   });
 
@@ -31,6 +34,14 @@ export async function updateSemester(
     gradingScale?: "ten_point" | "four_point";
   }
 ) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.semester.findFirst({
+    where: { id, OR: [{ userId }, { userId: null }] },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Semester not found or unauthorized");
+  }
+
   const semester = await prisma.semester.update({
     where: { id },
     data: {
@@ -46,14 +57,33 @@ export async function updateSemester(
 }
 
 export async function deleteSemester(id: string) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.semester.findFirst({
+    where: { id, OR: [{ userId }, { userId: null }] },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Semester not found or unauthorized");
+  }
+
   await prisma.semester.delete({ where: { id } });
   revalidatePath("/semesters");
 }
 
 export async function setActiveSemester(id: string) {
-  // Deactivate all semesters, then activate the selected one
+  const userId = await getCurrentUserId();
+  const existing = await prisma.semester.findFirst({
+    where: { id, OR: [{ userId }, { userId: null }] },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Semester not found or unauthorized");
+  }
+
+  // Deactivate all user's semesters, then activate the selected one
   await prisma.$transaction([
-    prisma.semester.updateMany({ data: { isActive: false } }),
+    prisma.semester.updateMany({
+      where: { OR: [{ userId }, { userId: null }] },
+      data: { isActive: false },
+    }),
     prisma.semester.update({ where: { id }, data: { isActive: true } }),
   ]);
 

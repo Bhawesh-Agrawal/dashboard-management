@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function createCourse(data: {
   semesterId: string;
@@ -12,6 +13,14 @@ export async function createCourse(data: {
   color?: string;
   targetGrade?: string;
 }) {
+  const userId = await getCurrentUserId();
+  const semester = await prisma.semester.findFirst({
+    where: { id: data.semesterId, OR: [{ userId }, { userId: null }] },
+  });
+  if (!semester) {
+    throw new UnauthorizedError("Semester not found or unauthorized");
+  }
+
   // Create the course and its attendance assessment row.
   // The attendance row is system-managed: maxMarks=5, obtainedMarks always null
   // (the value is computed live from AttendanceRecords, never stored).
@@ -42,17 +51,30 @@ export async function updateCourse(
     targetGrade?: string;
   }
 ) {
-  const course = await prisma.course.update({ where: { id }, data });
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
+  const updatedCourse = await prisma.course.update({ where: { id }, data });
   revalidatePath("/semesters");
   revalidatePath(`/courses/${id}`);
-  return course;
+  return updatedCourse;
 }
 
 export async function deleteCourse(id: string) {
-  const course = await prisma.course.delete({
-    where: { id },
-    select: { semesterId: true },
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
   });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
+  await prisma.course.delete({ where: { id } });
   revalidatePath("/semesters");
   revalidatePath(`/semesters/${course.semesterId}`);
 }
@@ -65,6 +87,14 @@ export async function updateAttendanceMode(
     manualTotalClasses?: number | null;
   }
 ) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   const updateData: {
     attendanceMode: "auto" | "manual";
     manualPresent?: number | null;
@@ -80,8 +110,8 @@ export async function updateAttendanceMode(
     updateData.manualTotalClasses = null;
   }
 
-  const course = await prisma.course.update({ where: { id }, data: updateData });
+  const updatedCourse = await prisma.course.update({ where: { id }, data: updateData });
   revalidatePath("/semesters");
   revalidatePath(`/courses/${id}`);
-  return course;
+  return updatedCourse;
 }

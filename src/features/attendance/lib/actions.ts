@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 /**
  * Mark attendance for a single class session.
@@ -12,6 +13,14 @@ export async function markAttendance(data: {
   date: string;
   status: "present" | "absent" | "cancelled" | "not_marked";
 }) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   const record = await prisma.attendanceRecord.upsert({
     where: {
       courseId_date: {
@@ -38,6 +47,14 @@ export async function bulkMarkAttendance(
   courseId: string,
   records: { date: string; status: "present" | "absent" | "cancelled" | "not_marked" }[]
 ) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   await prisma.$transaction(
     records.map((r) =>
       prisma.attendanceRecord.upsert({
@@ -66,6 +83,14 @@ export async function bulkMarkAttendance(
  * Also fetches the attendance-marks config to compute marks out of 5.
  */
 export async function getAttendanceSummary(courseId: string) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   const records = await prisma.attendanceRecord.findMany({
     where: { courseId },
   });

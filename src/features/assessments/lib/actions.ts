@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function createAssessment(data: {
   courseId: string;
@@ -10,6 +11,14 @@ export async function createAssessment(data: {
   obtainedMarks?: number;
   date?: string;
 }) {
+  const userId = await getCurrentUserId();
+  const course = await prisma.course.findFirst({
+    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+  });
+  if (!course) {
+    throw new UnauthorizedError("Course not found or unauthorized");
+  }
+
   const assessment = await prisma.assessment.create({
     data: {
       ...data,
@@ -29,6 +38,14 @@ export async function updateAssessment(
     date?: string;
   }
 ) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.assessment.findFirst({
+    where: { id, course: { semester: { OR: [{ userId }, { userId: null }] } } },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Assessment not found or unauthorized");
+  }
+
   const assessment = await prisma.assessment.update({
     where: { id },
     data: {
@@ -42,6 +59,14 @@ export async function updateAssessment(
 }
 
 export async function deleteAssessment(id: string, courseId: string) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.assessment.findFirst({
+    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+  });
+  if (!existing) {
+    throw new UnauthorizedError("Assessment not found or unauthorized");
+  }
+
   await prisma.assessment.delete({ where: { id } });
   revalidatePath(`/courses/${courseId}`);
 }

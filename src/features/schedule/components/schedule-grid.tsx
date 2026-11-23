@@ -170,7 +170,7 @@ function ScheduleRow({
 
       {showException && (
         <div className="px-2 pb-2 border-t border-border">
-          <p className="text-xs text-muted-foreground mt-2 mb-1">Today's class:</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-1">Today&apos;s class:</p>
           {todayException ? (
             <div className="flex items-center gap-2">
               <span className="text-xs">

@@ -44,10 +44,10 @@ steps:
       - '-c'
       - |
         SERVICE_URL=$$(gcloud run services describe $_SERVICE_NAME --region=$_REGION --format="value(status.url)")
-        CRON_URL="$$SERVICE_URL/api/cron/daily-diagnostics?secret=$$CRON_SECRET"
-        NOTIF_URL="$$SERVICE_URL/api/notifications/trigger?secret=$$CRON_SECRET"
-        gcloud scheduler jobs update http daily-diagnostics --location=$_REGION --uri="$$CRON_URL" --clear-headers
-        gcloud scheduler jobs update http notifications --location=$_REGION --uri="$$NOTIF_URL" --clear-headers
+        CRON_URL="$$SERVICE_URL/api/cron/daily-diagnostics"
+        NOTIF_URL="$$SERVICE_URL/api/notifications/trigger"
+        gcloud scheduler jobs update http daily-diagnostics --location=$_REGION --uri="$$CRON_URL" --headers="Authorization=Bearer $$CRON_SECRET"
+        gcloud scheduler jobs update http notifications --location=$_REGION --uri="$$NOTIF_URL" --headers="Authorization=Bearer $$CRON_SECRET"
         echo "Updated Cloud Scheduler URLs to $$SERVICE_URL"
 
 substitutions:

@@ -18,7 +18,6 @@ import type {
   S3ListItem,
 } from "./types";
 import {
-  ALLOWED_EXTENSIONS,
   BLOCKED_EXTENSIONS,
   MAX_FILE_SIZE,
   getExtension,

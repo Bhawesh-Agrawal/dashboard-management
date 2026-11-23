@@ -296,15 +296,17 @@ export function PdfViewerModal({
     a.click();
   }, [viewUrl, title]);
 
-  const handleSaveAnnotation = async (type: string, color: string) => {
+  const handleSaveAnnotation = useCallback(async (type: string, color: string) => {
     if (!currentSelection) return;
     
     const ghost = currentSelection.makeGhostHighlight();
     const position = ghost.position;
     const text = ghost.content.text;
 
+    const tempId = "temp-" + (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
     const optimistic: NoteAnnotation = {
-      id: "temp-" + Date.now(),
+      id: tempId,
       noteId,
       fileAttachmentId: null,
       userId: "me",
@@ -335,7 +337,7 @@ export function PdfViewerModal({
     } else {
       setLocalAnnotations(prev => prev.map(a => a.id === optimistic.id ? { ...a, id: res.data.id } : a));
     }
-  };
+  }, [currentSelection, noteId]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>

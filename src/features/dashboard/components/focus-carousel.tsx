@@ -59,7 +59,7 @@ export function FocusCarousel({
           ) : (
             <>
               <Target className="h-3.5 w-3.5 text-primary" />
-              TODAY'S FOCUS
+              TODAY&apos;S FOCUS
             </>
           )}
         </span>

@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
+import { validateDatabaseTarget } from "../../scripts/guard";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -8,6 +9,9 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
+  // Validate database host guardrails on startup
+  validateDatabaseTarget({ isAppStartup: true });
+
   // Use pg.Pool instead of a bare connectionString to avoid
   // non-detachable ArrayBuffer issues on Node.js 26+.
   // The Pool manages TCP socket buffer lifecycles properly.

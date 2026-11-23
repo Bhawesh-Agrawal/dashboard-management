@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
+    "dev:prod-like": "npm run build && npm run start",
+    "docker:smoke": "docker build -t dashboard-management:smoke . && docker run --rm -p 8080:8080 --memory=512m --cpus=1 --env-file .env.local dashboard-management:smoke",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ci": "tsc --noEmit && npm run lint && vitest run",
     "postinstall": "prisma generate"
   },
   "dependencies": {

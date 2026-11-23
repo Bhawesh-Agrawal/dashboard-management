@@ -11,17 +11,17 @@ export function generateRawToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export async function generateWidgetToken(): Promise<{ token: string }> {
+export async function generateWidgetToken(userId?: string): Promise<{ token: string }> {
   const rawToken = generateRawToken();
   const tokenHash = hashToken(rawToken);
 
   await prisma.widgetToken.updateMany({
-    where: { revokedAt: null },
+    where: { revokedAt: null, ...(userId ? { userId } : {}) },
     data: { revokedAt: new Date() },
   });
 
   await prisma.widgetToken.create({
-    data: { tokenHash },
+    data: { tokenHash, userId },
   });
 
   return { token: rawToken };
@@ -29,7 +29,7 @@ export async function generateWidgetToken(): Promise<{ token: string }> {
 
 export async function verifyWidgetToken(
   token: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; userId?: string | null }> {
   const tokenHash = hashToken(token);
 
   const record = await prisma.widgetToken.findFirst({
@@ -49,7 +49,7 @@ export async function verifyWidgetToken(
     data: { lastUsedAt: new Date() },
   });
 
-  return { ok: true };
+  return { ok: true, userId: record.userId };
 }
 
 export async function getActiveWidgetTokenInfo(): Promise<{

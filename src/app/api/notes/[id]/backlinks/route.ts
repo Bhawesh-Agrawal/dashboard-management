@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function GET(
   request: Request,
@@ -37,6 +37,9 @@ export async function GET(
 
     return NextResponse.json({ notes });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Failed to fetch backlinks:", error);
     return NextResponse.json(
       { error: "Failed to fetch backlinks" },

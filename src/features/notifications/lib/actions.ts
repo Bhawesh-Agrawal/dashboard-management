@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/features/auth/lib/supabase-server";
+import { getCurrentUserId } from "@/lib/auth";
 import {
   DEFAULT_ENABLED_TYPES,
   DEFAULT_PRIORITY,
@@ -16,20 +16,6 @@ type DailySummarySection =
   | "deadlines"
   | "attendance"
   | "tomorrow_classes";
-
-/**
- * Get the current user's ID from Supabase auth.
- * Falls back to "default-user" if auth fails.
- */
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id || "default-user";
-  } catch {
-    return "default-user";
-  }
-}
 
 /**
  * Save daily summary preferences including timezone.

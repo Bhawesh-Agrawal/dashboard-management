@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
@@ -12,9 +12,6 @@ import {
 export async function GET(request: NextRequest) {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { searchParams } = new URL(request.url);
     const startDate = new Date(searchParams.get("start") || new Date().toISOString());
@@ -41,6 +38,9 @@ export async function GET(request: NextRequest) {
       lastSync: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[Google Calendar Sync] Failed:", error);
     return NextResponse.json(
       { error: "Failed to sync Google Calendar" },

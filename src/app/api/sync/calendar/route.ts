@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   fetchGoogleCalendarEvents,
@@ -166,6 +166,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ events: calendarEvents });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[Sync Calendar] Failed:", error);
     return NextResponse.json(
       { error: "Failed to fetch calendar data" },

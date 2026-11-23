@@ -5,6 +5,7 @@ import {
   revokeWidgetToken,
   getActiveWidgetTokenInfo,
 } from "./auth";
+import { getCurrentUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function generateWidgetTokenAction(): Promise<{
@@ -12,7 +13,8 @@ export async function generateWidgetTokenAction(): Promise<{
   error?: string;
 }> {
   try {
-    const { token } = await generateWidgetToken();
+    const userId = await getCurrentUserId();
+    const { token } = await generateWidgetToken(userId);
     revalidatePath("/settings");
     return { token };
   } catch (error) {

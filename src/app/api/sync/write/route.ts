@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { memCache } from "@/lib/mem-cache";
 
@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[Sync Write] Failed:", error);
     return NextResponse.json(
       { error: "Write failed" },

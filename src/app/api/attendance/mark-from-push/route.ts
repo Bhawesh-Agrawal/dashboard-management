@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { markAttendance } from "@/features/attendance/lib/actions";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json();
     const { courseId, date, status } = body;
@@ -39,6 +36,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Failed to mark attendance from push:", error);
     return NextResponse.json(
       { error: "Internal server error" },

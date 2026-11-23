@@ -3,7 +3,7 @@ import { verifyWidgetToken } from "./auth";
 
 export async function requireWidgetAuth(
   request: Request
-): Promise<{ ok: boolean; response?: NextResponse }> {
+): Promise<{ ok: boolean; response?: NextResponse; userId?: string | null }> {
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -29,5 +29,5 @@ export async function requireWidgetAuth(
     };
   }
 
-  return { ok: true };
+  return { ok: true, userId: result.userId };
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    await getCurrentUserId();
     const { url } = await req.json();
 
     if (!url || typeof url !== "string") {
@@ -61,6 +63,9 @@ export async function POST(req: NextRequest) {
       favicon,
     });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Link metadata fetch failed:", error);
     return NextResponse.json(
       { title: "", description: "", image: null, favicon: null },

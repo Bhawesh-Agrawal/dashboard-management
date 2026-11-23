@@ -27,8 +27,13 @@ export async function GET(request: NextRequest) {
   try {
     // Get the current user's ID from Supabase auth
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || "default-user";
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user?.id) {
+      return NextResponse.redirect(
+        new URL("/settings?error=unauthorized", request.url)
+      );
+    }
+    const userId = user.id;
 
     const { accessToken, refreshToken, expiresIn } =
       await exchangeCodeForTokens(code);

@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json();
     const { tag, duration } = body;
@@ -38,6 +35,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, snoozedUntil });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Failed to snooze notification:", error);
     return NextResponse.json(
       { error: "Internal server error" },

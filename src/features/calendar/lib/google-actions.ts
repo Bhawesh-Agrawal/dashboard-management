@@ -8,21 +8,7 @@ import {
 } from "@/features/calendar/lib/google-calendar";
 import { getCalendarEvents } from "@/features/calendar/lib/queries";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/features/auth/lib/supabase-server";
-
-/**
- * Get the current user's ID from Supabase auth.
- * Returns a fallback "default-user" for backward compatibility.
- */
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id || "default-user";
-  } catch {
-    return "default-user";
-  }
-}
+import { getCurrentUserId } from "@/lib/auth";
 
 /**
  * Get the Google Calendar authorization URL.

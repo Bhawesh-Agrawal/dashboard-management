@@ -176,9 +176,12 @@ export async function exportReviewAsMarkdown(id: string) {
   return md;
 }
 
+import { getCurrentUserId } from "@/lib/auth";
+
 export async function generateReviewAction(type: ReviewType) {
   try {
-    const result = await generateReview("default-user", type, new Date(), {
+    const userId = await getCurrentUserId();
+    const result = await generateReview(userId, type, new Date(), {
       replaceExisting: true,
     });
     revalidatePath("/reviews");

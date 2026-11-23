@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   computeSGPA,
@@ -311,6 +311,9 @@ export async function GET() {
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[Sync Dashboard] Failed:", error);
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },

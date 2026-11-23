@@ -1,16 +1,28 @@
+import { cache } from "react";
 import { createClient } from "@/features/auth/lib/supabase-server";
-import { memCache, TTL } from "@/lib/mem-cache";
 
-export const DEFAULT_USER_ID = "default-user";
-
-export async function getCurrentUserId(): Promise<string> {
-  return memCache.get("auth:userId", TTL.AUTH, async () => {
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      return user?.id || DEFAULT_USER_ID;
-    } catch {
-      return DEFAULT_USER_ID;
-    }
-  });
+export class UnauthorizedError extends Error {
+  constructor(message = "Unauthorized") {
+    super(message);
+    this.name = "UnauthorizedError";
+  }
 }
+
+/**
+ * Resolves the authenticated user ID for the current request.
+ * Cached per request via React cache() — safe for concurrent requests.
+ * Throws UnauthorizedError if no authenticated session exists.
+ */
+export const getCurrentUserId = cache(async (): Promise<string> => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user?.id) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  return user.id;
+});

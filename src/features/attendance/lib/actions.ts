@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { getNow } from "@/lib/clock";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 /**
  * Mark attendance for a single class session.
@@ -16,7 +17,7 @@ export async function markAttendance(data: {
 }) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id: data.courseId, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -52,7 +53,7 @@ export async function bulkMarkAttendance(
 ) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id: courseId, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -89,7 +90,7 @@ export async function bulkMarkAttendance(
 export async function getAttendanceSummary(courseId: string) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id: courseId, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");

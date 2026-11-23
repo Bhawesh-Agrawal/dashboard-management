@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export async function createClassSchedule(data: {
   courseId: string;
@@ -15,7 +16,7 @@ export async function createClassSchedule(data: {
 }) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id: data.courseId, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -49,7 +50,7 @@ export async function updateClassSchedule(
 ) {
   const userId = await getCurrentUserId();
   const existing = await prisma.classSchedule.findFirst({
-    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+    where: { id, course: { id: courseId, semester: ownerWhere(userId) } },
   });
   if (!existing) {
     throw new UnauthorizedError("Class schedule not found or unauthorized");
@@ -76,7 +77,7 @@ export async function updateClassSchedule(
 export async function deleteClassSchedule(id: string, courseId: string) {
   const userId = await getCurrentUserId();
   const existing = await prisma.classSchedule.findFirst({
-    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+    where: { id, course: { id: courseId, semester: ownerWhere(userId) } },
   });
   if (!existing) {
     throw new UnauthorizedError("Class schedule not found or unauthorized");
@@ -98,7 +99,7 @@ export async function createScheduleException(data: {
 }) {
   const userId = await getCurrentUserId();
   const schedule = await prisma.classSchedule.findFirst({
-    where: { id: data.classScheduleId, course: { semester: { OR: [{ userId }, { userId: null }] } } },
+    where: { id: data.classScheduleId, course: { semester: ownerWhere(userId) } },
   });
   if (!schedule) {
     throw new UnauthorizedError("Class schedule not found or unauthorized");
@@ -152,7 +153,7 @@ export async function createScheduleException(data: {
 export async function deleteScheduleException(id: string) {
   const userId = await getCurrentUserId();
   const exception = await prisma.scheduleException.findFirst({
-    where: { id, classSchedule: { course: { semester: { OR: [{ userId }, { userId: null }] } } } },
+    where: { id, classSchedule: { course: { semester: ownerWhere(userId) } } },
     include: { classSchedule: { select: { courseId: true } } },
   });
 
@@ -181,7 +182,7 @@ export async function getScheduleExceptions(classScheduleId: string) {
   return prisma.scheduleException.findMany({
     where: {
       classScheduleId,
-      classSchedule: { course: { semester: { OR: [{ userId }, { userId: null }] } } },
+      classSchedule: { course: { semester: ownerWhere(userId) } },
     },
     orderBy: { date: "asc" },
   });

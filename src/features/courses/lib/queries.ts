@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 const courseInclude = {
   semester: true,
@@ -19,7 +20,7 @@ const courseInclude = {
 export const getCourseById = cache(async (id: string) => {
   const userId = await getCurrentUserId();
   let course = await prisma.course.findFirst({
-    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id, semester: ownerWhere(userId) },
     include: courseInclude,
   });
 
@@ -49,7 +50,7 @@ export const getCourseById = cache(async (id: string) => {
 
     // Re-fetch to include the new assessment in the returned data
     course = await prisma.course.findFirst({
-      where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+      where: { id, semester: ownerWhere(userId) },
       include: courseInclude,
     });
   }
@@ -60,7 +61,7 @@ export const getCourseById = cache(async (id: string) => {
 export const getCoursesBySemester = cache(async (semesterId: string) => {
   const userId = await getCurrentUserId();
   return prisma.course.findMany({
-    where: { semesterId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { semesterId, semester: ownerWhere(userId) },
     orderBy: { name: "asc" },
     include: {
       _count: { select: { tasks: true, notes: true } },
@@ -75,7 +76,7 @@ export const getCoursesBySemester = cache(async (semesterId: string) => {
 export const getAllCoursesForPicker = cache(async () => {
   const userId = await getCurrentUserId();
   return prisma.course.findMany({
-    where: { semester: { OR: [{ userId }, { userId: null }] } },
+    where: { semester: ownerWhere(userId) },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -92,7 +93,7 @@ export const getCoursesForSelect = cache(async (semesterId?: string) => {
   return prisma.course.findMany({
     where: {
       ...(semesterId ? { semesterId } : {}),
-      semester: { OR: [{ userId }, { userId: null }] },
+      semester: ownerWhere(userId),
     },
     orderBy: { name: "asc" },
     select: {

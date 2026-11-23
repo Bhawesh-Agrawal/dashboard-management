@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export async function createAssessment(data: {
   courseId: string;
@@ -13,7 +14,7 @@ export async function createAssessment(data: {
 }) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id: data.courseId, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id: data.courseId, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -40,7 +41,7 @@ export async function updateAssessment(
 ) {
   const userId = await getCurrentUserId();
   const existing = await prisma.assessment.findFirst({
-    where: { id, course: { semester: { OR: [{ userId }, { userId: null }] } } },
+    where: { id, course: { semester: ownerWhere(userId) } },
   });
   if (!existing) {
     throw new UnauthorizedError("Assessment not found or unauthorized");
@@ -61,7 +62,7 @@ export async function updateAssessment(
 export async function deleteAssessment(id: string, courseId: string) {
   const userId = await getCurrentUserId();
   const existing = await prisma.assessment.findFirst({
-    where: { id, course: { id: courseId, semester: { OR: [{ userId }, { userId: null }] } } },
+    where: { id, course: { id: courseId, semester: ownerWhere(userId) } },
   });
   if (!existing) {
     throw new UnauthorizedError("Assessment not found or unauthorized");

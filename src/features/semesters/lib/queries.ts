@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export const getSemesters = cache(async () => {
   const userId = await getCurrentUserId();
   return prisma.semester.findMany({
-    where: { OR: [{ userId }, { userId: null }] },
+    where: { ...ownerWhere(userId) },
     orderBy: { startDate: "desc" },
     include: {
       courses: {
@@ -25,7 +26,7 @@ export const getSemesters = cache(async () => {
 export const getSemesterById = cache(async (id: string) => {
   const userId = await getCurrentUserId();
   return prisma.semester.findFirst({
-    where: { id, OR: [{ userId }, { userId: null }] },
+    where: { id, ...ownerWhere(userId) },
     include: {
       courses: {
         orderBy: { name: "asc" },
@@ -40,7 +41,7 @@ export const getSemesterById = cache(async (id: string) => {
 export const getActiveSemester = cache(async () => {
   const userId = await getCurrentUserId();
   return prisma.semester.findFirst({
-    where: { isActive: true, OR: [{ userId }, { userId: null }] },
+    where: { isActive: true, ...ownerWhere(userId) },
     include: {
       courses: {
         orderBy: { name: "asc" },
@@ -52,7 +53,7 @@ export const getActiveSemester = cache(async () => {
 export const getSemesterOptions = cache(async () => {
   const userId = await getCurrentUserId();
   return prisma.semester.findMany({
-    where: { OR: [{ userId }, { userId: null }] },
+    where: { ...ownerWhere(userId) },
     orderBy: { startDate: "desc" },
     select: {
       id: true,

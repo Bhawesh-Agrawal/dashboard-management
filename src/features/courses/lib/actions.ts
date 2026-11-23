@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export async function createCourse(data: {
   semesterId: string;
@@ -15,7 +16,7 @@ export async function createCourse(data: {
 }) {
   const userId = await getCurrentUserId();
   const semester = await prisma.semester.findFirst({
-    where: { id: data.semesterId, OR: [{ userId }, { userId: null }] },
+    where: { id: data.semesterId, ...ownerWhere(userId) },
   });
   if (!semester) {
     throw new UnauthorizedError("Semester not found or unauthorized");
@@ -53,7 +54,7 @@ export async function updateCourse(
 ) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -68,7 +69,7 @@ export async function updateCourse(
 export async function deleteCourse(id: string) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
@@ -89,7 +90,7 @@ export async function updateAttendanceMode(
 ) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
-    where: { id, semester: { OR: [{ userId }, { userId: null }] } },
+    where: { id, semester: ownerWhere(userId) },
   });
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");

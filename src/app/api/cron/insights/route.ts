@@ -5,6 +5,7 @@ import {
 } from "@/features/insights/lib/ai-insights";
 import { generateReview } from "@/features/reviews/lib/generator";
 import { NextResponse } from "next/server";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -13,21 +14,11 @@ export const revalidate = 0;
  * Combined insights + daily review cron endpoint.
  * Runs rule-based detection, AI-powered generation, merges results,
  * and generates a daily morning brief review.
- *
- * External cron schedule: 0 7 * * * (daily at 7:00 AM UTC)
- * GET /api/cron/insights?secret=YOUR_CRON_SECRET
+ * Protected by fail-closed cron authentication.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secretParam = url.searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (
-    cronSecret &&
-    secretParam !== cronSecret &&
-    authHeader !== `Bearer ${cronSecret}`
-  ) {
+  const isAuthorized = await verifyCronRequest(request);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

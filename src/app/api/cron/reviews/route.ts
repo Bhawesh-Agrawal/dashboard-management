@@ -1,6 +1,7 @@
 import { generateReview } from "@/features/reviews/lib/generator";
 import { NextResponse } from "next/server";
 import type { ReviewType } from "@prisma/client";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -19,27 +20,11 @@ function isQuarterEnd(date: Date): boolean {
 /**
  * Reviews cron endpoint.
  * Generates weekly, monthly, and quarterly reviews based on the current date.
- *
- * External cron schedule: 0 20 * * * (daily at 8:00 PM UTC)
- * The endpoint internally checks which reviews to generate:
- *   - Sunday → weekly review
- *   - Last day of month → monthly review
- *   - Last day of quarter (Mar/Jun/Sep/Dec) → quarterly review
- *   - Otherwise → no-op
- *
- * GET /api/cron/reviews?secret=YOUR_CRON_SECRET
+ * Protected by fail-closed cron authentication.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secretParam = url.searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (
-    cronSecret &&
-    secretParam !== cronSecret &&
-    authHeader !== `Bearer ${cronSecret}`
-  ) {
+  const isAuthorized = await verifyCronRequest(request);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

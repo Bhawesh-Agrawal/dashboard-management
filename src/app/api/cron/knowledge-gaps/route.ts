@@ -3,6 +3,7 @@ import {
   precomputeKnowledgeGaps,
   detectKnowledgeGaps,
 } from "@/features/notes/lib/knowledge-gaps";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -11,21 +12,11 @@ export const revalidate = 0;
  * Knowledge gap pre-computation cron endpoint.
  * Runs graph analysis to detect orphan notes, sparse areas,
  * and missing connections. Stores results for dashboard consumption.
- *
- * External cron schedule: 0 3 * * * (daily at 3:00 AM UTC)
- * GET /api/cron/knowledge-gaps?secret=YOUR_CRON_SECRET
+ * Protected by fail-closed cron authentication.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secretParam = url.searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (
-    cronSecret &&
-    secretParam !== cronSecret &&
-    authHeader !== `Bearer ${cronSecret}`
-  ) {
+  const isAuthorized = await verifyCronRequest(request);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
 import { runNotificationScheduler } from "@/features/notifications/lib/scheduler";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 /**
  * Notification scheduler trigger endpoint.
- * Hit this via an external cron service every 5 minutes:
- *   GET /api/notifications/trigger?secret=YOUR_CRON_SECRET
- *
- * Supports both query parameter and Authorization header for authentication.
+ * Protected by fail-closed cron authentication (Google Cloud Scheduler OIDC or static bearer token).
+ * Query parameter secret (?secret=...) is rejected.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secretParam = url.searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && secretParam !== cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const isAuthorized = await verifyCronRequest(request);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    const url = new URL(request.url);
     const force = url.searchParams.get("force") === "true";
     await runNotificationScheduler(force);
     return NextResponse.json({ ok: true, timestamp: new Date().toISOString() });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -6,25 +7,17 @@ export const revalidate = 0;
 /**
  * Consolidated daily diagnostics cron endpoint.
  * Calls insights, knowledge-gaps, and reviews endpoints sequentially.
- *
- * External cron schedule: 0 7 * * * (daily at 7:00 AM UTC / 12:30 PM IST)
- * GET /api/cron/daily-diagnostics?secret=YOUR_CRON_SECRET
+ * Protected by fail-closed cron authentication (Google Cloud Scheduler OIDC or static bearer token).
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secretParam = url.searchParams.get("secret");
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (
-    cronSecret &&
-    secretParam !== cronSecret &&
-    authHeader !== `Bearer ${cronSecret}`
-  ) {
+  const isAuthorized = await verifyCronRequest(request);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(request.url);
   const baseUrl = url.origin;
+  const authHeader = request.headers.get("authorization");
   const results: Record<string, unknown> = {};
 
   const endpoints = [
@@ -35,7 +28,9 @@ export async function GET(request: Request) {
 
   for (const endpoint of endpoints) {
     try {
-      const res = await fetch(`${baseUrl}${endpoint.path}?secret=${cronSecret}`);
+      const res = await fetch(`${baseUrl}${endpoint.path}`, {
+        headers: authHeader ? { Authorization: authHeader } : {},
+      });
       results[endpoint.name] = await res.json();
     } catch (err) {
       results[endpoint.name] = {

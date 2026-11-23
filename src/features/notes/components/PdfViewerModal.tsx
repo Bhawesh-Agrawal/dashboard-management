@@ -160,15 +160,29 @@ export function PdfViewerModal({
     configurePdfWorker();
   }, []);
 
+  const fileId = attachmentId || noteId;
+
   useEffect(() => {
-    if (open && noteId) {
-      isDocumentCached(noteId).then(setIsOfflineSaved);
+    if (open && fileId) {
+      isDocumentCached(fileId).then(setIsOfflineSaved);
     }
-  }, [open, noteId]);
+  }, [open, fileId]);
 
   const loadUrl = useCallback(async () => {
     setError(null);
     setIsLoading(true);
+
+    // 1. Check pinned offline cache BEFORE requesting a presigned URL
+    const cachedUrl = await getCachedDocumentBlobUrl(fileId);
+    if (cachedUrl) {
+      setViewUrl(cachedUrl);
+      setIsOfflineCopy(true);
+      setIsOfflineSaved(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // 2. Fall back to server presigned URL
     try {
       const result = await getPdfViewUrl(noteId, attachmentId, s3Key);
       if (result.ok) {
@@ -176,21 +190,15 @@ export function PdfViewerModal({
         setIsOfflineCopy(false);
         setIsLoading(false);
         return;
+      } else {
+        setError(result.error || "Files unavailable, storage is offline");
+        setIsLoading(false);
       }
     } catch {
-      // Ignore network error and attempt offline fallback
-    }
-
-    const cachedUrl = await getCachedDocumentBlobUrl(noteId);
-    if (cachedUrl) {
-      setViewUrl(cachedUrl);
-      setIsOfflineCopy(true);
-      setIsLoading(false);
-    } else {
       setError("Files unavailable, storage is offline");
       setIsLoading(false);
     }
-  }, [noteId, attachmentId, s3Key]);
+  }, [noteId, attachmentId, s3Key, fileId]);
 
   useEffect(() => {
     if (!open) {
@@ -204,11 +212,11 @@ export function PdfViewerModal({
 
   const handleToggleOffline = async () => {
     if (isOfflineSaved) {
-      await removeDocumentOffline(noteId);
+      await removeDocumentOffline(fileId);
       setIsOfflineSaved(false);
       toast.success("Removed from offline storage");
     } else if (viewUrl) {
-      const res = await saveDocumentOffline(noteId, viewUrl);
+      const res = await saveDocumentOffline(fileId, viewUrl);
       if (res.ok) {
         setIsOfflineSaved(true);
         toast.success("Document kept offline");

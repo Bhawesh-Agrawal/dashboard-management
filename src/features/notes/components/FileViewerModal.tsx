@@ -10,6 +10,7 @@ const PdfViewerModal = dynamic(
 );
 import { convertDocxToMarkdown } from "../lib/actions-convert";
 import { getFileViewUrl } from "../lib/actions";
+import { getCachedDocumentBlobUrl } from "@/lib/pdf/offline-cache";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { NoteAnnotation } from "@prisma/client";
@@ -51,7 +52,7 @@ export function FileViewerModal({
     setUrlError(null);
   }, [note?.id]);
 
-  // Fetch a fresh presigned GET URL for non-PDF files
+  // Fetch a fresh presigned GET URL for non-PDF files, checking offline cache first
   useEffect(() => {
     if (!open || !note || !note.s3Url || note.documentType === "PDF") {
       return;
@@ -61,14 +62,25 @@ export function FileViewerModal({
     setIsLoadingUrl(true);
     setUrlError(null);
 
-    getFileViewUrl(note.id, undefined, note.s3Key ?? undefined).then((result) => {
+    // 1. Check pinned offline cache BEFORE requesting presigned URL
+    getCachedDocumentBlobUrl(note.id).then((cachedBlobUrl) => {
       if (cancelled) return;
-      if (result.ok) {
-        setViewUrl(result.data.url);
-      } else {
-        setUrlError(result.error);
+      if (cachedBlobUrl) {
+        setViewUrl(cachedBlobUrl);
+        setIsLoadingUrl(false);
+        return;
       }
-      setIsLoadingUrl(false);
+
+      // 2. Request presigned URL from server
+      getFileViewUrl(note.id, undefined, note.s3Key ?? undefined).then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setViewUrl(result.data.url);
+        } else {
+          setUrlError(result.error);
+        }
+        setIsLoadingUrl(false);
+      });
     });
 
     return () => {

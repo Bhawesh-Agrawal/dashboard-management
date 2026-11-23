@@ -1,14 +1,19 @@
 /**
  * Offline storage utility for documents and PDFs using the Cache Storage API.
  * Uses cache name 'pinned-documents-v1' shared with Service Worker.
+ * Cache is strictly keyed by fileId (/offline-doc/${fileId}), NOT by presigned URL.
  */
 export const PINNED_DOCUMENTS_CACHE = "pinned-documents-v1";
 
-export async function isDocumentCached(noteId: string): Promise<boolean> {
+export function getOfflineDocCacheKey(fileId: string): string {
+  return `/offline-doc/${fileId}`;
+}
+
+export async function isDocumentCached(fileId: string): Promise<boolean> {
   if (typeof window === "undefined" || !("caches" in window)) return false;
   try {
     const cache = await caches.open(PINNED_DOCUMENTS_CACHE);
-    const match = await cache.match(`/offline-doc/${noteId}`);
+    const match = await cache.match(getOfflineDocCacheKey(fileId));
     return !!match;
   } catch {
     return false;
@@ -16,7 +21,7 @@ export async function isDocumentCached(noteId: string): Promise<boolean> {
 }
 
 export async function saveDocumentOffline(
-  noteId: string,
+  fileId: string,
   url: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (typeof window === "undefined" || !("caches" in window)) {
@@ -30,7 +35,7 @@ export async function saveDocumentOffline(
     }
 
     const cache = await caches.open(PINNED_DOCUMENTS_CACHE);
-    await cache.put(`/offline-doc/${noteId}`, res);
+    await cache.put(getOfflineDocCacheKey(fileId), res);
     return { ok: true };
   } catch (err) {
     return {
@@ -40,23 +45,23 @@ export async function saveDocumentOffline(
   }
 }
 
-export async function removeDocumentOffline(noteId: string): Promise<boolean> {
+export async function removeDocumentOffline(fileId: string): Promise<boolean> {
   if (typeof window === "undefined" || !("caches" in window)) return false;
   try {
     const cache = await caches.open(PINNED_DOCUMENTS_CACHE);
-    return await cache.delete(`/offline-doc/${noteId}`);
+    return await cache.delete(getOfflineDocCacheKey(fileId));
   } catch {
     return false;
   }
 }
 
 export async function getCachedDocumentBlobUrl(
-  noteId: string
+  fileId: string
 ): Promise<string | null> {
   if (typeof window === "undefined" || !("caches" in window)) return null;
   try {
     const cache = await caches.open(PINNED_DOCUMENTS_CACHE);
-    const res = await cache.match(`/offline-doc/${noteId}`);
+    const res = await cache.match(getOfflineDocCacheKey(fileId));
     if (!res) return null;
     const blob = await res.blob();
     return URL.createObjectURL(blob);

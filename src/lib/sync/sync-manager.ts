@@ -5,6 +5,20 @@ import { db, type SyncTask, type SyncCourse, type SyncNote, type SyncRoutine, ty
 
 type SyncableTable = "tasks" | "courses" | "notes" | "routines" | "events" | "attendance" | "classSchedules" | "assessments";
 
+/**
+ * Checks whether a local entity has unpushed modifications or is in a pending sync state.
+ * Considers dirty flags (dirty, _dirty), sync status (_syncStatus !== 'synced'),
+ * soft deletions, and pending sync queue references.
+ */
+export function isEntityDirty(entity: any, pendingQueueIds?: Set<string>): boolean {
+  if (!entity) return false;
+  if (entity.dirty === 1 || entity.dirty === true || entity._dirty === true) return true;
+  if (entity._syncStatus !== undefined && entity._syncStatus !== "synced") return true;
+  if (entity._deleted === 1 || entity._deleted === true) return true;
+  if (pendingQueueIds && entity.id && pendingQueueIds.has(entity.id)) return true;
+  return false;
+}
+
 class SyncManager {
   private _isSeeding = false;
   private _isPushing = false;
@@ -18,7 +32,7 @@ class SyncManager {
     return this._isPushing;
   }
 
-  // ─── Seed: Full pull from API → Dexie ──────────────────────
+  // ─── Seed: Pull from API → Dexie preserving dirty/unsynced rows ──
 
   async seedAll(): Promise<void> {
     if (this._isSeeding) return;
@@ -30,67 +44,82 @@ class SyncManager {
 
       const data = await response.json();
 
-      // Clear existing data for clean seed
-      await db.tasks.clear();
-      await db.courses.clear();
-      await db.notes.clear();
-      await db.routines.clear();
-      await db.events.clear();
-      await db.routineCompletions.clear();
-      await db.attendance.clear();
-      await db.classSchedules.clear();
-      await db.assessments.clear();
+      // Collect pending mutations in syncQueue if defined
+      const pendingQueueIds = new Set<string>();
+      try {
+        if ("syncQueue" in db && typeof (db as any).syncQueue?.toArray === "function") {
+          const queueItems = await (db as any).syncQueue.toArray();
+          for (const item of queueItems) {
+            if (item.entityId) pendingQueueIds.add(item.entityId);
+            if (item.id) pendingQueueIds.add(item.id);
+          }
+        }
+      } catch {
+        // Ignore if syncQueue table is not defined
+      }
 
-      // Upsert seed data
-      if (data.tasks?.length) {
-        await db.tasks.bulkPut(
-          data.tasks.map((t: SyncTask) => ({ ...t, dirty: 0, _deleted: 0 }))
-        );
-      }
-      if (data.courses?.length) {
-        await db.courses.bulkPut(
-          data.courses.map((c: SyncCourse) => ({ ...c, dirty: 0, _deleted: 0 }))
-        );
-      }
-      if (data.notes?.length) {
-        await db.notes.bulkPut(
-          data.notes.map((n: SyncNote) => ({ ...n, dirty: 0, _deleted: 0 }))
-        );
-      }
-      if (data.routines?.length) {
-        await db.routines.bulkPut(
-          data.routines.map((r: SyncRoutine) => ({ ...r, dirty: 0, _deleted: 0 }))
-        );
-      }
-      if (data.events?.length) {
-        await db.events.bulkPut(
-          data.events.map((e: SyncEvent) => ({ ...e, dirty: 0, _deleted: 0 }))
-        );
+      // Seed tables while preserving dirty / unsynced rows
+      await this.seedTable("tasks", data.tasks, pendingQueueIds);
+      await this.seedTable("courses", data.courses, pendingQueueIds);
+      await this.seedTable("notes", data.notes, pendingQueueIds);
+      await this.seedTable("routines", data.routines, pendingQueueIds);
+      await this.seedTable("events", data.events, pendingQueueIds);
+
+      // Handle routineCompletions preserving dirty/pending
+      const localCompletions = await db.routineCompletions.toArray();
+      const dirtyCompletions = localCompletions.filter((r) => isEntityDirty(r, pendingQueueIds));
+      const dirtyCompletionIds = new Set(dirtyCompletions.map((r: any) => r.id));
+      const cleanCompletionIds = localCompletions
+        .filter((r: any) => !dirtyCompletionIds.has(r.id))
+        .map((r: any) => r.id);
+      if (cleanCompletionIds.length > 0) {
+        await db.routineCompletions.bulkDelete(cleanCompletionIds);
       }
       if (data.routineCompletions?.length) {
-        await db.routineCompletions.bulkPut(data.routineCompletions);
-      }
-      // Seed extended tables
-      if (data.attendance?.length) {
-        await db.attendance.bulkPut(
-          data.attendance.map((a: SyncAttendanceRecord) => ({ ...a, dirty: 0, _deleted: 0 }))
+        const completionsToInsert = data.routineCompletions.filter(
+          (rc: any) => !dirtyCompletionIds.has(rc.id)
         );
+        if (completionsToInsert.length > 0) {
+          await db.routineCompletions.bulkPut(completionsToInsert);
+        }
       }
-      if (data.classSchedules?.length) {
-        await db.classSchedules.bulkPut(
-          data.classSchedules.map((cs: SyncClassSchedule) => ({ ...cs, dirty: 0, _deleted: 0 }))
-        );
-      }
-      if (data.assessments?.length) {
-        await db.assessments.bulkPut(
-          data.assessments.map((a: SyncAssessment) => ({ ...a, dirty: 0, _deleted: 0 }))
-        );
-      }
+
+      // Extended tables
+      await this.seedTable("attendance", data.attendance, pendingQueueIds);
+      await this.seedTable("classSchedules", data.classSchedules, pendingQueueIds);
+      await this.seedTable("assessments", data.assessments, pendingQueueIds);
     } catch (error) {
       console.error("[SyncManager] Seed failed:", error);
       throw error;
     } finally {
       this._isSeeding = false;
+    }
+  }
+
+  private async seedTable<T extends { id: string }>(
+    tableName: SyncableTable,
+    serverRows: T[] | undefined,
+    pendingQueueIds: Set<string>
+  ): Promise<void> {
+    const table = db[tableName];
+    const localRows = await table.toArray();
+    const dirtyRows = localRows.filter((r) => isEntityDirty(r, pendingQueueIds));
+    const dirtyIds = new Set(dirtyRows.map((r: any) => r.id));
+
+    // Clear only clean, non-dirty rows
+    const cleanIds = localRows.filter((r: any) => !dirtyIds.has(r.id)).map((r: any) => r.id);
+    if (cleanIds.length > 0) {
+      await (table as any).bulkDelete(cleanIds);
+    }
+
+    // Upsert seed data for rows that are NOT locally dirty/unsynced
+    if (serverRows?.length) {
+      const rowsToInsert = serverRows
+        .filter((row) => !dirtyIds.has(row.id))
+        .map((row) => ({ ...row, dirty: 0, _deleted: 0 } as any));
+      if (rowsToInsert.length > 0) {
+        await (table as any).bulkPut(rowsToInsert);
+      }
     }
   }
 

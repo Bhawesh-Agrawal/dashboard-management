@@ -198,3 +198,60 @@ This document provides a feature-by-feature verification checklist for manual qu
 - **Expected Result**:
   - The first trigger generates the notification and writes a record with `userId_tag` to `SentNotification`.
   - The second trigger recognizes the existing tag and suppresses sending a duplicate notification.
+
+---
+
+## Staging Revision Only (Live Infrastructure Verification)
+
+The following tests require deployment to the tagged staging Cloud Run revision (`gcloud run deploy --no-traffic --tag staging`) or external mobile/tunnel infrastructure.
+
+### 10. Google Cloud Scheduler Live OIDC Validation
+- **Goal**: Verify that Google Cloud Scheduler generates authentic OIDC identity tokens and that Cloud Run validates them with Google's public signing keys via `OAuth2Client.verifyIdToken`.
+- **Environment**: `GCP only` (Cloud Run staging revision)
+- **Steps**:
+  1. Deploy the staging revision with tag: `gcloud run deploy dashboard-management --image=<IMAGE> --no-traffic --tag staging`.
+  2. Note the staging URL: `https://staging---dashboard-management-xxxx-el.a.run.app`.
+  3. Trigger the Cloud Scheduler job manually using the gcloud CLI:
+     ```bash
+     gcloud scheduler jobs run notifications --location=asia-south1
+     ```
+  4. Inspect the Cloud Run service logs:
+     ```bash
+     gcloud logging read 'resource.type="cloud_run_revision" AND textPayload=~"Cron request authenticated"' --limit=10 --format="table(timestamp, textPayload)"
+     ```
+- **Expected Result**:
+  - The request succeeds with HTTP 200 OK.
+  - Logs show OIDC verification successful with the designated service account email (`_SCHEDULER_SA`) and audience matching the service URL.
+  - Any request with forged or unsigned tokens is rejected with HTTP 401 Unauthorized.
+
+### 11. MinIO Cloudflare Tunnel HTTPS Reachability
+- **Goal**: Verify browser-to-MinIO direct presigned PUT uploads over the public Cloudflare Tunnel without mixed-content or CORS blocks.
+- **Environment**: `Tunnel-on-phone` or `GCP only`
+- **Steps**:
+  1. Ensure Cloudflare Tunnel is running and forwarding to MinIO public endpoint (e.g., `https://s3.yourdomain.com`).
+  2. Log into the app on a mobile device or desktop browser using the staging URL.
+  3. Upload a sample document (e.g. syllabus or assignment PDF).
+  4. Inspect browser DevTools Network tab:
+     - Verify preflight `OPTIONS` request to `https://s3.yourdomain.com/<bucket>/...` returns HTTP 200 with headers `Access-Control-Allow-Origin: *` (or the specific app domain) and `Access-Control-Allow-Methods: GET, PUT, POST, DELETE`.
+     - Verify subsequent `PUT` request transmits the binary payload and returns HTTP 200 OK.
+  5. Open the uploaded document in the viewer to confirm successful retrieval and presigned GET signature.
+- **Expected Result**:
+  - Upload completes smoothly without CORS or SSL handshake errors.
+  - Document is persisted in MinIO bucket and accessible via presigned GET URL.
+
+### 12. Web Push Background Receipt on iOS
+- **Goal**: Verify web push notification delivery on iOS Safari PWA (iOS 16.4+) when the web application is backgrounded or device is locked.
+- **Environment**: `Tunnel-on-phone` (Physical iOS device running iOS 16.4+)
+- **Steps**:
+  1. Open the staging HTTPS URL in Safari on an iPhone running iOS 16.4+.
+  2. Tap the Share button -> "Add to Home Screen" to install the PWA.
+  3. Open the installed PWA from the Home Screen.
+  4. Log in and navigate to Settings -> Notifications. Tap "Enable Push Notifications" and allow permissions.
+  5. Swipe up to background the PWA and lock the phone screen.
+  6. From a terminal, invoke the notification trigger endpoint:
+     ```bash
+     curl -s -H "Authorization: Bearer <CRON_BEARER_TOKEN>" "https://staging---dashboard-management-xxxx-el.a.run.app/api/notifications/trigger"
+     ```
+- **Expected Result**:
+  - Device vibrates/rings and displays a system push notification banner on the lock screen.
+  - Tapping the notification awakens the PWA and routes to the relevant notification URL.

@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { enforceProductionGuard } from "./guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  enforceProductionGuard("scripts/backfill-semester-user.ts");
+
   const args = process.argv.slice(2);
   const execute = args.includes("--execute");
   const userId = args.find((arg) => !arg.startsWith("--"));

@@ -103,8 +103,15 @@ export function FileUploader({
       const key = `${folderPath}/${timestamp}-${safeName}`;
       const contentType = file.type || getContentType(file.name);
 
+      if (file.size > 90 * 1024 * 1024) {
+        const errorMsg = "File exceeds maximum size of 90 MB";
+        updateUpload(item.id, { status: "error", error: errorMsg });
+        onUploadError?.(errorMsg);
+        return;
+      }
+
       // Step 1: Get presigned URL
-      const result = await getPresignedUploadUrl(key, contentType);
+      const result = await getPresignedUploadUrl(key, contentType, file.size);
       if (!result.ok) {
         updateUpload(item.id, {
           status: "error",

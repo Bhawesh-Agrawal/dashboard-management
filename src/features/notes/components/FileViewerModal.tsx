@@ -178,18 +178,43 @@ export function FileViewerModal({
           ) : urlError ? (
             <div className="text-center space-y-4">
               <FileText className="h-16 w-16 mx-auto text-muted-foreground/50" />
-              <p className="text-muted-foreground text-sm">
-                Failed to load file: {urlError}
-              </p>
-              <a
-                href={note.s3Url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                Try Download
-              </a>
+              <div className="space-y-1">
+                <p className="font-medium text-sm text-foreground">
+                  Files unavailable, storage is offline
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {urlError}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoadingUrl(true);
+                    setUrlError(null);
+                    getFileViewUrl(note.id, undefined, note.s3Key ?? undefined).then((result) => {
+                      if (result.ok) {
+                        setViewUrl(result.data.url);
+                      } else {
+                        setUrlError(result.error);
+                      }
+                      setIsLoadingUrl(false);
+                    });
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+                <a
+                  href={note.s3Url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-input bg-background text-foreground text-xs font-medium rounded-md hover:bg-accent transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Try Download
+                </a>
+              </div>
             </div>
           ) : isImage ? (
             imageError ? (

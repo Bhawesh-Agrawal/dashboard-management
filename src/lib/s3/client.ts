@@ -61,8 +61,14 @@ if (process.env.NODE_ENV !== "production") {
 
 // ─── Constants ───────────────────────────────────────────────
 
+if (process.env.NODE_ENV === "production" && !process.env.S3_PUBLIC_ENDPOINT) {
+  throw new Error(
+    "FATAL: S3_PUBLIC_ENDPOINT environment variable must be set in production (e.g. https://storage.yourdomain.com)."
+  );
+}
+
 export const BUCKET_NAME = process.env.S3_BUCKET || "dashboard";
-export const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "http://192.168.101.10:9004";
+export const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "";
 
 // ─── URL helpers ─────────────────────────────────────────────
 
@@ -71,7 +77,10 @@ export const PUBLIC_ENDPOINT = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_
  * Works for MinIO with bucket-level public access or direct access.
  */
 export function getPublicUrl(key: string): string {
-  return `${PUBLIC_ENDPOINT}/${BUCKET_NAME}/${key}`;
+  if (!PUBLIC_ENDPOINT) {
+    throw new Error("S3_PUBLIC_ENDPOINT is not configured.");
+  }
+  return `${PUBLIC_ENDPOINT.replace(/\/$/, "")}/${BUCKET_NAME}/${key.replace(/^\//, "")}`;
 }
 
 /**

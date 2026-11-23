@@ -55,9 +55,9 @@ function validateFile(
 
   const contentType = getContentType(file.name);
   const fileType = getFileType(contentType);
-  const defaultMax = FILE_SIZE_LIMITS[fileType];
+  const defaultMax = FILE_SIZE_LIMITS[fileType] || 90 * 1024 * 1024;
   if (file.size > defaultMax) {
-    return `File exceeds maximum size of ${formatSize(defaultMax)}`;
+    return "File exceeds maximum size of 90 MB";
   }
 
   return null;

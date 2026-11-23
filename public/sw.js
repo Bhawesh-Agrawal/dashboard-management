@@ -12,6 +12,7 @@
  */
 
 const APP_SHELL_CACHE = "app-shell-v2";
+const PINNED_DOCUMENTS_CACHE = "pinned-documents-v1";
 
 // App shell files to cache (navigation routes)
 const APP_SHELL_FILES = [
@@ -55,7 +56,7 @@ self.addEventListener("activate", (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           // Delete old cache versions
-          if (cacheName !== APP_SHELL_CACHE) {
+          if (cacheName !== APP_SHELL_CACHE && cacheName !== PINNED_DOCUMENTS_CACHE) {
             console.log("[SW] Deleting old cache:", cacheName);
             return caches.delete(cacheName);
           }
@@ -86,6 +87,18 @@ self.addEventListener("fetch", (event) => {
     request.headers.get("RSC") === "1" ||
     request.headers.get("Next-Router-Prefetch") === "1"
   ) {
+    return;
+  }
+
+  // Pinned offline documents
+  if (url.pathname.startsWith("/offline-doc/")) {
+    event.respondWith(
+      caches.open(PINNED_DOCUMENTS_CACHE).then((cache) => {
+        return cache.match(request).then((res) => {
+          return res || fetch(request);
+        });
+      })
+    );
     return;
   }
 

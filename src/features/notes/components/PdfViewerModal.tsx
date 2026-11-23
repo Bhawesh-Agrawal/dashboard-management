@@ -33,8 +33,14 @@ import { exportAnnotationsAsMarkdown, downloadMarkdown } from "@/features/notes/
 import type { AnnotationTool } from "@/features/notes/lib/annotation-utils";
 import type { NoteAnnotation } from "@prisma/client";
 import { createAnnotation, updateAnnotation, deleteAnnotation } from "@/features/notes/lib/actions-annotations";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Download, HardDriveDownload, Check } from "lucide-react";
 import { toast } from "sonner";
+import {
+  isDocumentCached,
+  saveDocumentOffline,
+  removeDocumentOffline,
+  getCachedDocumentBlobUrl,
+} from "@/lib/pdf/offline-cache";
 
 export interface PdfViewerModalProps {
   open: boolean;
@@ -128,6 +134,8 @@ export function PdfViewerModal({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [isOfflineSaved, setIsOfflineSaved] = useState(false);
+  const [isOfflineCopy, setIsOfflineCopy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
@@ -153,26 +161,62 @@ export function PdfViewerModal({
   }, []);
 
   useEffect(() => {
+    if (open && noteId) {
+      isDocumentCached(noteId).then(setIsOfflineSaved);
+    }
+  }, [open, noteId]);
+
+  const loadUrl = useCallback(async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await getPdfViewUrl(noteId, attachmentId, s3Key);
+      if (result.ok) {
+        setViewUrl(result.data.url);
+        setIsOfflineCopy(false);
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      // Ignore network error and attempt offline fallback
+    }
+
+    const cachedUrl = await getCachedDocumentBlobUrl(noteId);
+    if (cachedUrl) {
+      setViewUrl(cachedUrl);
+      setIsOfflineCopy(true);
+      setIsLoading(false);
+    } else {
+      setError("Files unavailable, storage is offline");
+      setIsLoading(false);
+    }
+  }, [noteId, attachmentId, s3Key]);
+
+  useEffect(() => {
     if (!open) {
       setPdfDocument(null);
       setTotalPages(0);
       setViewUrl(null);
       return;
     }
-    setError(null);
-    setIsLoading(true);
-    let cancelled = false;
-    getPdfViewUrl(noteId, attachmentId, s3Key).then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setViewUrl(result.data.url);
+    loadUrl();
+  }, [open, loadUrl]);
+
+  const handleToggleOffline = async () => {
+    if (isOfflineSaved) {
+      await removeDocumentOffline(noteId);
+      setIsOfflineSaved(false);
+      toast.success("Removed from offline storage");
+    } else if (viewUrl) {
+      const res = await saveDocumentOffline(noteId, viewUrl);
+      if (res.ok) {
+        setIsOfflineSaved(true);
+        toast.success("Document kept offline");
       } else {
-        setError(result.error);
-        setIsLoading(false);
+        toast.error(res.error || "Failed to save offline");
       }
-    });
-    return () => { cancelled = true; };
-  }, [open, noteId, attachmentId, s3Key]);
+    }
+  };
 
   const handleDocumentLoadSuccess = useCallback((pdf: any) => {
     setTotalPages(pdf.numPages);
@@ -321,6 +365,9 @@ export function PdfViewerModal({
           onToggleAnnotationSidebar={() => setShowAnnotationSidebar(v => !v)}
           showAnnotationSidebar={showAnnotationSidebar}
           onDownload={handleDownload}
+          isOfflineSaved={isOfflineSaved}
+          isOfflineCopy={isOfflineCopy}
+          onToggleOffline={handleToggleOffline}
         />
 
         <div className="flex flex-1 min-h-0 overflow-hidden relative">
@@ -361,7 +408,28 @@ export function PdfViewerModal({
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             )}
-            
+
+            {error && (
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-base">Files unavailable, storage is offline</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Cannot connect to storage server. Please verify your connection or retry.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadUrl()}
+                  className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {viewUrl && (
               <PdfLoader 
                 document={viewUrl}

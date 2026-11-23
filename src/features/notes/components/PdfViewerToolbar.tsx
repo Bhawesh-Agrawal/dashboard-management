@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Menu,
   PenTool,
+  HardDriveDownload,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,9 @@ export interface PdfViewerToolbarProps {
   onToggleFullscreen: () => void;
   onToggleAnnotationSidebar: () => void;
   onDownload: () => void;
+  isOfflineSaved?: boolean;
+  isOfflineCopy?: boolean;
+  onToggleOffline?: () => void;
 }
 
 export function PdfViewerToolbar({
@@ -71,6 +76,9 @@ export function PdfViewerToolbar({
   onToggleFullscreen,
   onToggleAnnotationSidebar,
   onDownload,
+  isOfflineSaved,
+  isOfflineCopy,
+  onToggleOffline,
 }: PdfViewerToolbarProps) {
   const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
@@ -118,6 +126,11 @@ export function PdfViewerToolbar({
         </button>
 
         <h2 className="text-sm font-medium truncate">{title}</h2>
+        {isOfflineCopy && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium shrink-0">
+            Offline copy
+          </span>
+        )}
       </div>
 
       {/* Center: Zoom controls (desktop) */}
@@ -216,6 +229,31 @@ export function PdfViewerToolbar({
 
       {/* Right: Actions (desktop) */}
       <div className="hidden md:flex items-center gap-1 flex-1 justify-end">
+        {onToggleOffline && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onToggleOffline}
+            className={cn(
+              "flex items-center gap-1.5 h-8 px-2.5 text-xs mr-1",
+              isOfflineSaved && "text-emerald-600 dark:text-emerald-400 font-medium"
+            )}
+            title={isOfflineSaved ? "Saved for offline viewing" : "Save for offline viewing"}
+          >
+            {isOfflineSaved ? (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span>Saved offline</span>
+              </>
+            ) : (
+              <>
+                <HardDriveDownload className="h-3.5 w-3.5" />
+                <span>Keep offline</span>
+              </>
+            )}
+          </Button>
+        )}
         <Button
           variant={showAnnotationSidebar ? "secondary" : "ghost"}
           size="icon-sm"

@@ -1,7 +1,6 @@
 "use server";
 
 import {
-  PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
@@ -10,110 +9,22 @@ import { getCurrentUserId } from "@/lib/auth";
 import {
   s3Client,
   BUCKET_NAME,
-  getPublicUrl,
   getUploadUrl,
   tryS3,
 } from "./client";
 import type {
   S3Result,
-  S3UploadResult,
   S3FileMetadata,
   S3ListItem,
 } from "./types";
 import {
   ALLOWED_EXTENSIONS,
   BLOCKED_EXTENSIONS,
-  FILE_SIZE_LIMITS,
-  getFileType,
-  getContentType,
+  MAX_FILE_SIZE,
   getExtension,
 } from "./types";
 
-// ─── Helpers ─────────────────────────────────────────────────
-
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .replace(/_{2,}/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 200);
-}
-
-function validateFile(file: File): string | null {
-  const ext = getExtension(file.name);
-
-  if (!ext) {
-    return "File must have an extension";
-  }
-
-  if (BLOCKED_EXTENSIONS.has(ext)) {
-    return "File type not allowed";
-  }
-
-  if (!ALLOWED_EXTENSIONS.has(ext)) {
-    return "File type not allowed";
-  }
-
-  const contentType = getContentType(file.name);
-  const fileType = getFileType(contentType);
-  const maxSize = FILE_SIZE_LIMITS[fileType];
-
-  if (file.size > maxSize) {
-    const maxMB = Math.round(maxSize / (1024 * 1024));
-    return `File exceeds maximum size of ${maxMB} MB`;
-  }
-
-  return null;
-}
-
 // ─── Server Actions ──────────────────────────────────────────
-
-/**
- * Upload a file from the browser via multipart/form-data.
- * Expects a "file" field and an optional "folderPath" field.
- */
-export async function uploadFile(
-  formData: FormData
-): Promise<S3Result<S3UploadResult>> {
-  const userId = await getCurrentUserId();
-  const file = formData.get("file") as File | null;
-  const folderPath = (formData.get("folderPath") as string) || "uploads";
-
-  if (!file || file.size === 0) {
-    return { ok: false, error: "No file provided" };
-  }
-
-  const validationError = validateFile(file);
-  if (validationError) {
-    return { ok: false, error: validationError };
-  }
-
-  const timestamp = Date.now();
-  const safeName = sanitizeFilename(file.name);
-  const key = `${userId}/${folderPath}/${timestamp}-${safeName}`;
-  const contentType = file.type || getContentType(file.name);
-
-  return tryS3(async () => {
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        ContentLength: file.size,
-      })
-    );
-
-    return {
-      key,
-      url: getPublicUrl(key),
-      size: file.size,
-      contentType,
-    };
-  }, "uploadFile");
-}
 
 /**
  * Delete a file from S3.
@@ -189,13 +100,24 @@ export async function listFiles(
 
 /**
  * Generate a presigned PUT URL for direct browser-to-MinIO upload.
- * The browser uploads directly to S3, bypassing the Next.js server.
+ * The browser uploads directly to S3 via presigned PUT, bypassing the Next.js server.
+ * Enforces a strict 90MB file size limit on the server side.
  */
 export async function getPresignedUploadUrl(
   key: string,
   contentType: string,
+  fileSize?: number,
   expiresIn: number = 900
 ): Promise<S3Result<{ url: string; key: string }>> {
+  if (fileSize && fileSize > MAX_FILE_SIZE) {
+    return { ok: false, error: "File exceeds maximum size of 90 MB" };
+  }
+
+  const ext = getExtension(key);
+  if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+    return { ok: false, error: "File type not allowed" };
+  }
+
   const userId = await getCurrentUserId();
   const fullKey = key.startsWith(`${userId}/`) ? key : `${userId}/${key.replace(/^\//, "")}`;
 

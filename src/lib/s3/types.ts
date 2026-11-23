@@ -111,15 +111,16 @@ export const BLOCKED_EXTENSIONS = new Set([
 
 // ─── File size limits (bytes) ────────────────────────────────
 const MB = 1024 * 1024;
+export const MAX_FILE_SIZE = 90 * MB; // 90 MB max limit
 
 export const FILE_SIZE_LIMITS: Record<FileType, number> = {
-  [FileType.PDF]: 50 * MB,
-  [FileType.IMAGE]: 10 * MB,
-  [FileType.VIDEO]: 100 * MB,
-  [FileType.AUDIO]: 50 * MB,
-  [FileType.DOCUMENT]: 20 * MB,
-  [FileType.TEXT]: 5 * MB,
-  [FileType.OTHER]: 10 * MB,
+  [FileType.PDF]: 90 * MB,
+  [FileType.IMAGE]: 90 * MB,
+  [FileType.VIDEO]: 90 * MB,
+  [FileType.AUDIO]: 90 * MB,
+  [FileType.DOCUMENT]: 90 * MB,
+  [FileType.TEXT]: 90 * MB,
+  [FileType.OTHER]: 90 * MB,
 };
 
 // ─── MIME type mapping (extension → content type) ────────────

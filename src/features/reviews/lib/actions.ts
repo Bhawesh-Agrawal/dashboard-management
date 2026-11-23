@@ -76,7 +76,7 @@ export async function getUnviewedCount(userId: string) {
 export async function markReviewViewed(id: string) {
   const review = await prisma.review.update({
     where: { id },
-    data: { status: "viewed", viewedAt: new Date() },
+    data: { status: "viewed", viewedAt: getNow() },
   });
   after(() => {
     revalidatePath("/reviews");
@@ -177,11 +177,12 @@ export async function exportReviewAsMarkdown(id: string) {
 }
 
 import { getCurrentUserId } from "@/lib/auth";
+import { getNow } from "@/lib/clock";
 
 export async function generateReviewAction(type: ReviewType) {
   try {
     const userId = await getCurrentUserId();
-    const result = await generateReview(userId, type, new Date(), {
+    const result = await generateReview(userId, type, getNow(), {
       replaceExisting: true,
     });
     revalidatePath("/reviews");

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
+import { getNow } from "@/lib/clock";
 
 /**
  * Mark attendance for a single class session.
@@ -10,7 +11,7 @@ import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
  */
 export async function markAttendance(data: {
   courseId: string;
-  date: string;
+  date?: string;
   status: "present" | "absent" | "cancelled" | "not_marked";
 }) {
   const userId = await getCurrentUserId();
@@ -21,17 +22,19 @@ export async function markAttendance(data: {
     throw new UnauthorizedError("Course not found or unauthorized");
   }
 
+  const date = data.date ? new Date(data.date) : getNow();
+
   const record = await prisma.attendanceRecord.upsert({
     where: {
       courseId_date: {
         courseId: data.courseId,
-        date: new Date(data.date),
+        date,
       },
     },
     update: { status: data.status },
     create: {
       courseId: data.courseId,
-      date: new Date(data.date),
+      date,
       status: data.status,
     },
   });
@@ -45,7 +48,7 @@ export async function markAttendance(data: {
  */
 export async function bulkMarkAttendance(
   courseId: string,
-  records: { date: string; status: "present" | "absent" | "cancelled" | "not_marked" }[]
+  records: { date?: string; status: "present" | "absent" | "cancelled" | "not_marked" }[]
 ) {
   const userId = await getCurrentUserId();
   const course = await prisma.course.findFirst({
@@ -56,22 +59,23 @@ export async function bulkMarkAttendance(
   }
 
   await prisma.$transaction(
-    records.map((r) =>
-      prisma.attendanceRecord.upsert({
+    records.map((r) => {
+      const date = r.date ? new Date(r.date) : getNow();
+      return prisma.attendanceRecord.upsert({
         where: {
           courseId_date: {
             courseId,
-            date: new Date(r.date),
+            date,
           },
         },
         update: { status: r.status },
         create: {
           courseId,
-          date: new Date(r.date),
+          date,
           status: r.status,
         },
-      })
-    )
+      });
+    })
   );
 
   revalidatePath(`/courses/${courseId}`);

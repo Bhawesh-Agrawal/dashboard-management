@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getNowMs } from "@/lib/clock";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     // For class_start notifications, snooze until the class start time
     // For attendance notifications, snooze for 5 minutes to prevent re-triggering
     const snoozeDuration = duration || 30 * 60 * 1000; // 30 minutes default
-    const snoozedUntil = new Date(Date.now() + snoozeDuration);
+    const snoozedUntil = new Date(getNowMs() + snoozeDuration);
 
     // Update or create the sent notification record with snooze time
     await prisma.sentNotification.upsert({

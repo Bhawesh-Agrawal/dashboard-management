@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getNow } from "@/lib/clock";
 import { getActiveSubscriptions } from "./subscription";
 import {
   computeAttendancePercent,
@@ -152,7 +153,7 @@ async function wasNotificationSent(userId: string, tag: string): Promise<boolean
     });
     if (!existing) return false;
     // Check if snoozed until a future time
-    if (existing.snoozedUntil && existing.snoozedUntil > new Date()) {
+    if (existing.snoozedUntil && existing.snoozedUntil > getNow()) {
       return true; // Treat snoozed as "sent" to prevent re-triggering
     }
     return true;
@@ -170,7 +171,7 @@ async function isNotificationSnoozed(userId: string, tag: string): Promise<boole
       where: { userId_tag: { userId, tag } },
     });
     if (!existing || !existing.snoozedUntil) return false;
-    return existing.snoozedUntil > new Date();
+    return existing.snoozedUntil > getNow();
   } catch {
     return false;
   }
@@ -181,7 +182,7 @@ async function markNotificationSent(userId: string, tag: string, type: string): 
     await prisma.sentNotification.upsert({
       where: { userId_tag: { userId, tag } },
       create: { userId, tag, type },
-      update: { sentAt: new Date() },
+      update: { sentAt: getNow() },
     });
   } catch {
     // Non-critical — don't break scheduler
@@ -190,7 +191,7 @@ async function markNotificationSent(userId: string, tag: string, type: string): 
 
 async function cleanupOldSentNotifications(): Promise<void> {
   try {
-    const cutoff = new Date();
+    const cutoff = getNow();
     cutoff.setDate(cutoff.getDate() - 7);
     await prisma.sentNotification.deleteMany({
       where: { sentAt: { lt: cutoff } },
@@ -218,7 +219,7 @@ function getUserLocalTime(timezone: string | null | undefined): Date {
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   try {
-    const now = new Date();
+    const now = getNow();
     // Format current UTC time in the user's timezone
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
@@ -245,7 +246,7 @@ function getUserLocalTime(timezone: string | null | undefined): Date {
     );
     return localDate;
   } catch {
-    return new Date();
+    return getNow();
   }
 }
 
@@ -334,7 +335,7 @@ async function generateTaskNotifications(
     return [];
   }
 
-  const now = new Date();
+  const now = getNow();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(23, 59, 59, 999);
@@ -760,7 +761,7 @@ async function generateAssessmentNotifications(
     return [];
   }
 
-  const now = new Date();
+  const now = getNow();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(23, 59, 59, 999);
@@ -850,7 +851,7 @@ async function generateMissedRoutineNotifications(
   if (missedRoutines.length === 0) return [];
 
   // Get streak info for context
-  const thirtyDaysAgo = new Date();
+  const thirtyDaysAgo = getNow();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   let streakCompletions: { routineId: string; date: Date }[] = [];
@@ -911,7 +912,7 @@ async function generateOverdueTaskNotifications(
     return [];
   }
 
-  const now = new Date();
+  const now = getNow();
 
   const overdueTasks = await prisma.task.findMany({
     where: {
@@ -1034,7 +1035,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
     return [];
   }
 
-  const now = new Date();
+  const now = getNow();
   const dayOfWeek = getDayOfWeekEnum(userLocalTime.getDay());
 
   // Build detailed summary body section by section
@@ -1122,7 +1123,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
       const completedIds = new Set(completions.map((c) => c.routineId));
 
       // Get streak data
-      const thirtyDaysAgo = new Date();
+      const thirtyDaysAgo = getNow();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       let streakCompletions: { routineId: string }[] = [];
       try {

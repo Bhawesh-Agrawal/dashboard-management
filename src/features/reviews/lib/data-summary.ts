@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ReviewType } from "@prisma/client";
+import { getNow } from "@/lib/clock";
 import {
   subDays,
   startOfWeek,
@@ -23,10 +24,10 @@ const JS_DAY_TO_ENUM: DayOfWeekEnum[] = [
  * Falls back to server time if no timezone is provided.
  */
 function getUserLocalTime(timezone: string | null | undefined): Date {
-  if (!timezone) return new Date();
+  if (!timezone) return getNow();
 
   try {
-    const now = new Date();
+    const now = getNow();
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
       year: "numeric",
@@ -51,7 +52,7 @@ function getUserLocalTime(timezone: string | null | undefined): Date {
       parseInt(get("second"))
     );
   } catch {
-    return new Date();
+    return getNow();
   }
 }
 
@@ -364,7 +365,7 @@ export function formatReviewDataSummary(
   data: ReviewDataSummary,
   type: ReviewType
 ): string {
-  const now = new Date();
+  const now = getNow();
   const lines: string[] = [];
 
   // ── Tasks ──

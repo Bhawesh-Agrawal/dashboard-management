@@ -2,6 +2,7 @@ import { generateReview } from "@/features/reviews/lib/generator";
 import { NextResponse } from "next/server";
 import type { ReviewType } from "@prisma/client";
 import { verifyCronRequest } from "@/lib/cron-auth";
+import { getNow } from "@/lib/clock";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const now = new Date();
+  const now = getNow();
   const dayOfWeek = now.getUTCDay(); // 0 = Sunday
 
   const reviewTypes: ReviewType[] = [];

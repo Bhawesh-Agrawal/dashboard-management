@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getNow } from "@/lib/clock";
 
 /**
  * POST /api/notifications/mark-opened
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.sentNotification.updateMany({
       where: { userId, tag },
-      data: { openedAt: new Date() },
+      data: { openedAt: getNow() },
     });
 
     return NextResponse.json({ ok: true });

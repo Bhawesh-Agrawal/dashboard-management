@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
+import { getNow } from "@/lib/clock";
 import {
   DEFAULT_ENABLED_TYPES,
   DEFAULT_PRIORITY,
@@ -311,7 +312,7 @@ export type NotificationTypeStats = {
 export async function getNotificationWeeklyStats(): Promise<NotificationTypeStats[]> {
   try {
     const userId = await getCurrentUserId();
-    const weekAgo = new Date();
+    const weekAgo = getNow();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     const rows = await prisma.sentNotification.groupBy({

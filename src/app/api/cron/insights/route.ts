@@ -6,6 +6,7 @@ import {
 import { generateReview } from "@/features/reviews/lib/generator";
 import { NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
+import { getNow } from "@/lib/clock";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       const [ruleBased, aiBased, dailyReview] = await Promise.all([
         generateAllInsights(userId),
         generateAIInsights(userId),
-        generateReview(userId, "daily", new Date(), { timezone: timezone || undefined }),
+        generateReview(userId, "daily", getNow(), { timezone: timezone || undefined }),
       ]);
 
       const combined = combineInsights(ruleBased, aiBased);
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
       ok: true,
       processedUsers: results.length,
       results,
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
     });
   } catch (err) {
     console.error("Insights cron failed:", err);

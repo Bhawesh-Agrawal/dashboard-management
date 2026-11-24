@@ -1,16 +1,3 @@
-// Nav items for sidebar and mobile tabs
-export const NAV_ITEMS = [
-  { label: "Today", href: "/today", icon: "Calendar" },
-  { label: "Tasks", href: "/tasks", icon: "CheckSquare" },
-  { label: "Calendar", href: "/calendar", icon: "CalendarDays" },
-  { label: "Semesters", href: "/semesters", icon: "GraduationCap" },
-  { label: "Routines", href: "/routines", icon: "Repeat" },
-  { label: "Notes", href: "/notes", icon: "FileText" },
-  { label: "Search", href: "/search", icon: "Search" },
-  { label: "Ask", href: "/ask", icon: "MessageSquare" },
-  { label: "Settings", href: "/settings", icon: "Settings" },
-] as const;
-
 // Muted course color palette
 export const COURSE_COLORS = [
   { name: "Slate Blue", value: "#6B7FA3" },

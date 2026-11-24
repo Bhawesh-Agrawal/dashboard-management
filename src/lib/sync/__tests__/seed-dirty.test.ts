@@ -15,6 +15,20 @@ const { mockDb } = vi.hoisted(() => {
           else rows.push(row);
         }
       }),
+      put: vi.fn(async (row: T) => {
+        const idx = rows.findIndex((r: any) => r.id === (row as any).id);
+        if (idx >= 0) rows[idx] = row;
+        else rows.push(row);
+      }),
+      update: vi.fn(async (id: string, updates: Partial<T>) => {
+        const idx = rows.findIndex((r: any) => r.id === id);
+        if (idx >= 0) {
+          rows[idx] = { ...rows[idx], ...updates };
+        }
+      }),
+      delete: vi.fn(async (id: string) => {
+        rows = rows.filter((r: any) => r.id !== id);
+      }),
       clear: vi.fn(async () => {
         rows = [];
       }),
@@ -47,7 +61,7 @@ vi.mock("@/lib/sync/db", () => ({
 
 import { syncManager, isEntityDirty } from "../sync-manager";
 
-describe("sync-manager: dirty rows protection during seedAll", () => {
+describe("sync-manager: dirty rows protection and server deletion in seedAll", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(mockDb)) {
@@ -59,69 +73,86 @@ describe("sync-manager: dirty rows protection during seedAll", () => {
     vi.restoreAllMocks();
   });
 
-  describe("isEntityDirty", () => {
+  describe("isEntityDirty (real schema markers)", () => {
     it("identifies dirty: 1 as dirty", () => {
       expect(isEntityDirty({ id: "1", dirty: 1 })).toBe(true);
-    });
-
-    it("identifies dirty: true as dirty", () => {
       expect(isEntityDirty({ id: "1", dirty: true })).toBe(true);
     });
 
-    it("identifies _dirty: true as dirty", () => {
-      expect(isEntityDirty({ id: "1", _dirty: true })).toBe(true);
-    });
-
-    it("identifies _syncStatus !== 'synced' as dirty", () => {
-      expect(isEntityDirty({ id: "1", _syncStatus: "pending" })).toBe(true);
-      expect(isEntityDirty({ id: "1", _syncStatus: "modified" })).toBe(true);
-      expect(isEntityDirty({ id: "1", _syncStatus: "synced" })).toBe(false);
-    });
-
-    it("identifies _deleted: 1 or true as dirty", () => {
+    it("identifies _deleted: 1 as dirty", () => {
       expect(isEntityDirty({ id: "1", _deleted: 1 })).toBe(true);
       expect(isEntityDirty({ id: "1", _deleted: true })).toBe(true);
     });
 
     it("identifies entity referenced in pendingQueueIds as dirty", () => {
       const pendingQueue = new Set(["task-in-queue"]);
-      expect(isEntityDirty({ id: "task-in-queue", dirty: 0 }, pendingQueue)).toBe(true);
-      expect(isEntityDirty({ id: "task-not-in-queue", dirty: 0 }, pendingQueue)).toBe(false);
+      expect(isEntityDirty({ id: "task-in-queue", dirty: 0, _deleted: 0 }, pendingQueue)).toBe(true);
+      expect(isEntityDirty({ id: "task-not-in-queue", dirty: 0, _deleted: 0 }, pendingQueue)).toBe(false);
     });
 
-    it("returns false for clean synced entity", () => {
-      expect(isEntityDirty({ id: "1", dirty: 0, _deleted: 0, _syncStatus: "synced" })).toBe(false);
+    it("returns false for clean synced entity without guessed flags", () => {
+      expect(isEntityDirty({ id: "1", dirty: 0, _deleted: 0 })).toBe(false);
+      expect(isEntityDirty(null)).toBe(false);
+      expect(isEntityDirty(undefined)).toBe(false);
     });
   });
 
-  describe("seedAll() dirty protection", () => {
-    it("preserves dirty rows and does not overwrite them with server data", async () => {
-      // Setup local Dexie state:
-      // 1. Clean task that exists locally
-      // 2. Dirty task with local edits that exists on server
-      // 3. Dirty task created offline that does not exist on server yet
-      mockDb.tasks._setRows([
-        { id: "task-clean", title: "Clean Local Task", dirty: 0, _deleted: 0 } as any,
-        { id: "task-dirty-1", title: "Local Unsaved Edit", dirty: 1, _deleted: 0 } as any,
-        { id: "task-offline-new", title: "Created Offline", _dirty: true, _syncStatus: "pending" } as any,
-      ]);
+  describe("seedAll() sync behavior", () => {
+    it("proves: dirty rows survive seedAll AND clean rows deleted on the server are removed after seedAll", async () => {
+      // 1. Simulate real local write paths:
+      // a) Clean task previously synced from server
+      await mockDb.tasks.put({
+        id: "task-clean-surviving",
+        title: "Clean Local Task",
+        dirty: 0,
+        _deleted: 0,
+      });
 
-      mockDb.notes._setRows([
-        { id: "note-dirty", title: "Offline Note", _syncStatus: "modified", dirty: 0 } as any,
-      ]);
+      // b) Clean task that was DELETED on server (server seed will omit this row)
+      await mockDb.tasks.put({
+        id: "task-deleted-on-server",
+        title: "Old Task To Be Removed",
+        dirty: 0,
+        _deleted: 0,
+      });
 
-      // Server returns updated versions of task-clean and task-dirty-1, plus a new server task
+      // c) Dirty task modified locally while offline (dirty: 1)
+      await mockDb.tasks.put({
+        id: "task-dirty-edited",
+        title: "Local Unsaved Edit",
+        dirty: 1,
+        _deleted: 0,
+      });
+
+      // d) Dirty task created locally while offline (dirty: 1)
+      await mockDb.tasks.put({
+        id: "task-offline-created",
+        title: "Brand New Offline Task",
+        dirty: 1,
+        _deleted: 0,
+      });
+
+      // e) Locally soft-deleted task awaiting push (_deleted: 1, dirty: 1)
+      await mockDb.tasks.put({
+        id: "task-soft-deleted",
+        title: "Soft Deleted Locally",
+        dirty: 1,
+        _deleted: 1,
+      });
+
+      // Server returns seed data containing:
+      // - Updated version of task-clean-surviving
+      // - Outdated server copy of task-dirty-edited (must not overwrite local edit)
+      // - A brand new task from another device
+      // (task-deleted-on-server is NOT present in serverSeedData)
       const serverSeedData = {
         tasks: [
-          { id: "task-clean", title: "Updated Clean From Server" },
-          { id: "task-dirty-1", title: "Stale Server Version" },
-          { id: "task-new-from-server", title: "Brand New Server Task" },
-        ],
-        notes: [
-          { id: "note-dirty", title: "Server Note Overwrite Attempt" },
-          { id: "note-server", title: "New Server Note" },
+          { id: "task-clean-surviving", title: "Updated Clean Title From Server" },
+          { id: "task-dirty-edited", title: "Outdated Server Version" },
+          { id: "task-brand-new-from-server", title: "New Task From Cloud" },
         ],
         courses: [],
+        notes: [],
         routines: [],
         events: [],
         routineCompletions: [],
@@ -139,35 +170,47 @@ describe("sync-manager: dirty rows protection during seedAll", () => {
         })
       );
 
+      // Execute seedAll()
       await syncManager.seedAll();
 
       const finalTasks = mockDb.tasks._getRows();
-      const finalNotes = mockDb.notes._getRows();
 
-      // Clean task was replaced with server version
-      const cleanTask = finalTasks.find((t) => t.id === "task-clean");
-      expect(cleanTask?.title).toBe("Updated Clean From Server");
+      // VERIFICATION 1: Clean rows deleted on the server are removed after seedAll
+      const deletedTask = finalTasks.find((t) => t.id === "task-deleted-on-server");
+      expect(
+        deletedTask,
+        "Clean row deleted on server must be removed locally after seedAll"
+      ).toBeUndefined();
 
-      // Dirty task-dirty-1 was NOT overwritten by server data
-      const dirtyTask1 = finalTasks.find((t) => t.id === "task-dirty-1");
-      expect(dirtyTask1?.title).toBe("Local Unsaved Edit");
-      expect(dirtyTask1?.dirty).toBe(1);
+      // VERIFICATION 2: Clean row updated on server is updated locally
+      const cleanTask = finalTasks.find((t) => t.id === "task-clean-surviving");
+      expect(cleanTask).toBeDefined();
+      expect(cleanTask?.title).toBe("Updated Clean Title From Server");
+      expect(cleanTask?.dirty).toBe(0);
 
-      // Offline new task was preserved
-      const offlineTask = finalTasks.find((t) => t.id === "task-offline-new");
-      expect(offlineTask?.title).toBe("Created Offline");
+      // VERIFICATION 3: Dirty modified row SURVIVES and is NOT overwritten by server
+      const dirtyEdited = finalTasks.find((t) => t.id === "task-dirty-edited");
+      expect(dirtyEdited).toBeDefined();
+      expect(dirtyEdited?.title).toBe("Local Unsaved Edit");
+      expect(dirtyEdited?.dirty).toBe(1);
 
-      // New server task was inserted
-      const newServerTask = finalTasks.find((t) => t.id === "task-new-from-server");
-      expect(newServerTask?.title).toBe("Brand New Server Task");
+      // VERIFICATION 4: Offline-created row SURVIVES seedAll
+      const offlineCreated = finalTasks.find((t) => t.id === "task-offline-created");
+      expect(offlineCreated).toBeDefined();
+      expect(offlineCreated?.title).toBe("Brand New Offline Task");
+      expect(offlineCreated?.dirty).toBe(1);
 
-      // Note with _syncStatus: "modified" was NOT overwritten
-      const dirtyNote = finalNotes.find((n) => n.id === "note-dirty");
-      expect(dirtyNote?.title).toBe("Offline Note");
+      // VERIFICATION 5: Soft-deleted offline row SURVIVES seedAll
+      const softDeleted = finalTasks.find((t) => t.id === "task-soft-deleted");
+      expect(softDeleted).toBeDefined();
+      expect(softDeleted?._deleted).toBe(1);
+      expect(softDeleted?.dirty).toBe(1);
 
-      // New note was inserted
-      const newNote = finalNotes.find((n) => n.id === "note-server");
-      expect(newNote?.title).toBe("New Server Note");
+      // VERIFICATION 6: Brand new server task is inserted locally
+      const brandNew = finalTasks.find((t) => t.id === "task-brand-new-from-server");
+      expect(brandNew).toBeDefined();
+      expect(brandNew?.title).toBe("New Task From Cloud");
+      expect(brandNew?.dirty).toBe(0);
     });
   });
 });

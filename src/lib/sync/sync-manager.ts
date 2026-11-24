@@ -7,13 +7,17 @@ type SyncableTable = "tasks" | "courses" | "notes" | "routines" | "events" | "at
 
 /**
  * Checks whether a local entity has unpushed modifications or is in a pending sync state.
- * Considers dirty flags (dirty, _dirty), sync status (_syncStatus !== 'synced'),
- * soft deletions, and pending sync queue references.
+ * Real schema dirty markers:
+ * - dirty === 1: row was created or updated locally while offline/unsaved
+ * - _deleted === 1: row was marked for deletion locally while offline/unsaved
+ * - pendingQueueIds: row ID is referenced in an active mutation queue
  */
-export function isEntityDirty(entity: any, pendingQueueIds?: Set<string>): boolean {
+export function isEntityDirty(
+  entity: { id?: string; dirty?: number | boolean; _deleted?: number | boolean } | null | undefined,
+  pendingQueueIds?: Set<string>
+): boolean {
   if (!entity) return false;
-  if (entity.dirty === 1 || entity.dirty === true || entity._dirty === true) return true;
-  if (entity._syncStatus !== undefined && entity._syncStatus !== "synced") return true;
+  if (entity.dirty === 1 || entity.dirty === true) return true;
   if (entity._deleted === 1 || entity._deleted === true) return true;
   if (pendingQueueIds && entity.id && pendingQueueIds.has(entity.id)) return true;
   return false;

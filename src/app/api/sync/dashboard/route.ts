@@ -11,7 +11,6 @@ import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
-import { getKnowledgeStats } from "@/features/notes/lib/knowledge-gaps";
 import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
 
 /**
@@ -44,7 +43,6 @@ export async function GET() {
       activeProjectsRaw,
       latestReview,
       unviewedReviewCount,
-      knowledgeStats,
       reviewStats,
       dashboardPref,
     ] = await Promise.all([
@@ -117,7 +115,6 @@ export async function GET() {
       prisma.review.count({
         where: { userId, status: "generated" },
       }),
-      getKnowledgeStats(userId),
       getReviewStats(userId),
       prisma.userDashboardPreference.findUnique({
         where: { userId },
@@ -301,7 +298,6 @@ export async function GET() {
           }
         : null,
       unviewedReviewCount,
-      knowledgeStats,
       reviewStats,
       sgpa,
       cgpa,

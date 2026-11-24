@@ -11,7 +11,6 @@ import { TomorrowRoutines } from "@/features/dashboard/components/tomorrow-routi
 import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
-import { KnowledgeHealthWidget } from "@/features/dashboard/components/knowledge-health-widget";
 import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
 import { ActiveUpcoming } from "@/features/dashboard/components/active-upcoming";
 import dynamic from "next/dynamic";
@@ -93,15 +92,6 @@ export function TodayDashboard({
           <ReviewPreviewWidget
             review={data.latestReview}
             unviewedCount={data.unviewedReviewCount}
-          />
-        );
-      case "KnowledgeHealthWidget":
-        return (
-          <KnowledgeHealthWidget
-            noteCount={data.knowledgeStats.noteCount}
-            connectionCount={data.knowledgeStats.connectionCount}
-            gapCount={data.knowledgeStats.gapCount}
-            reviewsDue={data.reviewStats.notesDueToday}
           />
         );
       case "AttendanceAlerts":

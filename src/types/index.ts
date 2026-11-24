@@ -111,7 +111,6 @@ export type DashboardData = {
     summary: string;
   } | null;
   unviewedReviewCount: number;
-  knowledgeStats: KnowledgeStats;
   reviewStats: {
     totalNotes: number;
     notesDueToday: number;
@@ -213,23 +212,6 @@ export type NoteWithLinks = Note & {
     outgoingLinks: number;
     incomingLinks: number;
   };
-};
-
-// ─── Second Brain: Knowledge Gaps ───────────────────────────
-export type KnowledgeGap = {
-  type: "orphan_topic" | "missing_connection" | "sparse_area";
-  description: string;
-  relatedNoteIds: string[];
-  suggestedTopics: string[];
-  severity: "low" | "medium" | "high";
-};
-
-export type KnowledgeStats = {
-  noteCount: number;
-  connectionCount: number;
-  gapCount: number;
-  reviewsDue: number;
-  topClusters: { topic: string; noteCount: number }[];
 };
 
 // ─── Second Brain: Graph Data ───────────────────────────────

@@ -15,9 +15,7 @@ export interface SyncTask {
   domainId: string | null;
   starred: boolean;
   completedAt: string | null;
-  energyRequirement: string | null;
   estimatedDuration: number | null;
-  optimalTimeOfDay: string | null;
   sortPriority: number | null;
   createdAt: string;
   updatedAt: string;
@@ -101,10 +99,8 @@ export interface SyncRoutine {
   specificTime: string | null;
   streakGoal: number | null;
   activeDays: string[];
-  energyImpact: string;
   category: string | null;
   flowTrigger: string | null;
-  identityId: string | null;
   createdAt: string;
   updatedAt: string;
   // Sync metadata
@@ -212,7 +208,41 @@ class SyncDatabase extends Dexie {
       classSchedules: "id, courseId, dayOfWeek, dirty, _deleted, [courseId+dayOfWeek]",
       assessments: "id, courseId, date, dirty, _deleted, [courseId+date]",
     });
+
+    this.version(3)
+      .stores({
+        routines: "id, userId, dirty, _deleted",
+      })
+      .upgrade(upgradeV2ToV3);
   }
+}
+
+/**
+ * Migration handler from schema v2 to v3:
+ * - Drops removed columns (energyRequirement, optimalTimeOfDay) from tasks
+ * - Drops removed columns (identityId, energyImpact) from routines
+ * - Removes identityId index from routines table
+ * - Preserves all stored data for kept tables and columns
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function upgradeV2ToV3(tx: any) {
+  // Drop removed columns from tasks
+  await tx
+    .table("tasks")
+    .toCollection()
+    .modify((task: Record<string, unknown>) => {
+      delete task.energyRequirement;
+      delete task.optimalTimeOfDay;
+    });
+
+  // Drop removed columns from routines
+  await tx
+    .table("routines")
+    .toCollection()
+    .modify((routine: Record<string, unknown>) => {
+      delete routine.identityId;
+      delete routine.energyImpact;
+    });
 }
 
 export const db = new SyncDatabase();

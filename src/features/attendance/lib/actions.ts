@@ -5,7 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
-import { parseDateOnly, formatDateOnly, getTodayInTimezone, getUserTimezone } from "@/lib/timezone";
+import { parseDateOnly, formatDateOnly, getTodayInTimezone } from "@/lib/timezone";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { getNow } from "@/lib/clock";
 import {
   computeAttendanceMetrics,
   resolveAttendanceCounts,
@@ -63,7 +65,7 @@ export async function markAttendance(input: MarkAttendanceInput): Promise<MarkAt
 
   // Resolve user timezone and date
   const timezone = await getUserTimezone(userId);
-  const dateStr = validated.date ? formatDateOnly(validated.date) : getTodayInTimezone(timezone);
+  const dateStr = validated.date ? formatDateOnly(validated.date) : getTodayInTimezone(timezone, getNow());
   const dateObj = parseDateOnly(dateStr);
 
   const dbStatus: AttendanceStatus = validated.status === "unmarked" ? "not_marked" : validated.status;
@@ -176,7 +178,7 @@ export async function bulkMarkAttendance(
   const timezone = await getUserTimezone(userId);
 
   for (const occ of occurrences) {
-    const dateStr = occ.date ? formatDateOnly(occ.date) : getTodayInTimezone(timezone);
+    const dateStr = occ.date ? formatDateOnly(occ.date) : getTodayInTimezone(timezone, getNow());
     const dateObj = parseDateOnly(dateStr);
     const dbStatus: AttendanceStatus = occ.status === "unmarked" ? "not_marked" : occ.status;
 

@@ -1,4 +1,4 @@
-import { DayOfWeek } from "@prisma/client";
+import type { DayOfWeek } from "@prisma/client";
 import {
   DEFAULT_TIMEZONE,
   formatDateOnly,
@@ -6,7 +6,6 @@ import {
   getClassTimingStatus,
   ClassTimingStatus,
 } from "@/lib/timezone";
-import { getNow } from "@/lib/clock";
 
 export type OccurrenceStatus = "present" | "absent" | "cancelled" | "unmarked";
 
@@ -90,7 +89,7 @@ export function generateOccurrences({
   timezone?: string;
   now?: Date;
 }): ClassOccurrence[] {
-  const currentClock = now ?? getNow();
+  const currentClock = now ?? new Date();
   const todayStr = getTodayInTimezone(timezone, currentClock);
 
   // Index exceptions by `${classScheduleId}_${dateStr}`

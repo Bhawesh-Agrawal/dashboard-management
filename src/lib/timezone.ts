@@ -1,7 +1,3 @@
-import { getNow } from "@/lib/clock";
-import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/lib/auth";
-
 export const DEFAULT_TIMEZONE = "Asia/Kolkata";
 
 export type DayOfWeekCode = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
@@ -15,53 +11,6 @@ const DOW_CODE_MAP: Record<string, DayOfWeekCode> = {
   Sat: "SAT",
   Sun: "SUN",
 };
-
-/**
- * Returns the configured timezone for a user, falling back to "Asia/Kolkata".
- */
-export async function getUserTimezone(userId?: string): Promise<string> {
-  try {
-    const targetUserId = userId || (await getCurrentUserId());
-    if (!targetUserId) return DEFAULT_TIMEZONE;
-
-    const pref = await prisma.notificationPreference.findUnique({
-      where: {
-        userId_type: {
-          userId: targetUserId,
-          type: "daily_summary",
-        },
-      },
-      select: { timezone: true },
-    });
-
-    return pref?.timezone || DEFAULT_TIMEZONE;
-  } catch {
-    return DEFAULT_TIMEZONE;
-  }
-}
-
-/**
- * Sets the configured timezone for a user in their daily summary preferences.
- */
-export async function setUserTimezone(timezone: string, userId?: string): Promise<void> {
-  const targetUserId = userId || (await getCurrentUserId());
-  if (!targetUserId) return;
-
-  await prisma.notificationPreference.upsert({
-    where: {
-      userId_type: {
-        userId: targetUserId,
-        type: "daily_summary",
-      },
-    },
-    update: { timezone },
-    create: {
-      userId: targetUserId,
-      type: "daily_summary",
-      timezone,
-    },
-  });
-}
 
 /**
  * Converts a Date or ISO string into a strict date-only "YYYY-MM-DD" string.
@@ -86,10 +35,9 @@ export function parseDateOnly(dateStr: string): Date {
 
 /**
  * Gets the current date string ("YYYY-MM-DD") in the specified timezone.
- * Uses the simulated clock if active.
  */
 export function getTodayInTimezone(timezone: string = DEFAULT_TIMEZONE, now?: Date): string {
-  const date = now ?? getNow();
+  const date = now ?? new Date();
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
@@ -105,7 +53,7 @@ export function getDayOfWeekInTimezone(
   timezone: string = DEFAULT_TIMEZONE,
   now?: Date
 ): DayOfWeekCode {
-  const date = now ?? getNow();
+  const date = now ?? new Date();
   const shortDay = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     weekday: "short",
@@ -120,7 +68,7 @@ export function getTimeInTimezone(
   timezone: string = DEFAULT_TIMEZONE,
   now?: Date
 ): { hour: number; minute: number; timeStr: string; minutesSinceMidnight: number } {
-  const date = now ?? getNow();
+  const date = now ?? new Date();
   const timeStr = new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     hour: "2-digit",

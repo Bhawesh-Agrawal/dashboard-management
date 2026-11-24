@@ -41,7 +41,6 @@ export function CreateTaskDialog({
       courseId: data.courseId,
       projectId: data.projectId,
       estimatedDuration: data.estimatedDuration,
-      optimalTimeOfDay: data.optimalTimeOfDay,
     });
     setLoading(false);
     setOpen(false);

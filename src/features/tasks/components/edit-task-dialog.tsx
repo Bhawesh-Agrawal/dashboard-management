@@ -42,7 +42,6 @@ export function EditTaskDialog({
       courseId: data.courseId || null,
       projectId: data.projectId || null,
       estimatedDuration: data.estimatedDuration || null,
-      optimalTimeOfDay: data.optimalTimeOfDay || null,
     });
     setLoading(false);
     setOpen(false);

@@ -47,7 +47,6 @@ export interface ReviewDataSummary {
     priority: number;
     dueDate: Date | null;
     completedAt: Date | null;
-    optimalTimeOfDay: string | null;
     courseName: string | null;
     projectName: string | null;
   }[];

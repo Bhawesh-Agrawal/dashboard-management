@@ -45,7 +45,6 @@ export async function createTask(data: {
   projectId?: string;
   starred?: boolean;
   estimatedDuration?: number;
-  optimalTimeOfDay?: string;
 }) {
   // Compute domain_id server-side from courseId/projectId
   let domainId: string | null = null;
@@ -70,7 +69,6 @@ export async function createTask(data: {
       domainId,
       starred: data.starred ?? false,
       estimatedDuration: data.estimatedDuration ?? null,
-      optimalTimeOfDay: data.optimalTimeOfDay || null,
       userId,
     },
   });
@@ -95,7 +93,6 @@ export async function updateTask(
     projectId?: string | null;
     starred?: boolean;
     estimatedDuration?: number | null;
-    optimalTimeOfDay?: string | null;
   }
 ) {
   const userId = await getCurrentUserId();
@@ -133,7 +130,6 @@ export async function updateTask(
       domainId,
       starred: data.starred,
       estimatedDuration: data.estimatedDuration,
-      optimalTimeOfDay: data.optimalTimeOfDay,
       ...completedAtUpdate,
       dueDate: data.dueDate === null ? null : data.dueDate ? new Date(data.dueDate) : undefined,
     },

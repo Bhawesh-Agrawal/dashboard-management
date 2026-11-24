@@ -16,7 +16,6 @@ export interface TaskFormData {
   courseId?: string;
   projectId?: string;
   estimatedDuration?: number;
-  optimalTimeOfDay?: string;
 }
 
 interface TaskFormProps {
@@ -78,7 +77,6 @@ export function TaskForm({
       estimatedDuration: formData.get("estimatedDuration")
         ? parseInt(formData.get("estimatedDuration") as string)
         : undefined,
-      optimalTimeOfDay: (formData.get("optimalTimeOfDay") as string) || undefined,
     });
 
     handleReset();
@@ -189,20 +187,6 @@ export function TaskForm({
                     <option value="240">4 hours</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor={`tf-optimalTimeOfDay${isEditing ? `-${task.id}` : ""}`} className="section-label">Best Time</label>
-                  <select
-                    id={`tf-optimalTimeOfDay${isEditing ? `-${task.id}` : ""}`}
-                    name="optimalTimeOfDay"
-                    defaultValue={task?.optimalTimeOfDay ?? ""}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Any time</option>
-                    <option value="morning">Morning</option>
-                    <option value="afternoon">Afternoon</option>
-                    <option value="evening">Evening</option>
-                  </select>
-                </div>
               </div>
             </details>
             {hasLinkTo && (
@@ -307,20 +291,6 @@ export function TaskForm({
                   <option value="60">1 hour</option>
                   <option value="120">2 hours</option>
                   <option value="240">4 hours</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor={`tf-m-optimalTimeOfDay${isEditing ? `-${task.id}` : ""}`} className="section-label">Best Time</label>
-                <select
-                  id={`tf-m-optimalTimeOfDay${isEditing ? `-${task.id}` : ""}`}
-                  name="optimalTimeOfDay"
-                  defaultValue={task?.optimalTimeOfDay ?? ""}
-                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Any time</option>
-                  <option value="morning">Morning</option>
-                  <option value="afternoon">Afternoon</option>
-                  <option value="evening">Evening</option>
                 </select>
               </div>
               {hasLinkTo && (

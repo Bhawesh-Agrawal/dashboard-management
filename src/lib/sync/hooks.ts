@@ -171,7 +171,6 @@ export function useCreateTask() {
     projectId?: string;
     starred?: boolean;
     estimatedDuration?: number;
-    optimalTimeOfDay?: string;
   }) => {
     const id = generateId();
     const updatedAt = nowIso();
@@ -204,7 +203,7 @@ export function useCreateTask() {
       completedAt: null,
       energyRequirement: null,
       estimatedDuration: data.estimatedDuration ?? null,
-      optimalTimeOfDay: data.optimalTimeOfDay ?? null,
+      optimalTimeOfDay: null,
       sortPriority: null,
       createdAt: updatedAt,
       updatedAt,

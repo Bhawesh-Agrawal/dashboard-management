@@ -92,7 +92,6 @@ export function FabCluster() {
         courseId: data.courseId,
         projectId: data.projectId,
         estimatedDuration: data.estimatedDuration,
-        optimalTimeOfDay: data.optimalTimeOfDay,
       });
     } finally {
       setLoading(false);

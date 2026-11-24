@@ -139,7 +139,6 @@ export async function fetchReviewData(
         priority: true,
         dueDate: true,
         completedAt: true,
-        optimalTimeOfDay: true,
         course: { select: { name: true } },
         project: { select: { name: true } },
       },
@@ -291,7 +290,6 @@ export async function fetchReviewData(
       priority: t.priority,
       dueDate: t.dueDate,
       completedAt: t.completedAt,
-      optimalTimeOfDay: t.optimalTimeOfDay,
       courseName: t.course?.name ?? null,
       projectName: t.project?.name ?? null,
     })),
@@ -408,17 +406,6 @@ export function formatReviewDataSummary(
     if (highPriorityOpen.length > 0) {
       lines.push(
         `High priority open: ${highPriorityOpen.map((t) => `"${t.title}"${t.dueDate ? ` (due ${format(t.dueDate, "MMM d")})` : ""}`).join(", ")}`
-      );
-    }
-
-    const timeOfDayTasks = completedTasks.filter((t) => t.optimalTimeOfDay);
-    if (timeOfDayTasks.length > 0) {
-      const byTime: Record<string, number> = {};
-      for (const t of timeOfDayTasks) {
-        byTime[t.optimalTimeOfDay!] = (byTime[t.optimalTimeOfDay!] || 0) + 1;
-      }
-      lines.push(
-        `Time-of-day completion: ${Object.entries(byTime).map(([t, c]) => `${t}=${c}`).join(", ")}`
       );
     }
   }

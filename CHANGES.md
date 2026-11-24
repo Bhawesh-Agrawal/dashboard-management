@@ -304,7 +304,7 @@ This section documents all removals and adaptations executed during **Phase 2 (R
 | **13** | **NOTIFICATIONS CLEANUP:** Aligned brief notification copy and preference toggles; verified all generators reference only kept features; preserved strict deduplication against `SentNotification`. | `DONE` | `dc5824c` | 0 | 2 | 2 | None (100% verified via `test:ci`). |
 | **14** | **DEXIE VERSION BUMP & MIGRATION:** Bumped Dexie schema to Version 3; added `upgradeV2ToV3` migration dropping removed columns (`energyRequirement`, `optimalTimeOfDay`, `identityId`, `energyImpact`) and removing `identityId` index; added comprehensive unit tests proving data preservation for kept tables. | `DONE` | `0ee9fb0` | 0 | 4 | 13 | None (100% verified via Vitest in `dexie-migration.test.ts`). |
 | **15** | **DEPENDENCIES:** Ran `depcheck`; uninstalled verified unused packages `js-yaml` and `react-day-picker`. | `DONE` | `0560570` | 0 | 2 | 58 | None (100% verified via `test:ci`). |
-| **16** | **DOCS, VERIFICATION & ARCHITECTURE UPDATE:** Updated `ARCHITECTURE.md` with "Removed features" table; appended Phase 2 report, decision analysis, and smoke test checklist in `CHANGES.md`. | `DONE` | `b056307` | 0 | 2 | 0 | None (100% verified via `test:ci` and `next build`). |
+| **16** | **DOCS, VERIFICATION & ARCHITECTURE UPDATE:** Updated `ARCHITECTURE.md` with "Removed features" table; appended Phase 2 report, decision analysis, and smoke test checklist in `CHANGES.md`. | `DONE` | `87a7e45` | 0 | 2 | 0 | None (100% verified via `test:ci` and `next build`). |
 
 ---
 

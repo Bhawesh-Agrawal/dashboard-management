@@ -265,6 +265,7 @@ self.addEventListener("notificationclick", (event) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: data.courseId,
+          classScheduleId: data.classScheduleId,
           date: data.date,
           status: status,
         }),

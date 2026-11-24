@@ -598,6 +598,7 @@ async function generateClassEndNotifications(
           url: `/courses/${schedule.courseId}`,
           type: "class_end",
           courseId: schedule.course.id,
+          classScheduleId: schedule.id,
           date: todayStr,
         },
         actions: [

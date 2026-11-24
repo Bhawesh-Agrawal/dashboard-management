@@ -83,8 +83,9 @@ model ClassSchedule {
   effectiveStartDate DateTime?  @map("effective_start_date") // null = always active
   effectiveEndDate   DateTime?  @map("effective_end_date")   // null = no end
 
-  course     Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  exceptions ScheduleException[]
+  course            Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  exceptions        ScheduleException[]
+  attendanceRecords AttendanceRecord[]
 
   @@map("class_schedules")
 }
@@ -126,14 +127,18 @@ model ScheduleException {
 // ─── Attendance Record ─────────────────────────────────────
 // One row per actual class occurrence.
 model AttendanceRecord {
-  id       String           @id @default(uuid())
-  courseId String           @map("course_id")
-  date     DateTime         @db.Date
-  status   AttendanceStatus @default(not_marked)
+  id              String           @id @default(uuid())
+  courseId        String           @map("course_id")
+  classScheduleId String?          @map("class_schedule_id")
+  date            DateTime         @db.Date
+  status          AttendanceStatus @default(not_marked)
 
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classSchedule ClassSchedule? @relation(fields: [classScheduleId], references: [id], onDelete: SetNull)
 
   @@unique([courseId, date])
+  @@unique([classScheduleId, date])
+  @@index([classScheduleId])
   @@map("attendance_records")
 }
 

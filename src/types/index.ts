@@ -91,7 +91,6 @@ export type DashboardData = {
     activityMap: Record<string, number>;
     currentStreak: number;
   };
-  quotes: { id: string; text: string; source: string | null }[];
   activeProjects: {
     id: string;
     name: string;
@@ -150,13 +149,11 @@ export type GraphNodeType =
   | "assessment"
   | "routine"
   | "event"
-  | "quote"
   | "classSchedule"
   | "attendanceRecord"
   | "domain"
   | "project"
-  | "milestone"
-  | "resource";
+  | "milestone";
 
 export type GraphNode = {
   id: string;

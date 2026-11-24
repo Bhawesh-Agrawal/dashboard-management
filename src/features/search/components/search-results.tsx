@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import type { SearchResult } from "@/features/search/lib/queries";
-import { FileText, CheckSquare, GraduationCap, Quote } from "lucide-react";
+import { FileText, CheckSquare, GraduationCap, Briefcase } from "lucide-react";
 
 const typeConfig = {
   note: { icon: FileText, label: "NOTE", color: "text-blue-600" },
   task: { icon: CheckSquare, label: "TASK", color: "text-amber-600" },
   course: { icon: GraduationCap, label: "COURSE", color: "text-green-600" },
-  quote: { icon: Quote, label: "QUOTE", color: "text-purple-600" },
+  project: { icon: Briefcase, label: "PROJECT", color: "text-purple-600" },
 };
 
 export function SearchResults({ results }: { results: SearchResult[] }) {
@@ -35,7 +35,7 @@ export function SearchResults({ results }: { results: SearchResult[] }) {
     "note",
     "task",
     "course",
-    "quote",
+    "project",
   ];
 
   return (

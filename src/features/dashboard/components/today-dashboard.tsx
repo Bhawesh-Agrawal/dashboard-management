@@ -8,7 +8,6 @@ import { UpNext } from "@/features/dashboard/components/up-next";
 import { AttendanceAlerts } from "@/features/dashboard/components/attendance-alerts";
 import { SemesterSnapshot } from "@/features/dashboard/components/semester-snapshot";
 import { TomorrowRoutines } from "@/features/dashboard/components/tomorrow-routines";
-import { DailyQuote } from "@/features/dashboard/components/daily-quote";
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
@@ -104,8 +103,6 @@ export function TodayDashboard({
             )}
           />
         );
-      case "DailyQuote":
-        return <DailyQuote quotes={data.quotes} />;
       case "FocusCarousel":
         return (
           <FocusCarousel

@@ -10,7 +10,6 @@ export type WidgetId =
   | "ReviewPreviewWidget"
   | "AttendanceAlerts"
   | "TomorrowRoutines"
-  | "DailyQuote"
   | "FocusCarousel"
   | "SemesterSnapshot"
   | "ContributionGraph"
@@ -30,7 +29,6 @@ export const WIDGET_REGISTRY: Record<
   ReviewPreviewWidget: { label: "Latest Review", defaultColumn: "sidebar" },
   AttendanceAlerts: { label: "Attendance Alerts", defaultColumn: "sidebar" },
   TomorrowRoutines: { label: "Tomorrow's Routines", defaultColumn: "sidebar" },
-  DailyQuote: { label: "Daily Quote", defaultColumn: "sidebar" },
   FocusCarousel: { label: "Focus", defaultColumn: "sidebar" },
   SemesterSnapshot: { label: "Semester Snapshot", defaultColumn: "sidebar" },
   ContributionGraph: { label: "Contribution Graph", defaultColumn: "sidebar" },
@@ -50,7 +48,6 @@ export const DEFAULT_SIDEBAR_ORDER: WidgetId[] = [
   "ReviewPreviewWidget",
   "AttendanceAlerts",
   "TomorrowRoutines",
-  "DailyQuote",
   "FocusCarousel",
   "SemesterSnapshot",
   "ContributionGraph",

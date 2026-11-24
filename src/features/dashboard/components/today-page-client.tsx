@@ -182,7 +182,6 @@ export default function TodayPageClient() {
     routines: mergedRoutines,
     tomorrowRoutines: serverData?.tomorrowRoutines ?? [],
     streakData: serverData?.streakData ?? { activityMap: {}, currentStreak: 0 },
-    quotes: serverData?.quotes ?? [],
     activeProjects: serverData?.activeProjects ?? [],
     latestReview: serverData?.latestReview ?? null,
     unviewedReviewCount: serverData?.unviewedReviewCount ?? 0,

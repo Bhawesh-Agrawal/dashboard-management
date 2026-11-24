@@ -64,7 +64,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     routines,
     tomorrowRoutines,
     streakData,
-    quotes,
     activeProjectsRaw,
     latestReview,
     unviewedReviewCount,
@@ -114,10 +113,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     }),
     // Activity streak (last 180 days)
     computeActivityStreak(180),
-    // Daily quotes
-    prisma.quote.findMany({
-      select: { id: true, text: true, source: true },
-    }),
     // Active projects
     prisma.project.findMany({
       where: { status: { notIn: ["completed", "archived"] } },
@@ -312,7 +307,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     routines,
     tomorrowRoutines,
     streakData,
-    quotes,
     activeProjects,
     sgpa,
     cgpa,

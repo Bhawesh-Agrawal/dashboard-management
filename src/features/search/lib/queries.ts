@@ -4,7 +4,7 @@ import { getCurrentUserId } from "@/lib/auth";
 
 export type SearchResult = {
   id: string;
-  type: "note" | "task" | "course" | "quote" | "project" | "resource";
+  type: "note" | "task" | "course" | "project";
   title: string;
   snippet: string;
   courseId?: string;
@@ -14,7 +14,7 @@ export type SearchResult = {
 };
 
 /**
- * Global search across Notes, Tasks, Courses, and Quotes.
+ * Global search across Notes, Tasks, Courses, and Projects.
  * Pure DB query — no AI dependency, works even if OpenRouter is down.
  */
 export const globalSearch = cache(
@@ -106,28 +106,6 @@ export const globalSearch = cache(
       });
     }
 
-    // Search Quotes
-    const quotes = await prisma.quote.findMany({
-      where: {
-        OR: [
-          { text: { contains: searchTerm, mode: "insensitive" } },
-          { source: { contains: searchTerm, mode: "insensitive" } },
-        ],
-      },
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    });
-
-    for (const quote of quotes) {
-      results.push({
-        id: quote.id,
-        type: "quote",
-        title: quote.source || "Quote",
-        snippet: quote.text.slice(0, 120),
-        url: `/library`,
-      });
-    }
-
     // Search Projects
     const projects = await prisma.project.findMany({
       where: {
@@ -150,28 +128,6 @@ export const globalSearch = cache(
         title: project.name,
         snippet: project.description || project.name,
         url: `/projects/${project.id}`,
-      });
-    }
-
-    // Search Resources
-    const resources = await prisma.resource.findMany({
-      where: {
-        OR: [
-          { title: { contains: searchTerm, mode: "insensitive" } },
-          { notes: { contains: searchTerm, mode: "insensitive" } },
-        ],
-      },
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    });
-
-    for (const resource of resources) {
-      results.push({
-        id: resource.id,
-        type: "resource",
-        title: resource.title,
-        snippet: resource.notes || resource.title,
-        url: `/library`,
       });
     }
 

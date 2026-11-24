@@ -16,7 +16,7 @@ import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
 /**
  * Returns server-only dashboard data that isn't in the sync scope.
  * Tasks, routines, events, and routine completions come from Dexie.
- * This route provides: classes, attendance, grades, quotes, projects, reviews, etc.
+ * This route provides: classes, attendance, grades, projects, reviews, etc.
  */
 export async function GET() {
   try {
@@ -38,7 +38,6 @@ export async function GET() {
       birthdayEvents,
       tomorrowRoutines,
       streakData,
-      quotes,
       activeProjectsRaw,
       latestReview,
       unviewedReviewCount,
@@ -94,9 +93,6 @@ export async function GET() {
           return { activityMap: {}, currentStreak: 0 };
         }
       })(),
-      prisma.quote.findMany({
-        select: { id: true, text: true, source: true },
-      }),
       prisma.project.findMany({
         where: { status: { notIn: ["completed", "archived"] } },
         include: { milestones: { select: { isDone: true, weight: true } } },
@@ -257,7 +253,6 @@ export async function GET() {
       upcomingDeadlines: upcomingBirthdays,
       tomorrowRoutines,
       streakData,
-      quotes,
       activeProjects,
       latestReview: latestReview
         ? {

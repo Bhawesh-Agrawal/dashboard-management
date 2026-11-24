@@ -87,7 +87,7 @@ export function SearchOverlay() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes, tasks, courses, quotes..."
+            placeholder="Search notes, tasks, courses, projects..."
             className="flex-1 h-12 px-3 bg-transparent text-sm focus:outline-none"
             autoComplete="off"
           />

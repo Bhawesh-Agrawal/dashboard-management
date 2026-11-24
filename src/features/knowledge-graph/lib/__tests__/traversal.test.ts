@@ -64,14 +64,6 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
-    quote: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
-    resource: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
   },
 }));
 

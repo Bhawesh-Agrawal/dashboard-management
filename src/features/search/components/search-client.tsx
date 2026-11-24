@@ -38,7 +38,7 @@ export function SearchClient() {
             setQuery(e.target.value);
             handleSearch(e.target.value);
           }}
-          placeholder="Search notes, tasks, courses, quotes..."
+          placeholder="Search notes, tasks, courses, projects..."
           className="w-full h-10 pl-10 pr-4 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           autoFocus
         />
@@ -56,7 +56,7 @@ export function SearchClient() {
           <div className="text-center py-12">
             <Search className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">
-              Type to search across your notes, tasks, courses, and quotes
+              Type to search across your notes, tasks, courses, and projects
             </p>
           </div>
         )}

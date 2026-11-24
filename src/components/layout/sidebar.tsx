@@ -13,7 +13,6 @@ import {
   Repeat,
   FileText,
   Briefcase,
-  BookOpen,
   Search,
   MessageSquare,
   Settings,
@@ -35,7 +34,6 @@ const navItems = [
   { label: "Notes", href: "/notes", icon: FileText },
   { label: "Graph", href: "/notes/graph", icon: GitBranch },
   { label: "Projects", href: "/projects", icon: Briefcase },
-  { label: "Library", href: "/library", icon: BookOpen },
   { label: "Search", href: "/search", icon: Search },
   { label: "Ask", href: "/ask", icon: MessageSquare },
 ];

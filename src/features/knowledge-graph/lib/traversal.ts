@@ -100,8 +100,6 @@ async function fetchEntity(
       return prisma.routine.findUnique({ where: { id } });
     case "event":
       return prisma.event.findUnique({ where: { id } });
-    case "quote":
-      return prisma.quote.findUnique({ where: { id } });
     case "classSchedule":
       return prisma.classSchedule.findUnique({ where: { id } });
     case "attendanceRecord":
@@ -112,8 +110,6 @@ async function fetchEntity(
       return prisma.project.findUnique({ where: { id } });
     case "milestone":
       return prisma.milestone.findUnique({ where: { id } });
-    case "resource":
-      return prisma.resource.findUnique({ where: { id } });
     default:
       return null;
   }
@@ -149,8 +145,6 @@ async function getConnections(
       return [];
     case "event":
       return [];
-    case "quote":
-      return [];
     case "classSchedule":
       return getClassScheduleConnections(id);
     case "attendanceRecord":
@@ -161,8 +155,6 @@ async function getConnections(
       return getProjectConnections(id, userId);
     case "milestone":
       return getMilestoneConnections(id);
-    case "resource":
-      return [];
     default:
       return [];
   }
@@ -449,23 +441,6 @@ export async function searchEntitiesForContext(
     }
   }
 
-  // Search quotes by text
-  const quotes = await prisma.quote.findMany({
-    where: {
-      OR: [
-        { text: { contains: query, mode: "insensitive" } },
-        { source: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    take: 3,
-  });
-
-  for (const quote of quotes) {
-    if (!results.nodes.some((n) => n.id === quote.id && n.type === "quote")) {
-      results.nodes.push({ id: quote.id, type: "quote", data: quote });
-    }
-  }
-
   // Search projects by name
   const projects = await prisma.project.findMany({
     where: { name: { contains: query, mode: "insensitive" } },
@@ -479,23 +454,6 @@ export async function searchEntitiesForContext(
       maxHops: 1,
     });
     mergeGraphResults(results, ctx);
-  }
-
-  // Search resources by title or notes
-  const resources = await prisma.resource.findMany({
-    where: {
-      OR: [
-        { title: { contains: query, mode: "insensitive" } },
-        { notes: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    take: 3,
-  });
-
-  for (const resource of resources) {
-    if (!results.nodes.some((n) => n.id === resource.id && n.type === "resource")) {
-      results.nodes.push({ id: resource.id, type: "resource", data: resource });
-    }
   }
 
   // Add global context: all open tasks (if not already included)
@@ -596,13 +554,11 @@ export function formatGraphContext(graph: GraphResult): string {
     assessment: "Assessments",
     routine: "Routines",
     event: "Events",
-    quote: "Quotes",
     classSchedule: "Class Schedules",
     attendanceRecord: "Attendance Records",
     domain: "Domains",
     project: "Projects",
     milestone: "Milestones",
-    resource: "Resources",
   };
 
   for (const [type, nodes] of byType) {
@@ -651,8 +607,6 @@ function summarizeNode(node: GraphNode): string {
       return `Routine: ${d.name}`;
     case "event":
       return `Event: ${d.title}`;
-    case "quote":
-      return `Quote: "${(d.text as string)?.slice(0, 60)}..."`;
     case "classSchedule":
       return `Class: ${d.dayOfWeek} ${d.startTime}-${d.endTime}`;
     case "attendanceRecord":
@@ -663,8 +617,6 @@ function summarizeNode(node: GraphNode): string {
       return `Project: ${d.name}`;
     case "milestone":
       return `Milestone: ${d.name}${d.isDone ? " (done)" : ""}`;
-    case "resource":
-      return `Resource: ${d.title}`;
     default:
       return `${node.type}:${node.id}`;
   }

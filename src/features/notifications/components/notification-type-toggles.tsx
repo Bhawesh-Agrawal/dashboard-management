@@ -80,7 +80,7 @@ const NOTIFICATION_TYPES: {
   },
   {
     type: "review_daily",
-    label: "Daily Review",
+    label: "Morning Brief",
     description: "Morning alert when your daily brief is ready",
     defaultPriority: "normal",
   },

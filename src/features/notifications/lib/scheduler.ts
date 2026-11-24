@@ -1359,7 +1359,7 @@ async function generateDailyReviewAlert(
     {
       userId,
       title: "Morning Brief Ready",
-      body: "Your daily review is ready to read.",
+      body: "Your morning brief is ready to read.",
       tag: "review-daily",
       data: { url: `/reviews/${review.id}`, type: "review_daily" },
     },

@@ -3,7 +3,6 @@ import { requireWidgetAuth } from "@/features/widget/lib/middleware";
 import { parseQuickCapture, getActiveCourses } from "@/features/notes/lib/nlp-parsing";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { memCache } from "@/lib/mem-cache";
 
 export async function POST(request: Request) {
   const auth = await requireWidgetAuth(request);
@@ -34,7 +33,6 @@ export async function POST(request: Request) {
 
     revalidatePath("/tasks");
     revalidatePath("/today");
-    memCache.invalidatePrefix("ai-insights:");
 
     return NextResponse.json({
       id: task.id,

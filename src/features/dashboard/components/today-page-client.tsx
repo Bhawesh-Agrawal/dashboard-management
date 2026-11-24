@@ -7,14 +7,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { TodayDashboard } from "@/features/dashboard/components/today-dashboard";
 import { getRoutinesWithStreaks } from "@/features/routines/lib/completions";
 import type { DashboardData } from "@/types";
-import type { ReactNode } from "react";
 
 type ServerDashboardData = DashboardData & {
   widgetOrder: string[];
   hiddenWidgets: string[];
 };
 
-export default function TodayPageClient({ unifiedInsights }: { unifiedInsights: ReactNode }) {
+export default function TodayPageClient() {
   const [serverData, setServerData] = useState<ServerDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -226,7 +225,6 @@ export default function TodayPageClient({ unifiedInsights }: { unifiedInsights: 
         widgetOrder={serverData?.widgetOrder ?? []}
         hiddenWidgets={serverData?.hiddenWidgets ?? []}
         userId="local"
-        unifiedInsights={unifiedInsights}
       />
     </div>
   );

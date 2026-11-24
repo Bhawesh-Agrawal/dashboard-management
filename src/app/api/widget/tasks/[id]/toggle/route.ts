@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireWidgetAuth } from "@/features/widget/lib/middleware";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { memCache } from "@/lib/mem-cache";
 
 export async function POST(
   request: Request,
@@ -34,7 +33,6 @@ export async function POST(
   revalidatePath("/tasks");
   revalidatePath("/today");
   if (task.courseId) revalidatePath(`/courses/${task.courseId}`);
-  memCache.invalidatePrefix("ai-insights:");
 
   return NextResponse.json({ id, done: newStatus === "done" });
 }

@@ -10,8 +10,6 @@ import type {
   GradingConfig,
   AttendanceMarksConfig,
   Project,
-  InsightType,
-  InsightSeverity,
   NoteAttachment,
   DocumentFolder,
   NoteAnnotation,
@@ -190,23 +188,6 @@ export type DailySummarySection =
   | "routines"
   | "deadlines"
   | "attendance";
-
-// ─── Ignored Insights ──────────────────────────────────────
-export interface InsightEvidence {
-  metric: string;
-  value: number | string;
-  threshold: number | string;
-  context: string;
-}
-
-export interface InsightInput {
-  userId: string;
-  type: InsightType;
-  title: string;
-  description: string;
-  severity: InsightSeverity;
-  evidence: InsightEvidence[];
-}
 
 // ─── Second Brain: Note with Links ──────────────────────────
 export type NoteWithScore = Note & {

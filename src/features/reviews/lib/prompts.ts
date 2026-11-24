@@ -12,7 +12,6 @@ const DAILY_PROMPT: ReviewPromptConfig = {
 Create a concise morning brief with:
 - Today's classes and scheduled items
 - Tasks due today or overdue from yesterday
-- 1 ignored insight to address today
 
 RULES:
 - Format: bullet points, max 300 words

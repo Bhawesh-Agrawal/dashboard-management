@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 /**
  * Consolidated daily diagnostics cron endpoint.
- * Calls insights, knowledge-gaps, and reviews endpoints sequentially.
+ * Calls knowledge-gaps and reviews endpoints sequentially.
  * Protected by fail-closed cron authentication (Google Cloud Scheduler OIDC or static bearer token).
  */
 export async function GET(request: Request) {
@@ -21,7 +21,6 @@ export async function GET(request: Request) {
   const results: Record<string, unknown> = {};
 
   const endpoints = [
-    { name: "insights", path: "/api/cron/insights" },
     { name: "knowledge-gaps", path: "/api/cron/knowledge-gaps" },
     { name: "reviews", path: "/api/cron/reviews" },
   ];

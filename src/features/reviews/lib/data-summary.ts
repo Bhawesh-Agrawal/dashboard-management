@@ -121,7 +121,6 @@ export async function fetchReviewData(
     projects,
     people,
     identities,
-    ignoredInsights,
     classSchedules,
   ] = await Promise.all([
     prisma.task.findMany({
@@ -238,21 +237,6 @@ export async function fetchReviewData(
         routines: { select: { name: true } },
       },
     }),
-
-    prisma.ignoredInsight.findMany({
-      where: {
-        userId,
-        createdAt: { gte: lookbackStart, lte: periodEnd },
-      },
-      select: {
-        title: true,
-        description: true,
-        severity: true,
-        type: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
     
     prisma.classSchedule.findMany({
       where: {
@@ -346,12 +330,6 @@ export async function fetchReviewData(
       statement: i.statement,
       status: i.status,
       routines: i.routines.map((r) => r.name),
-    })),
-    ignoredInsights: ignoredInsights.map((ins) => ({
-      title: ins.title,
-      description: ins.description,
-      severity: ins.severity,
-      type: ins.type,
     })),
     classes,
     periodStart,
@@ -559,14 +537,6 @@ export function formatReviewDataSummary(
       lines.push(
         `"${i.statement}" [${i.status}] — routines: ${i.routines.length > 0 ? i.routines.join(", ") : "none"}`
       );
-    }
-  }
-
-  // ── Ignored Insights ──
-  if (data.ignoredInsights.length > 0) {
-    lines.push(`\n== IGNORED INSIGHTS ==`);
-    for (const ins of data.ignoredInsights) {
-      lines.push(`[${ins.severity}] ${ins.title}: ${ins.description.slice(0, 100)}`);
     }
   }
 

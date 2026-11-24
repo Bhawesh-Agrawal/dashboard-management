@@ -14,7 +14,6 @@ export type WidgetId =
   | "TomorrowRoutines"
   | "DailyQuote"
   | "FocusCarousel"
-  | "UnifiedInsights"
   | "SemesterSnapshot"
   | "ContributionGraph"
   | "ActiveUpcoming";
@@ -37,7 +36,6 @@ export const WIDGET_REGISTRY: Record<
   TomorrowRoutines: { label: "Tomorrow's Routines", defaultColumn: "sidebar" },
   DailyQuote: { label: "Daily Quote", defaultColumn: "sidebar" },
   FocusCarousel: { label: "Focus", defaultColumn: "sidebar" },
-  UnifiedInsights: { label: "Insights", defaultColumn: "sidebar" },
   SemesterSnapshot: { label: "Semester Snapshot", defaultColumn: "sidebar" },
   ContributionGraph: { label: "Contribution Graph", defaultColumn: "sidebar" },
   ActiveUpcoming: { label: "Active & Upcoming", defaultColumn: "sidebar" },
@@ -60,7 +58,6 @@ export const DEFAULT_SIDEBAR_ORDER: WidgetId[] = [
   "TomorrowRoutines",
   "DailyQuote",
   "FocusCarousel",
-  "UnifiedInsights",
   "SemesterSnapshot",
   "ContributionGraph",
 ];

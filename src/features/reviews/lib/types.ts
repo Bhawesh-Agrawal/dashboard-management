@@ -104,12 +104,6 @@ export interface ReviewDataSummary {
     status: string;
     routines: string[];
   }[];
-  ignoredInsights: {
-    title: string;
-    description: string;
-    severity: string;
-    type: string;
-  }[];
   classes: {
     courseName: string;
     courseCode: string | null;

@@ -30,7 +30,7 @@ export default async function ReviewsPage({
         subtitle={
           unviewedCount > 0
             ? `${unviewedCount} unread review${unviewedCount !== 1 ? "s" : ""}`
-            : "AI-generated insights about your life"
+            : "Periodic summaries of your progress"
         }
       />
 

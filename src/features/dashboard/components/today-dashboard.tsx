@@ -39,13 +39,11 @@ export function TodayDashboard({
   widgetOrder,
   hiddenWidgets,
   userId,
-  unifiedInsights,
 }: {
   data: DashboardData;
   widgetOrder: string[];
   hiddenWidgets: string[];
   userId: string;
-  unifiedInsights: ReactNode;
 }) {
   const [layout, setLayout] = useState(() => resolveLayout(widgetOrder));
   const today = new Date();
@@ -134,8 +132,6 @@ export function TodayDashboard({
             routines={data.routines}
           />
         );
-      case "UnifiedInsights":
-        return unifiedInsights;
       case "SemesterSnapshot":
         return <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />;
       case "ContributionGraph":

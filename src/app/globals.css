@@ -344,11 +344,6 @@ button, a, [role="button"], input[type="button"], input[type="submit"], input[ty
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
 }
 
-/* Positive insight card background */
-.insight-positive {
-  background-color: #7A9E7E08;
-}
-
 /* ─── Print-friendly styles for review export ────────────── */
 @media print {
   body {

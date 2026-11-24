@@ -85,7 +85,6 @@ export default function TodayPageClient() {
         specificTime: routine.specificTime,
         streakGoal: routine.streakGoal,
         activeDays: routine.activeDays,
-        identityId: routine.identityId,
         currentStreak: streak,
         completedToday,
         lastCompletedAt: lastCompleted ? new Date(lastCompleted.completedAt) : null,

@@ -127,12 +127,6 @@ function parseAIResponse(raw: string): ParsedReview {
           progress: Number(p.progress) || 0,
         }))
       : undefined,
-    identityStrength: Array.isArray(rawMetrics.identityStrength)
-      ? rawMetrics.identityStrength.map((i: Record<string, unknown>) => ({
-          name: String(i.name || ""),
-          score: Number(i.score) || 0,
-        }))
-      : undefined,
     weeklyTrends: Array.isArray(rawMetrics.weeklyTrends)
       ? rawMetrics.weeklyTrends.map((t: Record<string, unknown>) => ({
           label: String(t.label || ""),

@@ -78,7 +78,6 @@ export function ReviewMetricsDisplay({
     metrics.attendanceRate != null ||
     metrics.deepWorkHours != null ||
     (metrics.projectsProgress && metrics.projectsProgress.length > 0) ||
-    (metrics.identityStrength && metrics.identityStrength.length > 0) ||
     (metrics.weeklyTrends && metrics.weeklyTrends.length > 0);
 
   if (!hasAny) return null;
@@ -139,21 +138,6 @@ export function ReviewMetricsDisplay({
               </div>
               <Sparkline values={trend.values} />
             </div>
-          ))}
-        </div>
-      )}
-
-      {metrics.identityStrength && metrics.identityStrength.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Identity Strength
-          </p>
-          {metrics.identityStrength.map((item) => (
-            <MetricBar
-              key={item.name}
-              label={item.name}
-              value={item.score}
-            />
           ))}
         </div>
       )}

@@ -23,7 +23,6 @@ function hasAnyMetrics(metrics: ReviewMetrics): boolean {
     metrics.deepWorkHours != null ||
     metrics.notesCreated != null ||
     (metrics.projectsProgress && metrics.projectsProgress.length > 0) ||
-    (metrics.identityStrength && metrics.identityStrength.length > 0) ||
     (metrics.weeklyTrends && metrics.weeklyTrends.length > 0)
   );
 }

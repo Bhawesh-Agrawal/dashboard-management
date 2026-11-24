@@ -626,7 +626,6 @@ export function useCreateRoutine() {
     timeOfDay: string;
     specificTime?: string;
     activeDays?: string[];
-    identityId?: string;
   }) => {
     const id = generateId();
     const updatedAt = nowIso();
@@ -642,7 +641,7 @@ export function useCreateRoutine() {
       energyImpact: "neutral",
       category: null,
       flowTrigger: null,
-      identityId: data.identityId ?? null,
+      identityId: null,
       createdAt: updatedAt,
       updatedAt,
       dirty: 1,

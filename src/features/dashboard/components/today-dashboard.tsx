@@ -24,11 +24,6 @@ const ContributionGraph = dynamic(
   { loading: () => <div className="h-32 bg-muted animate-pulse rounded-md" /> }
 );
 
-const IdentityHealthWidget = dynamic(
-  () => import("@/features/identities/components/IdentityHealthWidget").then((mod) => mod.IdentityHealthWidget),
-  { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
-);
-
 const ReviewPreviewWidget = dynamic(
   () => import("@/features/reviews/components/review-preview-widget").then((mod) => mod.ReviewPreviewWidget),
   { loading: () => <div className="h-24 bg-muted animate-pulse rounded-md" /> }
@@ -100,8 +95,6 @@ export function TodayDashboard({
             unviewedCount={data.unviewedReviewCount}
           />
         );
-      case "IdentityHealthWidget":
-        return <IdentityHealthWidget userId={userId} />;
       case "KnowledgeHealthWidget":
         return (
           <KnowledgeHealthWidget

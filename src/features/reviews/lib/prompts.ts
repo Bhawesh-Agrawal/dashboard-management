@@ -45,8 +45,7 @@ Generate a structured weekly audit with these sections:
    - High Impact × Low Value (delegate or batch)
    - Low Impact × High Value (schedule for focused times)
    - Low Impact × Low Value (eliminate)
-3. IDENTITY PROGRESS: which identities were strengthened or weakened by actions this week
-4. 5 ACTIONS: Kill (stop doing), Automate, Focus (double down), Unblock (resolve blocker), Experiment (try new)
+3. 5 ACTIONS: Kill (stop doing), Automate, Focus (double down), Unblock (resolve blocker), Experiment (try new)
 
 RULES:
 - Format: structured markdown with clear headers, 800-1200 words
@@ -106,16 +105,14 @@ const QUARTERLY_PROMPT: ReviewPromptConfig = {
   systemPrompt: `You are a vision alignment coach for a student.
 Generate a quarterly vision check with:
 
-1. VISION ALIGNMENT: are you becoming who you want to be? Compare stated identities with actual behavior
-2. IDENTITY EVOLUTION: which identities have integrated (become habits), which remain aspirational, which have been neglected?
+1. VISION ALIGNMENT: are you progressing toward your long-term goals? Compare objectives with actual behavior
+2. HABIT EVOLUTION: which routines have solidified into habits, which need reinforcement, which have lapsed?
 3. ANTI-VISION CHECK: how close to worst-case scenario? Identify warning signs and trajectory risks
-4. NEXT QUARTER PRIORITIES: top 3-5 priorities for next quarter, tied to identity goals
+4. NEXT QUARTER PRIORITIES: top 3-5 priorities for next quarter, tied to academic and personal growth goals
 
 RULES:
 - Format: reflective essay with visual summary sections, 1500-2000 words
 - Be honest and introspective — this is a vision check, not a progress report
-- Use identity status data (aspirational/developing/integrated/neglected)
-- Cross-reference what the student says they want to be with what they actually did this quarter
 - Anti-vision check should be constructive — identify risks without catastrophizing
 - If data is limited, work with what IS available and provide honest, constructive observations
 - Never produce empty or one-line sections — always add substantive reflection
@@ -125,7 +122,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed reflective content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>

@@ -26,7 +26,6 @@ export interface ReviewMetrics {
   deepWorkHours?: number;
   notesCreated?: number;
   projectsProgress?: { name: string; progress: number }[];
-  identityStrength?: { name: string; score: number }[];
   weeklyTrends?: {
     label: string;
     values: number[];
@@ -55,7 +54,6 @@ export interface ReviewDataSummary {
     activeDays: string[];
     category: string | null;
     completions: Date[];
-    identityName: string | null;
   }[];
   attendance: {
     courseName: string;
@@ -93,11 +91,6 @@ export interface ReviewDataSummary {
     lastContact: Date | null;
     contactFrequency: string | null;
     relationshipType: string | null;
-  }[];
-  identities: {
-    statement: string;
-    status: string;
-    routines: string[];
   }[];
   classes: {
     courseName: string;

@@ -219,7 +219,6 @@ async function handleUpsert(
           energyImpact: (routineData.energyImpact as any) ?? "neutral",
           category: routineData.category as string | undefined,
           flowTrigger: routineData.flowTrigger as string | undefined,
-          identityId: routineData.identityId as string | undefined,
         },
         update: {
           name: routineData.name as string,
@@ -230,7 +229,6 @@ async function handleUpsert(
           energyImpact: routineData.energyImpact as any,
           category: routineData.category as string | undefined,
           flowTrigger: routineData.flowTrigger as string | undefined,
-          identityId: routineData.identityId as string | undefined,
         },
       });
 

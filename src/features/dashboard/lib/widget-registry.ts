@@ -8,7 +8,6 @@ export type WidgetId =
   | "AllOpenTasks"
   | "OngoingProjects"
   | "ReviewPreviewWidget"
-  | "IdentityHealthWidget"
   | "KnowledgeHealthWidget"
   | "AttendanceAlerts"
   | "TomorrowRoutines"
@@ -30,7 +29,6 @@ export const WIDGET_REGISTRY: Record<
   AllOpenTasks: { label: "All Open Tasks", defaultColumn: "main" },
   OngoingProjects: { label: "Ongoing Projects", defaultColumn: "main" },
   ReviewPreviewWidget: { label: "Latest Review", defaultColumn: "sidebar" },
-  IdentityHealthWidget: { label: "Identity Health", defaultColumn: "sidebar" },
   KnowledgeHealthWidget: { label: "Knowledge Health", defaultColumn: "sidebar" },
   AttendanceAlerts: { label: "Attendance Alerts", defaultColumn: "sidebar" },
   TomorrowRoutines: { label: "Tomorrow's Routines", defaultColumn: "sidebar" },
@@ -52,7 +50,6 @@ export const DEFAULT_MAIN_ORDER: WidgetId[] = [
 export const DEFAULT_SIDEBAR_ORDER: WidgetId[] = [
   "ActiveUpcoming",
   "ReviewPreviewWidget",
-  "IdentityHealthWidget",
   "KnowledgeHealthWidget",
   "AttendanceAlerts",
   "TomorrowRoutines",

@@ -9,12 +9,10 @@ export async function createRoutine(data: {
   specificTime?: string;
   streakGoal?: number;
   activeDays: ("MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN")[];
-  identityId?: string | null;
 }) {
   const routine = await prisma.routine.create({ data });
   revalidatePath("/routines");
   revalidatePath("/today");
-  if (data.identityId) revalidatePath(`/routines/identities/${data.identityId}`);
   return routine;
 }
 
@@ -26,13 +24,11 @@ export async function updateRoutine(
     specificTime?: string | null;
     streakGoal?: number | null;
     activeDays?: ("MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN")[];
-    identityId?: string | null;
   }
 ) {
   const routine = await prisma.routine.update({ where: { id }, data });
   revalidatePath("/routines");
   revalidatePath("/today");
-  if (data.identityId) revalidatePath(`/routines/identities/${data.identityId}`);
   return routine;
 }
 

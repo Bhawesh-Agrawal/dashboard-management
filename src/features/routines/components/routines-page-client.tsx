@@ -7,8 +7,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoutineList } from "@/features/routines/components/routine-list";
 import { CreateRoutineDialog } from "@/features/routines/components/routine-form";
-import { IdentityGrid } from "@/features/identities/components/IdentityGrid";
-import { IdentityForm } from "@/features/identities/components/IdentityForm";
 
 type RoutineWithStreak = {
   id: string;
@@ -17,7 +15,6 @@ type RoutineWithStreak = {
   specificTime: string | null;
   streakGoal: number | null;
   activeDays: string[];
-  identityId: string | null;
   currentStreak: number;
   completedToday: boolean;
   lastCompletedAt: Date | null;
@@ -127,7 +124,6 @@ function useRoutinesWithStreaks(): RoutineWithStreak[] {
       specificTime: routine.specificTime,
       streakGoal: routine.streakGoal,
       activeDays: routine.activeDays,
-      identityId: routine.identityId,
       currentStreak,
       completedToday,
       lastCompletedAt: lastCompleted ? new Date(lastCompleted.completedAt) : null,
@@ -139,35 +135,23 @@ function useRoutinesWithStreaks(): RoutineWithStreak[] {
 export default function RoutinesPageClient() {
   const routinesWithStreaks = useRoutinesWithStreaks();
 
-  // Identities stay server-fetched for now
-  const identities: any[] = [];
-
   return (
     <div>
       <PageHeader
         title="Routines"
         subtitle={`${routinesWithStreaks.length} routine${routinesWithStreaks.length !== 1 ? "s" : ""}`}
-        action={<CreateRoutineDialog identities={identities} />}
+        action={<CreateRoutineDialog />}
       />
-
-      {/* Identities section */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <p className="section-label">IDENTITIES</p>
-          <IdentityForm userId="local" />
-        </div>
-        <IdentityGrid userId="local" />
-      </div>
 
       {/* Routines section */}
       {routinesWithStreaks.length === 0 ? (
         <EmptyState
           title="No routines yet"
           description="Build daily habits by creating your first routine."
-          action={<CreateRoutineDialog identities={identities} />}
+          action={<CreateRoutineDialog />}
         />
       ) : (
-        <RoutineList routines={routinesWithStreaks} identities={identities} />
+        <RoutineList routines={routinesWithStreaks} />
       )}
     </div>
   );

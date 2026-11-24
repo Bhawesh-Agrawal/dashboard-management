@@ -11,9 +11,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
-import type { Identity } from "@prisma/client";
 
-export function CreateRoutineDialog({ identities }: { identities?: Identity[] }) {
+export function CreateRoutineDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -34,7 +33,6 @@ export function CreateRoutineDialog({ identities }: { identities?: Identity[] })
       timeOfDay: formData.get("timeOfDay") as "morning" | "afternoon" | "evening" | "anytime",
       specificTime: (formData.get("specificTime") as string) || undefined,
       activeDays: selectedDays as ("MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN")[],
-      identityId: (formData.get("identityId") as string) || null,
     });
 
     setLoading(false);
@@ -96,28 +94,6 @@ export function CreateRoutineDialog({ identities }: { identities?: Identity[] })
               </p>
             </div>
           </div>
-          {identities && identities.length > 0 && (
-            <div className="space-y-2">
-              <label htmlFor="identityId" className="section-label">
-                Reinforces Identity
-              </label>
-              <select
-                id="identityId"
-                name="identityId"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">None</option>
-                {identities.map((identity) => (
-                  <option key={identity.id} value={identity.id}>
-                    {identity.statement}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[0.6rem] text-muted-foreground uppercase">
-                Optional — who does this make you become?
-              </p>
-            </div>
-          )}
           <div className="space-y-2">
             <label className="section-label">Active Days</label>
             <div className="flex flex-wrap gap-2">

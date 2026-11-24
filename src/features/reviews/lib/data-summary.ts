@@ -119,7 +119,6 @@ export async function fetchReviewData(
     assessments,
     projects,
     people,
-    identities,
     classSchedules,
   ] = await Promise.all([
     prisma.task.findMany({
@@ -149,7 +148,6 @@ export async function fetchReviewData(
         name: true,
         activeDays: true,
         category: true,
-        identity: { select: { statement: true } },
         completions: {
           where: { date: { gte: lookbackStart, lte: periodEnd } },
           select: { date: true },
@@ -219,15 +217,6 @@ export async function fetchReviewData(
       },
     }),
 
-    prisma.identity.findMany({
-      where: { userId },
-      select: {
-        statement: true,
-        status: true,
-        routines: { select: { name: true } },
-      },
-    }),
-    
     prisma.classSchedule.findMany({
       where: {
         course: { semester: { isActive: true, userId } },
@@ -272,7 +261,6 @@ export async function fetchReviewData(
       activeDays: r.activeDays,
       category: r.category,
       completions: r.completions.map((c) => c.date),
-      identityName: r.identity?.statement ?? null,
     })),
     attendance: attendanceRecords.map((a) => ({
       courseName: a.course.name,
@@ -310,11 +298,6 @@ export async function fetchReviewData(
       lastContact: p.lastContact,
       contactFrequency: p.contactFrequency,
       relationshipType: p.relationshipType,
-    })),
-    identities: identities.map((i) => ({
-      statement: i.statement,
-      status: i.status,
-      routines: i.routines.map((r) => r.name),
     })),
     classes,
     periodStart,
@@ -394,7 +377,7 @@ export function formatReviewDataSummary(
           ? Math.round((r.completions.length / activeDaysInPeriod) * 100)
           : 0;
       lines.push(
-        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)${r.identityName ? ` | identity: ${r.identityName}` : ""}`
+        `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)`
       );
     }
   }
@@ -497,16 +480,6 @@ export function formatReviewDataSummary(
       const overdue = expected ? daysSinceContact > expected * 2 : false;
       lines.push(
         `${p.name} (${p.relationshipType || "unknown"}): ${daysSinceContact}d ago${overdue ? " ← OVERDUE" : ""}`
-      );
-    }
-  }
-
-  // ── Identities ──
-  if (data.identities.length > 0) {
-    lines.push(`\n== IDENTITIES ==`);
-    for (const i of data.identities) {
-      lines.push(
-        `"${i.statement}" [${i.status}] — routines: ${i.routines.length > 0 ? i.routines.join(", ") : "none"}`
       );
     }
   }

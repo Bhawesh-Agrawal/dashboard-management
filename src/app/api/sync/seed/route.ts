@@ -194,7 +194,6 @@ export async function GET() {
       energyImpact: r.energyImpact,
       category: r.category,
       flowTrigger: r.flowTrigger,
-      identityId: r.identityId,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     }));

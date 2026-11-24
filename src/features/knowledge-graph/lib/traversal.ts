@@ -112,8 +112,6 @@ async function fetchEntity(
       return prisma.project.findUnique({ where: { id } });
     case "milestone":
       return prisma.milestone.findUnique({ where: { id } });
-    case "budgetEntry":
-      return prisma.budgetEntry.findUnique({ where: { id } });
     case "resource":
       return prisma.resource.findUnique({ where: { id } });
     default:
@@ -163,8 +161,6 @@ async function getConnections(
       return getProjectConnections(id, userId);
     case "milestone":
       return getMilestoneConnections(id);
-    case "budgetEntry":
-      return [];
     case "resource":
       return [];
     default:
@@ -485,23 +481,6 @@ export async function searchEntitiesForContext(
     mergeGraphResults(results, ctx);
   }
 
-  // Search budget entries by category or notes
-  const budgetEntries = await prisma.budgetEntry.findMany({
-    where: {
-      OR: [
-        { category: { contains: query, mode: "insensitive" } },
-        { notes: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    take: 3,
-  });
-
-  for (const entry of budgetEntries) {
-    if (!results.nodes.some((n) => n.id === entry.id && n.type === "budgetEntry")) {
-      results.nodes.push({ id: entry.id, type: "budgetEntry", data: entry });
-    }
-  }
-
   // Search resources by title or notes
   const resources = await prisma.resource.findMany({
     where: {
@@ -623,7 +602,6 @@ export function formatGraphContext(graph: GraphResult): string {
     domain: "Domains",
     project: "Projects",
     milestone: "Milestones",
-    budgetEntry: "Budget Entries",
     resource: "Resources",
   };
 
@@ -685,8 +663,6 @@ function summarizeNode(node: GraphNode): string {
       return `Project: ${d.name}`;
     case "milestone":
       return `Milestone: ${d.name}${d.isDone ? " (done)" : ""}`;
-    case "budgetEntry":
-      return `${d.type === "income" ? "Income" : "Expense"}: ₹${d.amount} (${d.category})`;
     case "resource":
       return `Resource: ${d.title}`;
     default:

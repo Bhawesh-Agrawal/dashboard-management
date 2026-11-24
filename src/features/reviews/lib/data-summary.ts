@@ -114,7 +114,6 @@ export async function fetchReviewData(
     tasks,
     routinesWithCompletions,
     attendanceRecords,
-    budgetEntries,
     notes,
     assessments,
     projects,
@@ -164,15 +163,6 @@ export async function fetchReviewData(
         date: true,
         course: { select: { name: true, code: true } },
       },
-    }),
-
-    prisma.budgetEntry.findMany({
-      where: {
-        userId,
-        date: { gte: lookbackStart, lte: periodEnd },
-      },
-      select: { amount: true, category: true, type: true, date: true },
-      orderBy: { date: "desc" },
     }),
 
     prisma.note.findMany({
@@ -256,12 +246,6 @@ export async function fetchReviewData(
       courseCode: a.course.code,
       status: a.status,
       date: a.date,
-    })),
-    budget: budgetEntries.map((b) => ({
-      amount: Number(b.amount),
-      category: b.category,
-      type: b.type,
-      date: b.date,
     })),
     notes: notes.map((n) => ({
       tags: n.tags,
@@ -382,28 +366,6 @@ export function formatReviewDataSummary(
     }
   }
 
-  // ── Budget ──
-  if (data.budget.length > 0) {
-    lines.push(`\n== BUDGET ==`);
-    const expenses = data.budget.filter((e) => e.type === "expense");
-    const income = data.budget.filter((e) => e.type === "income");
-    const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
-    const totalIncome = income.reduce((s, e) => s + e.amount, 0);
-    lines.push(`Spent: ₹${totalSpent.toFixed(0)} | Income: ₹${totalIncome.toFixed(0)} | Net: ₹${(totalIncome - totalSpent).toFixed(0)}`);
-
-    const byCategory: Record<string, number> = {};
-    for (const e of expenses) {
-      byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
-    }
-    const topCategories = Object.entries(byCategory)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
-    if (topCategories.length > 0) {
-      lines.push(
-        `Top categories: ${topCategories.map(([c, a]) => `${c} ₹${a.toFixed(0)}`).join(", ")}`
-      );
-    }
-  }
 
   // ── Notes ──
   lines.push(`\n== NOTES ==`);

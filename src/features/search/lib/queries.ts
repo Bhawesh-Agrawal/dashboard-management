@@ -4,7 +4,7 @@ import { getCurrentUserId } from "@/lib/auth";
 
 export type SearchResult = {
   id: string;
-  type: "note" | "task" | "course" | "quote" | "project" | "budget" | "resource";
+  type: "note" | "task" | "course" | "quote" | "project" | "resource";
   title: string;
   snippet: string;
   courseId?: string;
@@ -150,28 +150,6 @@ export const globalSearch = cache(
         title: project.name,
         snippet: project.description || project.name,
         url: `/projects/${project.id}`,
-      });
-    }
-
-    // Search Budget Entries
-    const budgetEntries = await prisma.budgetEntry.findMany({
-      where: {
-        OR: [
-          { category: { contains: searchTerm, mode: "insensitive" } },
-          { notes: { contains: searchTerm, mode: "insensitive" } },
-        ],
-      },
-      take: 10,
-      orderBy: { date: "desc" },
-    });
-
-    for (const entry of budgetEntries) {
-      results.push({
-        id: entry.id,
-        type: "budget",
-        title: `${entry.category} — ₹${Number(entry.amount).toLocaleString("en-IN")}`,
-        snippet: entry.notes || entry.category,
-        url: `/budget`,
       });
     }
 

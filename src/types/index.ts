@@ -156,7 +156,6 @@ export type GraphNodeType =
   | "domain"
   | "project"
   | "milestone"
-  | "budgetEntry"
   | "resource";
 
 export type GraphNode = {

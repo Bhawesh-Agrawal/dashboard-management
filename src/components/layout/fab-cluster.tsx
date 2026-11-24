@@ -4,12 +4,10 @@ import { useState, useEffect, useTransition } from "react";
 import { Plus, Sparkles, CheckSquare, FileText } from "lucide-react";
 import { createTask, getCoursesForPicker, getProjectsForPicker } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
-import { createBudgetEntry } from "@/features/budget/lib/actions";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
 import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
 import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
 import { TaskForm, type TaskFormData } from "@/features/tasks/components/TaskForm";
-import { BudgetForm, type BudgetFormData } from "@/features/budget/components/BudgetForm";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type QuickAddType = "task" | "note" | "budget";
+type QuickAddType = "task" | "note";
 
 export function FabCluster() {
   const [open, setOpen] = useState(false);
@@ -82,22 +80,6 @@ export function FabCluster() {
     }
   }
 
-  async function handleBudgetSubmit(data: BudgetFormData) {
-    setLoading(true);
-    try {
-      await createBudgetEntry({
-        type: data.type,
-        amount: data.amount,
-        category: data.category,
-        date: data.date,
-        notes: data.notes,
-      });
-    } finally {
-      setLoading(false);
-      handleClose(false);
-    }
-  }
-
   async function handleNoteSave() {
     setLoading(true);
     try {
@@ -144,7 +126,6 @@ export function FabCluster() {
             {([
               { value: "task" as const, label: "Task" },
               { value: "note" as const, label: "Note" },
-              { value: "budget" as const, label: "Budget" },
             ]).map((tab) => (
               <button
                 key={tab.value}
@@ -273,16 +254,6 @@ export function FabCluster() {
                 </div>
               )}
             </>
-          )}
-
-          {/* Budget tab — delegates to shared BudgetForm */}
-          {activeType === "budget" && (
-            <BudgetForm
-              mode="quick"
-              onSubmit={handleBudgetSubmit}
-              loading={loading}
-              submitLabel={loading ? "Adding..." : "Add Entry"}
-            />
           )}
         </DialogContent>
       </Dialog>

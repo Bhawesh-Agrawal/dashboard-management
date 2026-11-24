@@ -8,7 +8,6 @@ import {
   FileText,
   Settings,
   Briefcase,
-  DollarSign,
   BookOpen,
   Search,
   Newspaper,
@@ -32,7 +31,6 @@ const moreSections = [
     label: "Manage",
     items: [
       { label: "Projects", href: "/projects", icon: Briefcase },
-      { label: "Budget", href: "/budget", icon: DollarSign },
       { label: "Library", href: "/library", icon: BookOpen },
     ],
   },

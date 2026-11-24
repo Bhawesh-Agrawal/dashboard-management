@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Repeat, FileText, Briefcase, DollarSign, BookOpen, Settings, LogOut } from "lucide-react";
+import { GraduationCap, Repeat, FileText, Briefcase, BookOpen, Settings, LogOut } from "lucide-react";
 import { logout } from "@/features/auth/lib/actions";
 
 export const revalidate = 0;
@@ -9,7 +9,6 @@ const moreItems = [
   { label: "Routines", href: "/routines", icon: Repeat },
   { label: "Notes", href: "/notes", icon: FileText },
   { label: "Projects", href: "/projects", icon: Briefcase },
-  { label: "Budget", href: "/budget", icon: DollarSign },
   { label: "Library", href: "/library", icon: BookOpen },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

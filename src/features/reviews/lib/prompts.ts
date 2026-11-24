@@ -73,7 +73,7 @@ const MONTHLY_PROMPT: ReviewPromptConfig = {
   systemPrompt: `You are a strategic monthly reviewer for a student.
 Generate a comprehensive monthly report with:
 
-1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines, budget
+1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines
 2. GOAL ALIGNMENT: progress toward semester goals (from assessments, courses, projects)
 3. PATTERN RECOGNITION: recurring issues from the data — what keeps showing up?
 4. STRATEGIC PIVOTS: what to change next month based on evidence
@@ -92,7 +92,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed markdown content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, attendanceRate, weeklyTrends (array of { label, values: number[4] })
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -122,7 +122,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed reflective content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, attendanceRate
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>

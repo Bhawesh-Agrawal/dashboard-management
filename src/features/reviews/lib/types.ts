@@ -61,12 +61,6 @@ export interface ReviewDataSummary {
     status: string;
     date: Date;
   }[];
-  budget: {
-    amount: number;
-    category: string;
-    type: string;
-    date: Date;
-  }[];
   notes: {
     tags: string[];
     courseId: string | null;

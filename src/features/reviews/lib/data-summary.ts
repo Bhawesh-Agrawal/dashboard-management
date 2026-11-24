@@ -113,7 +113,6 @@ export async function fetchReviewData(
   const [
     tasks,
     routinesWithCompletions,
-    lifeMetrics,
     attendanceRecords,
     budgetEntries,
     notes,
@@ -156,15 +155,6 @@ export async function fetchReviewData(
           select: { date: true },
         },
       },
-    }),
-
-    prisma.lifeMetric.findMany({
-      where: {
-        userId,
-        recordedAt: { gte: lookbackStart, lte: periodEnd },
-      },
-      select: { category: true, value: true, recordedAt: true },
-      orderBy: { recordedAt: "desc" },
     }),
 
     prisma.attendanceRecord.findMany({
@@ -283,11 +273,6 @@ export async function fetchReviewData(
       category: r.category,
       completions: r.completions.map((c) => c.date),
       identityName: r.identity?.statement ?? null,
-    })),
-    lifeMetrics: lifeMetrics.map((m) => ({
-      category: m.category,
-      value: m.value,
-      recordedAt: m.recordedAt,
     })),
     attendance: attendanceRecords.map((a) => ({
       courseName: a.course.name,
@@ -411,20 +396,6 @@ export function formatReviewDataSummary(
       lines.push(
         `${r.name}: ${rate}% adherence (${r.completions.length}/${activeDaysInPeriod} active days)${r.identityName ? ` | identity: ${r.identityName}` : ""}`
       );
-    }
-  }
-
-  // ── Life Metrics ──
-  if (data.lifeMetrics.length > 0) {
-    lines.push(`\n== LIFE METRICS ==`);
-    const byCategory: Record<string, number[]> = {};
-    for (const m of data.lifeMetrics) {
-      if (!byCategory[m.category]) byCategory[m.category] = [];
-      byCategory[m.category].push(m.value);
-    }
-    for (const [cat, values] of Object.entries(byCategory)) {
-      const avg = values.reduce((s, v) => s + v, 0) / values.length;
-      lines.push(`${cat}: avg=${avg.toFixed(1)} (n=${values.length})`);
     }
   }
 

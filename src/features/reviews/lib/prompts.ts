@@ -26,7 +26,7 @@ Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary)
 - sections: array of { title, content, order } objects (each section must have substantive content, not just a title)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage (if available), sleepAverage (if available), attendanceRate (if available), notesCreated (count of notes today if available)
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, attendanceRate (if available), notesCreated (count of notes today if available)
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -45,15 +45,13 @@ Generate a structured weekly audit with these sections:
    - High Impact × Low Value (delegate or batch)
    - Low Impact × High Value (schedule for focused times)
    - Low Impact × Low Value (eliminate)
-3. EMOTIONAL × PRODUCTIVITY PATTERN: correlate mood LifeMetrics with task completion days
-4. IDENTITY PROGRESS: which identities were strengthened or weakened by actions this week
-5. 5 ACTIONS: Kill (stop doing), Automate, Focus (double down), Unblock (resolve blocker), Experiment (try new)
+3. IDENTITY PROGRESS: which identities were strengthened or weakened by actions this week
+4. 5 ACTIONS: Kill (stop doing), Automate, Focus (double down), Unblock (resolve blocker), Experiment (try new)
 
 RULES:
 - Format: structured markdown with clear headers, 800-1200 words
 - Use actual data from the summary — no generic advice
 - Be specific about which tasks went in which DRIP quadrant
-- Correlate mood scores with productivity days
 - Actions must be concrete and tied to this week's data
 - If data is limited, analyze what IS available thoroughly and suggest specific improvements
 - Never produce empty or one-line sections — always add substantive analysis
@@ -63,7 +61,7 @@ Return a JSON object with these fields:
 - summary: string (2-3 sentence executive summary of the week)
 - sections: array of { title, content, order } objects (one per section above, each with substantive markdown content)
 - actions: array of { text, type ("kill"/"automate"/"focus"/"unblock"/"experiment"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, deepWorkHours
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, deepWorkHours
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -76,7 +74,7 @@ const MONTHLY_PROMPT: ReviewPromptConfig = {
   systemPrompt: `You are a strategic monthly reviewer for a student.
 Generate a comprehensive monthly report with:
 
-1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines, budget, mood, sleep
+1. TREND ANALYSIS: 4-week metric trends — describe direction (improving/declining/stable) for tasks, routines, budget
 2. GOAL ALIGNMENT: progress toward semester goals (from assessments, courses, projects)
 3. PATTERN RECOGNITION: recurring issues from the data — what keeps showing up?
 4. STRATEGIC PIVOTS: what to change next month based on evidence
@@ -95,7 +93,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed markdown content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate, weeklyTrends (array of { label, values: number[4] })
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>
@@ -127,7 +125,7 @@ Return a JSON object with these fields:
 - summary: string (3-4 sentence executive summary)
 - sections: array of { title, content, order } objects (each with detailed reflective content)
 - actions: array of { text, type ("general"), priority ("high"/"medium"/"low") } objects
-- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, moodAverage, sleepAverage, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
+- metrics: object with tasksCompleted, tasksTotal, completionRate, routineAdherence, totalSpent, attendanceRate, identityStrength (array of { name, score: 0-100 })
 
 No markdown, no backticks, no explanation — ONLY the JSON object.`,
   userPromptBuilder: (dataSummary, dateStr) =>

@@ -57,11 +57,6 @@ export interface ReviewDataSummary {
     completions: Date[];
     identityName: string | null;
   }[];
-  lifeMetrics: {
-    category: string;
-    value: number;
-    recordedAt: Date;
-  }[];
   attendance: {
     courseName: string;
     courseCode: string | null;

@@ -34,7 +34,7 @@ export async function getReviews(
     where: {
       userId,
       status: { not: "archived" },
-      ...(type ? { type } : {}),
+      ...(type ? { type } : { type: { not: "daily" } }),
     },
     orderBy: { periodEnd: "desc" },
     take: limit + 10,
@@ -159,9 +159,6 @@ export async function exportReviewAsMarkdown(id: string) {
   }
   if (typeof metrics.routineAdherence === "number") {
     md += `- Routine Adherence: ${Math.round(metrics.routineAdherence)}%\n`;
-  }
-  if (typeof metrics.moodAverage === "number") {
-    md += `- Mood Average: ${(metrics.moodAverage as number).toFixed(1)}/5\n`;
   }
   if (typeof metrics.totalSpent === "number") {
     md += `- Total Spent: $${(metrics.totalSpent as number).toFixed(2)}\n`;

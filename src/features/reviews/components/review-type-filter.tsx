@@ -6,7 +6,6 @@ import type { ReviewType } from "@prisma/client";
 
 const FILTERS: { label: string; value: ReviewType | "all" }[] = [
   { label: "All", value: "all" },
-  { label: "Daily", value: "daily" },
   { label: "Weekly", value: "weekly" },
   { label: "Monthly", value: "monthly" },
   { label: "Quarterly", value: "quarterly" },

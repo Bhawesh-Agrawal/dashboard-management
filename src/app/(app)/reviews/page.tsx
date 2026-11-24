@@ -43,7 +43,7 @@ export default async function ReviewsPage({
       {reviews.length === 0 ? (
         <EmptyState
           title="No reviews yet"
-          description="Reviews are generated automatically from your data. Check back after a day of activity."
+          description="Reviews are generated automatically from your data. Weekly reviews appear every Sunday."
         />
       ) : (
         <ReviewList reviews={reviews} />

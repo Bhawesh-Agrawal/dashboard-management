@@ -111,7 +111,7 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
       }),
       prisma.review.findFirst({
-        where: { userId, status: { not: "archived" } },
+        where: { userId, status: { not: "archived" }, type: { not: "daily" } },
         orderBy: { periodEnd: "desc" },
       }),
       prisma.review.count({

@@ -135,7 +135,7 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     }),
     // Latest review for dashboard widget
     prisma.review.findFirst({
-      where: { userId, status: { not: "archived" } },
+      where: { userId, status: { not: "archived" }, type: { not: "daily" } },
       orderBy: { periodEnd: "desc" },
     }),
     // Unviewed review count

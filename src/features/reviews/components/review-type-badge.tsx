@@ -9,7 +9,7 @@ const TYPE_STYLES: Record<ReviewType, string> = {
 };
 
 const TYPE_LABELS: Record<ReviewType, string> = {
-  daily: "Daily",
+  daily: "Brief",
   weekly: "Weekly",
   monthly: "Monthly",
   quarterly: "Quarterly",

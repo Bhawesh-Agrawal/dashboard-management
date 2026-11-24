@@ -136,7 +136,7 @@ class SyncManager {
         this.pushDirtyNotes(),
         this.pushDirtyRoutines(),
         this.pushDirtyEvents(),
-        this.pushDirtyAttendance(),
+        // Attendance marking is online-only; not pushed via sync queue
         this.pushDirtyClassSchedules(),
         this.pushDirtyAssessments(),
       ]);

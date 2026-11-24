@@ -127,6 +127,7 @@ export async function GET() {
               include: {
                 course: { select: { id: true, name: true, color: true, code: true } },
                 exceptions: { where: { date: todayStart } },
+                attendanceRecords: { where: { date: todayStart } },
               },
             })
           : Promise.resolve([]),

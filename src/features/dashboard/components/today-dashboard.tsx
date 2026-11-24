@@ -11,7 +11,7 @@ import { TomorrowRoutines } from "@/features/dashboard/components/tomorrow-routi
 import { OngoingProjects } from "@/features/dashboard/components/ongoing-projects";
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
-import { ActiveUpcoming } from "@/features/dashboard/components/active-upcoming";
+import { TodayClassesCard } from "@/features/attendance/components/today-classes-card";
 import dynamic from "next/dynamic";
 import { resolveLayout, type WidgetId } from "../lib/widget-registry";
 import type { DashboardData } from "@/types";
@@ -117,7 +117,7 @@ export function TodayDashboard({
       case "ContributionGraph":
         return <ContributionGraph streakData={data.streakData} />;
       case "ActiveUpcoming":
-        return <ActiveUpcoming todayClasses={data.todayClasses} />;
+        return <TodayClassesCard todayClasses={data.todayClasses} />;
       default:
         return null;
     }

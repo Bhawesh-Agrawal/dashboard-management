@@ -3,7 +3,7 @@ export const revalidate = 0;
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScheduleSection } from "@/features/schedule/components/schedule-grid";
-import { AttendanceSection } from "@/features/attendance/components/attendance-calendar";
+import { CourseAttendanceSection } from "@/features/attendance/components/course-attendance-section";
 import { AssessmentSection } from "@/features/assessments/components/assessment-table";
 import { CourseTasksSection } from "@/features/courses/components/course-tasks";
 import { CourseNotesSection } from "@/features/courses/components/course-notes";
@@ -88,7 +88,15 @@ export default async function CourseDetailPage({
           manualPresent={course.manualPresent}
           manualTotalClasses={course.manualTotalClasses}
         />
-        <AttendanceSection courseId={course.id} records={course.attendanceRecords} />
+        <CourseAttendanceSection
+          courseId={course.id}
+          semester={course.semester}
+          attendanceMode={course.attendanceMode}
+          manualPresent={course.manualPresent}
+          manualTotalClasses={course.manualTotalClasses}
+          schedules={course.classSchedules}
+          records={course.attendanceRecords}
+        />
         <AssessmentSection
           courseId={course.id}
           assessments={course.assessments}

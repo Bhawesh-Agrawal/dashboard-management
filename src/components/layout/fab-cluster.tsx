@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
-import { Plus, Camera, AlertCircle, Sparkles, CheckSquare, FileText } from "lucide-react";
+import { useState, useEffect, useTransition } from "react";
+import { Plus, Sparkles, CheckSquare, FileText } from "lucide-react";
 import { createTask, getCoursesForPicker, getProjectsForPicker } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { createBudgetEntry } from "@/features/budget/lib/actions";
-import { processOcrAction } from "@/features/notes/lib/actions-ocr";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
 import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
 import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
@@ -19,13 +18,11 @@ import {
 } from "@/components/ui/dialog";
 
 type QuickAddType = "task" | "note" | "budget";
-type NoteMode = "text" | "photo";
 
 export function FabCluster() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState<QuickAddType>("task");
-  const [noteMode, setNoteMode] = useState<NoteMode>("text");
 
   // AI Text parsing state
   const [parsing, startParsingTransition] = useTransition();
@@ -35,14 +32,6 @@ export function FabCluster() {
   // Course/Project state for task creation
   const [courses, setCourses] = useState<LinkToOption[]>([]);
   const [projects, setProjects] = useState<LinkToOption[]>([]);
-
-  // OCR state for notes
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [ocrResult, setOcrResult] = useState<string | null>(null);
-  const [ocrError, setOcrError] = useState<string | null>(null);
-  const [sourceLink, setSourceLink] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && activeType === "task" && courses.length === 0) {
@@ -58,12 +47,6 @@ export function FabCluster() {
 
   function resetState() {
     setActiveType("task");
-    setNoteMode("text");
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setOcrResult(null);
-    setOcrError(null);
-    setSourceLink("");
     setParsed(null);
     setRawNoteInput("");
   }
@@ -118,7 +101,7 @@ export function FabCluster() {
   async function handleNoteSave() {
     setLoading(true);
     try {
-      if (noteMode === "text" && parsed) {
+      if (parsed) {
         if (parsed.type === "task" && parsed.title) {
           await createTask({
             title: parsed.title,
@@ -134,48 +117,10 @@ export function FabCluster() {
             courseId: parsed.courseId || undefined,
           });
         }
-      } else if (noteMode === "photo" && ocrResult) {
-        await createNote({
-          content: ocrResult,
-          sourceType: "ocr_photo",
-          sourceLink: sourceLink || undefined,
-          tags: ["ocr"],
-        });
       }
     } finally {
       setLoading(false);
       handleClose(false);
-    }
-  }
-
-  async function handleOcrProcess() {
-    if (!selectedFile) return;
-    setLoading(true);
-    setOcrError(null);
-    try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-      if (sourceLink) formData.append("sourceLink", sourceLink);
-      const result = await processOcrAction(formData);
-      if (result.success && result.text) {
-        setOcrResult(result.text);
-      } else {
-        setOcrError(result.error || "Failed to process image");
-      }
-    } catch (error) {
-      setOcrError(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setOcrResult(null);
-      setOcrError(null);
     }
   }
 
@@ -227,36 +172,10 @@ export function FabCluster() {
             />
           )}
 
-          {/* Note tab — AI parse / OCR (custom flow) */}
+          {/* Note tab — AI parse */}
           {activeType === "note" && (
             <>
-              <div className="flex gap-1 p-1 bg-muted rounded-md mt-4">
-                <button
-                  type="button"
-                  onClick={() => setNoteMode("text")}
-                  className={`flex-1 py-1.5 text-sm rounded transition-colors ${
-                    noteMode === "text"
-                      ? "bg-background text-foreground font-medium shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNoteMode("photo")}
-                  className={`flex-1 py-1.5 text-sm rounded transition-colors ${
-                    noteMode === "photo"
-                      ? "bg-background text-foreground font-medium shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Camera className="h-4 w-4 inline mr-1" />
-                  Photo (OCR)
-                </button>
-              </div>
-
-              {noteMode === "text" && !parsed && (
+              {!parsed && (
                 <div className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <label htmlFor="fab-content" className="section-label">
@@ -297,7 +216,7 @@ export function FabCluster() {
                 </div>
               )}
 
-              {noteMode === "text" && parsed && (
+              {parsed && (
                 <div className="space-y-4 mt-4">
                   <div className="rounded-md border border-input bg-muted/50 p-3">
                     <div className="flex items-center gap-2 mb-2">
@@ -349,98 +268,6 @@ export function FabCluster() {
                       className="inline-flex h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
                     >
                       {loading ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {noteMode === "photo" && !ocrResult && (
-                <div className="space-y-3 mt-4">
-                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                    <AlertCircle className="h-3 w-3 inline mr-1" />
-                    Transcription may need cleanup, especially for handwriting.
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
-                  >
-                    <Camera className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {selectedFile ? selectedFile.name : "Click to select photo"}
-                    </span>
-                  </button>
-                  {previewUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="max-h-24 rounded-md border border-border"
-                    />
-                  )}
-                  <div className="space-y-2">
-                    <label htmlFor="fab-sourceLink" className="section-label">
-                      Source Link (optional)
-                    </label>
-                    <input
-                      id="fab-sourceLink"
-                      type="url"
-                      value={sourceLink}
-                      onChange={(e) => setSourceLink(e.target.value)}
-                      placeholder="OneDrive share link"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                  {ocrError && (
-                    <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-                      {ocrError}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleOcrProcess}
-                    disabled={!selectedFile || loading}
-                    className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    <Camera className="h-4 w-4" />
-                    {loading ? "Processing..." : "Transcribe"}
-                  </button>
-                </div>
-              )}
-
-              {noteMode === "photo" && ocrResult && (
-                <div className="space-y-2 mt-4">
-                  <div className="rounded-md border border-input bg-muted/50 p-3">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {ocrResult}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOcrResult(null);
-                        setSelectedFile(null);
-                        setPreviewUrl(null);
-                      }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Try another photo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNoteSave}
-                      disabled={loading}
-                      className="inline-flex h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      {loading ? "Saving..." : "Save OCR Note"}
                     </button>
                   </div>
                 </div>

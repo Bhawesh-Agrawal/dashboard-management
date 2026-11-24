@@ -4,7 +4,6 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { createTask } from "@/features/tasks/lib/actions";
 import { createNote } from "@/features/notes/lib/actions";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
-import { processOcrAction } from "@/features/notes/lib/actions-ocr";
 import { getCoursesForPicker } from "@/features/tasks/lib/actions";
 import { getFolders } from "@/features/notes/lib/actions-folders";
 import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
@@ -18,9 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { FileUploadDialog } from "@/features/files/components/FileUploadDialog";
 import { getUploadContextOptions } from "@/features/files/lib/actions";
-import { Plus, Sparkles, FileText, CheckSquare, Camera, AlertCircle, Paperclip } from "lucide-react";
+import { Plus, Sparkles, FileText, CheckSquare, Paperclip } from "lucide-react";
 
-type CaptureMode = "text" | "photo" | "file";
+type CaptureMode = "text" | "file";
 
 type ContextType = "notes" | "course" | "semester";
 
@@ -43,18 +42,7 @@ export function QuickCapture({
   const [parsed, setParsed] = useState<ParsedCapture | null>(null);
   const [rawInput, setRawInput] = useState("");
 
-  // OCR state
   const [mode, setMode] = useState<CaptureMode>("text");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [ocrResult, setOcrResult] = useState<{
-    text: string;
-    confidence?: number;
-    confidenceDescription?: string;
-  } | null>(null);
-  const [ocrError, setOcrError] = useState<string | null>(null);
-  const [sourceLink, setSourceLink] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // "More options" state
@@ -125,35 +113,6 @@ export function QuickCapture({
     });
   }
 
-  async function handleOcrProcess() {
-    if (!selectedFile) return;
-
-    setLoading(true);
-    setOcrError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-      if (sourceLink) formData.append("sourceLink", sourceLink);
-
-      const result = await processOcrAction(formData);
-
-      if (result.success && result.text) {
-        setOcrResult({
-          text: result.text,
-          confidence: result.confidence,
-          confidenceDescription: result.confidenceDescription,
-        });
-      } else {
-        setOcrError(result.error || "Failed to process image");
-      }
-    } catch (error) {
-      setOcrError(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function parseManualTags(): string[] {
     return manualTags
       ? manualTags.split(",").map((t) => t.trim()).filter(Boolean)
@@ -190,16 +149,6 @@ export function QuickCapture({
           courseId: selectedCourseId || undefined,
           folderId: selectedFolderId || undefined,
         });
-      } else if (mode === "photo" && ocrResult) {
-        const mergedTags = [...new Set(["ocr", ...parseManualTags()])];
-        await createNote({
-          content: ocrResult.text,
-          sourceType: "ocr_photo",
-          sourceLink: sourceLink || undefined,
-          tags: mergedTags,
-          courseId: selectedCourseId || undefined,
-          folderId: selectedFolderId || undefined,
-        });
       }
 
       // Reset and close
@@ -214,11 +163,6 @@ export function QuickCapture({
     setParsed(null);
     setRawInput("");
     setMode("text");
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setOcrResult(null);
-    setOcrError(null);
-    setSourceLink("");
     setManualTags("");
     setSelectedCourseId("");
     setSelectedFolderId("");
@@ -227,21 +171,9 @@ export function QuickCapture({
     setSelectedSemesterId("");
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setOcrResult(null);
-      setOcrError(null);
-    }
-  }
-
   function handleReset() {
     setParsed(null);
     setRawInput("");
-    setOcrResult(null);
-    setOcrError(null);
   }
 
   // Build FileUploadDialog props based on context
@@ -296,17 +228,6 @@ export function QuickCapture({
           >
             <Sparkles className="h-4 w-4 inline mr-1" />
             Text (AI)
-          </button>
-          <button
-            onClick={() => setMode("photo")}
-            className={`flex-1 px-3 py-2.5 sm:py-1.5 text-sm rounded transition-colors min-h-[44px] sm:min-h-0 ${
-              mode === "photo"
-                ? "bg-background text-foreground font-medium shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Camera className="h-4 w-4 inline mr-1" />
-            Photo (OCR)
           </button>
           <button
             onClick={() => setMode("file")}
@@ -530,185 +451,6 @@ export function QuickCapture({
                 className="h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
               >
                 {loading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Photo mode */}
-        {mode === "photo" && !ocrResult && (
-          <div className="space-y-4 mt-4">
-            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-              <AlertCircle className="h-3 w-3 inline mr-1" />
-              Transcription may need cleanup, especially for handwriting.
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="photo-input" className="section-label">
-                Select Photo
-              </label>
-              <input
-                ref={fileInputRef}
-                id="photo-input"
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors min-h-[44px]"
-              >
-                <Camera className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {selectedFile ? selectedFile.name : "Click to select photo"}
-                </span>
-              </button>
-            </div>
-
-            {previewUrl && (
-              <div className="space-y-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="max-h-40 rounded-md border border-border"
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label htmlFor="source-link" className="section-label">
-                Source Link (optional)
-              </label>
-              <input
-                id="source-link"
-                type="url"
-                value={sourceLink}
-                onChange={(e) => setSourceLink(e.target.value)}
-                placeholder="OneDrive share link to original photo"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* More options for photo */}
-            {hasMoreOptions && (
-              <details className="text-xs">
-                <summary className="cursor-pointer section-label py-1 text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1">
-                  <span>+ More options (Tags, Course, Folder)</span>
-                </summary>
-                <div className="space-y-3 pt-2 border-t border-border/40 mt-2">
-                  <div className="space-y-2">
-                    <label htmlFor="qc-photo-tags" className="section-label">Tags</label>
-                    <input
-                      id="qc-photo-tags"
-                      type="text"
-                      value={manualTags}
-                      onChange={(e) => setManualTags(e.target.value)}
-                      placeholder="extra tags (ocr is auto-added)..."
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                  {courses.length > 0 && (
-                    <div className="space-y-2">
-                      <label htmlFor="qc-photo-course" className="section-label">Course</label>
-                      <select
-                        id="qc-photo-course"
-                        value={selectedCourseId}
-                        onChange={(e) => setSelectedCourseId(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">None</option>
-                        {courses.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {folders.length > 0 && (
-                    <div className="space-y-2">
-                      <label htmlFor="qc-photo-folder" className="section-label">Folder</label>
-                      <select
-                        id="qc-photo-folder"
-                        value={selectedFolderId}
-                        onChange={(e) => setSelectedFolderId(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">None</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>{f.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </details>
-            )}
-
-            {ocrError && (
-              <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-                {ocrError}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                {selectedFile ? "Ready to process" : "Select a photo to begin"}
-              </p>
-              <button
-                type="button"
-                onClick={handleOcrProcess}
-                disabled={!selectedFile || loading}
-                className="inline-flex items-center gap-2 h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
-              >
-                <Camera className="h-4 w-4" />
-                {loading ? "Processing..." : "Transcribe"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Photo mode - OCR result */}
-        {mode === "photo" && ocrResult && (
-          <div className="space-y-4 mt-4">
-            <div className="rounded-md border border-input bg-muted/50 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">OCR Result</span>
-                {ocrResult.confidenceDescription && (
-                  <span className="text-xs bg-muted rounded px-1.5 py-0.5">
-                    {ocrResult.confidenceDescription}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {ocrResult.text}
-              </p>
-
-              {sourceLink && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Source: <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="underline">{sourceLink}</a>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleReset}
-                className="h-10 sm:h-9 px-4 rounded-md border border-input text-sm hover:bg-muted transition-colors min-h-[44px] sm:min-h-0"
-              >
-                Try Again
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={loading}
-                className="h-10 sm:h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 min-h-[44px] sm:min-h-0"
-              >
-                {loading ? "Saving..." : "Save as Note"}
               </button>
             </div>
           </div>

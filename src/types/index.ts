@@ -77,8 +77,6 @@ export type DashboardData = {
     courseColor?: string;
     projectName?: string;
     projectColor?: string;
-    personId?: string;
-    personName?: string;
     linkTo?: string;
   }[];
   attendanceAlerts: {
@@ -159,8 +157,7 @@ export type GraphNodeType =
   | "project"
   | "milestone"
   | "budgetEntry"
-  | "resource"
-  | "person";
+  | "resource";
 
 export type GraphNode = {
   id: string;

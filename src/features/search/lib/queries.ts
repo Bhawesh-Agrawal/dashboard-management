@@ -4,7 +4,7 @@ import { getCurrentUserId } from "@/lib/auth";
 
 export type SearchResult = {
   id: string;
-  type: "note" | "task" | "course" | "quote" | "project" | "budget" | "person" | "resource";
+  type: "note" | "task" | "course" | "quote" | "project" | "budget" | "resource";
   title: string;
   snippet: string;
   courseId?: string;
@@ -172,28 +172,6 @@ export const globalSearch = cache(
         title: `${entry.category} — ₹${Number(entry.amount).toLocaleString("en-IN")}`,
         snippet: entry.notes || entry.category,
         url: `/budget`,
-      });
-    }
-
-    // Search People
-    const people = await prisma.person.findMany({
-      where: {
-        OR: [
-          { name: { contains: searchTerm, mode: "insensitive" } },
-          { notes: { contains: searchTerm, mode: "insensitive" } },
-        ],
-      },
-      take: 10,
-      orderBy: { name: "asc" },
-    });
-
-    for (const person of people) {
-      results.push({
-        id: person.id,
-        type: "person",
-        title: person.name,
-        snippet: person.notes || person.name,
-        url: `/people/${person.id}`,
       });
     }
 

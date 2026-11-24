@@ -110,7 +110,7 @@ export function DailyTimeline({
       items.push({
         id: `deadline-${d.id}`,
         title: d.title,
-        subtitle: d.courseName || d.projectName || d.personName,
+        subtitle: d.courseName || d.projectName,
         timeLabel: "Due Today",
         sortTime: 23 * 60 + 58,
         type: "deadline",

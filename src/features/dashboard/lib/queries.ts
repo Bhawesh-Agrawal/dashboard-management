@@ -61,7 +61,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     allOpenTasksRaw,
     upcomingEvents,
     birthdayEvents,
-    peopleWithBirthdays,
     routines,
     tomorrowRoutines,
     streakData,
@@ -103,11 +102,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
         eventType: "birthday",
       },
       orderBy: { dateTime: "asc" },
-    }),
-    // Person records for birthday fallback
-    prisma.person.findMany({
-      where: { birthday: { not: null } },
-      select: { id: true, name: true, birthday: true },
     }),
     // Routines with streaks (now N+1-free)
     getRoutinesWithStreaks(),
@@ -225,30 +219,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
         linkTo: "/calendar",
       });
       seenBirthdayNames.add(lowerTitle);
-    }
-  }
-
-  for (const person of peopleWithBirthdays) {
-    if (!person.birthday) continue;
-    const bday = new Date(today.getFullYear(), person.birthday.getMonth(), person.birthday.getDate());
-    if (bday < today) bday.setFullYear(today.getFullYear() + 1);
-    const diffMs = bday.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays >= 0 && diffDays <= 7) {
-      const alreadyCovered = [...seenBirthdayNames].some((name) =>
-        name.includes(person.name.toLowerCase()) || person.name.toLowerCase().includes(name.replace("'s birthday", ""))
-      );
-      if (!alreadyCovered) {
-        upcomingBirthdays.push({
-          id: `birthday-${person.id}`,
-          title: `${person.name}'s birthday`,
-          date: bday,
-          type: "birthday" as const,
-          personId: person.id,
-          personName: person.name,
-          linkTo: `/people/${person.id}`,
-        });
-      }
     }
   }
 

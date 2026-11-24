@@ -116,8 +116,6 @@ async function fetchEntity(
       return prisma.budgetEntry.findUnique({ where: { id } });
     case "resource":
       return prisma.resource.findUnique({ where: { id } });
-    case "person":
-      return prisma.person.findUnique({ where: { id } });
     default:
       return null;
   }
@@ -168,8 +166,6 @@ async function getConnections(
     case "budgetEntry":
       return [];
     case "resource":
-      return [];
-    case "person":
       return [];
     default:
       return [];
@@ -506,18 +502,6 @@ export async function searchEntitiesForContext(
     }
   }
 
-  // Search people by name
-  const people = await prisma.person.findMany({
-    where: { name: { contains: query, mode: "insensitive" } },
-    take: 3,
-  });
-
-  for (const person of people) {
-    if (!results.nodes.some((n) => n.id === person.id && n.type === "person")) {
-      results.nodes.push({ id: person.id, type: "person", data: person });
-    }
-  }
-
   // Search resources by title or notes
   const resources = await prisma.resource.findMany({
     where: {
@@ -641,7 +625,6 @@ export function formatGraphContext(graph: GraphResult): string {
     milestone: "Milestones",
     budgetEntry: "Budget Entries",
     resource: "Resources",
-    person: "People",
   };
 
   for (const [type, nodes] of byType) {
@@ -706,8 +689,6 @@ function summarizeNode(node: GraphNode): string {
       return `${d.type === "income" ? "Income" : "Expense"}: ₹${d.amount} (${d.category})`;
     case "resource":
       return `Resource: ${d.title}`;
-    case "person":
-      return `Person: ${d.name}`;
     default:
       return `${node.type}:${node.id}`;
   }

@@ -15,7 +15,6 @@ import {
   Briefcase,
   DollarSign,
   BookOpen,
-  Users,
   Search,
   MessageSquare,
   Settings,
@@ -39,7 +38,6 @@ const navItems = [
   { label: "Projects", href: "/projects", icon: Briefcase },
   { label: "Budget", href: "/budget", icon: DollarSign },
   { label: "Library", href: "/library", icon: BookOpen },
-  { label: "People", href: "/people", icon: Users },
   { label: "Search", href: "/search", icon: Search },
   { label: "Ask", href: "/ask", icon: MessageSquare },
 ];

@@ -118,7 +118,6 @@ export async function fetchReviewData(
     notes,
     assessments,
     projects,
-    people,
     classSchedules,
   ] = await Promise.all([
     prisma.task.findMany({
@@ -207,16 +206,6 @@ export async function fetchReviewData(
       },
     }),
 
-    prisma.person.findMany({
-      where: { userId },
-      select: {
-        name: true,
-        lastContact: true,
-        contactFrequency: true,
-        relationshipType: true,
-      },
-    }),
-
     prisma.classSchedule.findMany({
       where: {
         course: { semester: { isActive: true, userId } },
@@ -292,12 +281,6 @@ export async function fetchReviewData(
       status: p.status,
       updatedAt: p.updatedAt,
       milestones: p.milestones,
-    })),
-    people: people.map((p) => ({
-      name: p.name,
-      lastContact: p.lastContact,
-      contactFrequency: p.contactFrequency,
-      relationshipType: p.relationshipType,
     })),
     classes,
     periodStart,
@@ -462,24 +445,6 @@ export function formatReviewDataSummary(
       const daysSinceUpdate = differenceInCalendarDays(now, p.updatedAt);
       lines.push(
         `${p.name} (${p.status}): ${total > 0 ? Math.round((done / total) * 100) : 0}% (${done}/${total} milestones, updated ${daysSinceUpdate}d ago)`
-      );
-    }
-  }
-
-  // ── People ──
-  if (data.people.length > 0) {
-    lines.push(`\n== PEOPLE ==`);
-    const contactInterval: Record<string, number> = {
-      daily: 1, weekly: 7, monthly: 30, quarterly: 90,
-    };
-    for (const p of data.people) {
-      const daysSinceContact = p.lastContact
-        ? differenceInCalendarDays(now, p.lastContact)
-        : 999;
-      const expected = p.contactFrequency ? contactInterval[p.contactFrequency] || 30 : null;
-      const overdue = expected ? daysSinceContact > expected * 2 : false;
-      lines.push(
-        `${p.name} (${p.relationshipType || "unknown"}): ${daysSinceContact}d ago${overdue ? " ← OVERDUE" : ""}`
       );
     }
   }

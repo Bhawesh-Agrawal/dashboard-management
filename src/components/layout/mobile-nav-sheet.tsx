@@ -9,7 +9,6 @@ import {
   Settings,
   Briefcase,
   DollarSign,
-  Users,
   BookOpen,
   Search,
   Newspaper,
@@ -34,7 +33,6 @@ const moreSections = [
     items: [
       { label: "Projects", href: "/projects", icon: Briefcase },
       { label: "Budget", href: "/budget", icon: DollarSign },
-      { label: "People", href: "/people", icon: Users },
       { label: "Library", href: "/library", icon: BookOpen },
     ],
   },

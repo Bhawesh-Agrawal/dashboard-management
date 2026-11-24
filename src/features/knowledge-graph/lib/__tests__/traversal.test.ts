@@ -76,10 +76,6 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
-    person: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
   },
 }));
 
@@ -284,5 +280,15 @@ describe("Knowledge Graph Traversal", () => {
     expect(context).toContain("## Relationships");
     expect(context).toContain("has_task");
     expect(context).toContain("belongs_to");
+  });
+
+  it("should operate without people nodes", async () => {
+    const result = await traverseGraph({
+      sourceType: "course",
+      sourceId: courseId,
+      maxHops: 2,
+    });
+    const hasPerson = result.nodes.some((n) => (n.type as string) === "person");
+    expect(hasPerson).toBe(false);
   });
 });

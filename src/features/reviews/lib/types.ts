@@ -86,12 +86,6 @@ export interface ReviewDataSummary {
     updatedAt: Date;
     milestones: { name: string; isDone: boolean }[];
   }[];
-  people: {
-    name: string;
-    lastContact: Date | null;
-    contactFrequency: string | null;
-    relationshipType: string | null;
-  }[];
   classes: {
     courseName: string;
     courseCode: string | null;

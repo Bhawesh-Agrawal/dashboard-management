@@ -1,6 +1,27 @@
 # Academic Command Center — Architecture Documentation
 
-> A personal academic productivity PWA for students — managing courses, attendance, grades, tasks, notes, routines, budgets, projects, people, and more. Built with Next.js 16 App Router, Prisma/PostgreSQL, Supabase Auth, and shadcn/ui. Features AI-powered insights, a second-brain note system with semantic linking, spaced repetition, and a full behavioral intelligence engine.
+> A personal academic productivity PWA for students — managing courses, attendance, grades, tasks, notes, routines, and projects. Built with Next.js 16 App Router, Prisma/PostgreSQL, Supabase Auth, and shadcn/ui. Features a second-brain note system with semantic linking, morning/evening briefs, and scheduled push alerts.
+
+---
+
+## Removed Features (Phase 2 Architecture Simplification)
+
+The following features were audited, uninstalled, and deleted from the codebase during Phase 2 to streamline the application into a mobile-first, single-user academic workspace:
+
+| Feature Removed | Previous Responsibility | Current Status / Responsibility Placement |
+|---|---|---|
+| **Energy System** | `energyRequirement`, `optimalTimeOfDay`, energy-based task scheduling | Deleted without replacement. Tasks now rely strictly on `dueDate`, `priority`, and status. |
+| **Behavioral Patterns & Insights Feed** | Pattern detection, AI insight generation cron, insights UI & widgets | Deleted without replacement. Removed from dashboard, background jobs, and review summaries. |
+| **Life Metrics** | Daily metric tracking (mood, sleep, energy), review prompt inputs | Deleted without replacement. |
+| **Identities** | Identity-based routine grouping and identity creation | Deleted without replacement. Plain habits/routines are preserved and decoupled from identities. |
+| **Client-side OCR** | In-browser OCR via `tesseract.js` for photo note capture | Deleted without replacement. `tesseract.js` uninstalled. Note attachments accept standard PDF/file uploads. |
+| **Daily Review Framing** | Full daily review questionnaires, forms, and review page filters | Replaced by lightweight Morning and Evening Briefs (kept as type `daily` DB records and push alerts). Weekly, monthly, and quarterly reviews are preserved. |
+| **Knowledge-gap Detection** | Periodic gap analysis, gap cron job, and Knowledge Health Widget | Deleted without replacement. The core knowledge graph and note-linking traversal are preserved. |
+| **People / Academic CRM** | Contact tracking, interaction logging, relationship importance, birthdays | Deleted without replacement. Clean calendar integration is preserved for scheduling. |
+| **Budget** | Income/expense tracking, budget summaries, category analytics | Deleted without replacement. |
+| **Library (Quotes & Resources)** | Quote collection, bookmark/resource database, `DailyQuote` widget | Deleted without replacement. Note attachment `DocumentLibrary` (`src/features/notes/components/DocumentLibrary.tsx`) is preserved for note files and PDFs. |
+| **Unused Dependencies** | `tesseract.js`, `js-yaml`, `react-day-picker` | Uninstalled via `npm uninstall`. |
+| **Dexie Local Database** | IndexedDB mirror storing energy and identity fields | Bumped schema to Version 3 with automated upgrade handler stripping removed columns without data loss. |
 
 ---
 

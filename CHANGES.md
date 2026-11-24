@@ -269,3 +269,330 @@ ID            NAME        CPU %       MEM USAGE / LIMIT  MEM %       NET IO     
 | **11** | **Production Guard (`PROD_DB_HOST`):** Refuses execution if not production and DB host equals `PROD_DB_HOST`; warns on non-local host in local env; startup check in `prisma.ts`. | `DONE` | `c27ab38` | `scripts/guard.ts`, `scripts/__tests__/guard.test.ts`, `src/lib/prisma.ts` | None (100% verified via 14 unit tests). |
 | **12** | **Staging Revision Test Plan:** Copied 3 unverified items into `docs/TEST_PLAN.md` under staging revision section with exact steps. | `DONE` | `5c3a192` | `docs/TEST_PLAN.md` | Execution of staging revision test cases requires deploying revision with `--no-traffic --tag staging`. |
 | **13** | **Verification Outputs & Changes Table:** Executed raw verification commands, captured raw output into `CHANGES.md`, and compiled 13-row completion table. | `DONE` | `20f733b` | `CHANGES.md` | None (all raw command outputs captured and presented). |
+
+
+---
+
+# Phase 2 Implementation: Dead Feature Removals (Code Only)
+
+This section documents all removals and adaptations executed during **Phase 2 (Remove Dead Features)** on branch `phase-2-removals` in accordance with product decisions and engineering requirements.
+
+**Scope Rules Enforced:**
+- Exactly one commit per numbered removal (Items 1 to 16).
+- `prisma/schema.prisma` was NOT modified; zero database migrations or push scripts were executed (schema drops deferred to future release).
+- Kept features (notes `DocumentLibrary`, morning/evening briefs, routines, knowledge graph, projects) were adapted without breaking functionality.
+- Auth helpers (`getCurrentUserId`) and simulated clock (`src/lib/clock.ts`) were preserved without regressions.
+
+---
+
+## 1. Itemized Phase 2 Summary Table (Items 1–16)
+
+| Item # | Feature / Task | Status | Commit Hash | Files Deleted | Files Modified | Lines Removed | What Could Not Be Verified |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **1** | **ENERGY:** Removed `energyRequirement`, `optimalTimeOfDay`, and energy task scheduling from task forms, actions, sync routes, and review prompts. | `DONE` | `43ef585` | 0 | 9 | 57 | None (100% verified via `tsc --noEmit`, ESLint, Vitest). |
+| **2** | **BEHAVIORAL PATTERNS & INSIGHTS:** Deleted `src/features/insights/`, `/api/cron/insights/route.ts`, `UnifiedInsights` dashboard widget, memCache keys, and types. | `DONE` | `8482675` | 9 | 15 | 2,363 | None (100% verified via `test:ci`). |
+| **3** | **LIFE METRICS:** Removed `prisma.lifeMetric` queries, formatting, types, and metric prompts from review data summaries. | `DONE` | `44c8725` | 0 | 3 | 43 | None (100% verified via `test:ci`). |
+| **4** | **IDENTITIES:** Deleted `src/features/identities/`, `/routines/identities/*`, `LinkRoutineDialog.tsx`. Kept plain routines and decoupled them from identities across UI, actions, and reviews. | `DONE` | `eabc872` | 8 | 19 | 1,542 | None (100% verified via `test:ci`). |
+| **5** | **CLIENT-SIDE OCR:** Deleted `src/features/notes/lib/ocr.ts`, `actions-ocr.ts`, photo capture modes from FAB/quick-capture; uninstalled `tesseract.js`. | `DONE` | `299d760` | 2 | 4 | 874 | None (100% verified via `test:ci`). |
+| **6** | **DAILY REVIEW:** Removed daily review questionnaire, form, and page filter while preserving morning and evening briefs (records with type `daily`) and weekly review generation. | `DONE` | `0b0c4d6` | 0 | 6 | 9 | None (100% verified via `test:ci`). |
+| **7** | **KNOWLEDGE-GAP DETECTION:** Deleted `knowledge-gaps.ts`, `/api/cron/knowledge-gaps/route.ts`, and `KnowledgeHealthWidget.tsx`. Kept knowledge graph traversal intact. | `DONE` | `126c384` | 3 | 7 | 461 | None (100% verified via `test:ci`). |
+| **8** | **PEOPLE:** Deleted `src/features/people/` and `/people` routes. Removed people nodes from knowledge graph traversal and navigation. Added unit test verifying graph operates without people nodes. | `DONE` | `a03bbc7` | 7 | 12 | 555 | None (100% verified via `test:ci` + new graph test). |
+| **9** | **BUDGET:** Deleted `src/features/budget/` and `/budget` routes. Removed budget queries, navigation items, FAB entries, and search results. | `DONE` | `03a066e` | 8 | 11 | 708 | None (100% verified via `test:ci`). |
+| **10** | **LIBRARY (RESOURCES & QUOTES):** Deleted `src/features/library/`, `/library` routes, `DailyQuote` widget, quote/resource search and graph nodes. Kept notes `DocumentLibrary` (`src/features/notes/components/DocumentLibrary.tsx`) intact. | `DONE` | `96c2d01` | 10 | 15 | 824 | None (100% verified via `test:ci`). |
+| **11** | **ANYTHING ELSE / ORPHANED CODE:** Deleted orphaned dashboard widgets (`routines-widget.tsx`, `todays-classes.tsx`), dead `notes-view-toggle.tsx`, and unused `NAV_ITEMS` constant. | `DONE` | `e3ac995` | 3 | 1 | 176 | None (100% verified via `test:ci`). |
+| **12** | **CRON REDUCTION:** Reduced `/api/cron/daily-diagnostics` to only weekly review generation and log/sent-notification cleanup (7-day cutoff) with simulated clock support. | `DONE` | `82658ed` | 0 | 1 | 16 | None (100% verified via `test:ci`). |
+| **13** | **NOTIFICATIONS CLEANUP:** Aligned brief notification copy and preference toggles; verified all generators reference only kept features; preserved strict deduplication against `SentNotification`. | `DONE` | `dc5824c` | 0 | 2 | 2 | None (100% verified via `test:ci`). |
+| **14** | **DEXIE VERSION BUMP & MIGRATION:** Bumped Dexie schema to Version 3; added `upgradeV2ToV3` migration dropping removed columns (`energyRequirement`, `optimalTimeOfDay`, `identityId`, `energyImpact`) and removing `identityId` index; added comprehensive unit tests proving data preservation for kept tables. | `DONE` | `0ee9fb0` | 0 | 4 | 13 | None (100% verified via Vitest in `dexie-migration.test.ts`). |
+| **15** | **DEPENDENCIES:** Ran `depcheck`; uninstalled verified unused packages `js-yaml` and `react-day-picker`. | `DONE` | `0560570` | 0 | 2 | 58 | None (100% verified via `test:ci`). |
+| **16** | **DOCS, VERIFICATION & ARCHITECTURE UPDATE:** Updated `ARCHITECTURE.md` with "Removed features" table; appended Phase 2 report, decision analysis, and smoke test checklist in `CHANGES.md`. | `DONE` | `1c46a92` | 0 | 2 | 0 | None (100% verified via `test:ci` and `next build`). |
+
+---
+
+## 2. Section B: NEEDS DECISION: Spaced Repetition Analysis
+
+### Current Implementation State
+- Located at [src/features/notes/lib/spaced-repetition.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/notes/lib/spaced-repetition.ts).
+- Algorithm: A naive Leitner-style fixed interval array: `REVIEW_INTERVALS = [1, 3, 7, 14, 30]` days.
+- State columns on `Note` model: `lastReviewedAt` (`DateTime?`), `reviewCount` (`Int @default(0)`).
+- Exported functions:
+  1. `getNotesForReview(userId, limit)`: computes composite score (graph connection count + recency score) to return due notes. **Audit finding: zero UI call sites currently invoke `getNotesForReview`. It is completely disconnected from the daily UI.**
+  2. `getReviewStats(userId)`: computes `totalNotes`, `notesDueToday`, `notesReviewedThisWeek`, `averageReviewCount`. Called in `/api/sync/dashboard` and `dashboard/lib/queries.ts` for dashboard stats.
+  3. `markNoteReviewed(noteId)`: increments `reviewCount` and sets `lastReviewedAt = new Date()`. Exposed via server action in `src/features/notes/lib/actions.ts`.
+  4. `resetNoteReview(noteId)`: resets review history for a note.
+
+### Trade-Offs & Architectural Assessment
+
+| Option | Pros | Cons | Recommendation |
+|---|---|---|---|
+| **Option 1: Complete Removal** | Eliminates dead code, reduces note metadata surface, frees up UI clutter and database columns (`lastReviewedAt`, `reviewCount`). | Loses the seed implementation if flashcard/retention learning is desired later. | **Recommended for academic workspace consolidation** unless actively used. |
+| **Option 2: Keep Leitner Model** | Zero extra dependencies, already implemented, provides simple intervals. | The intervals are static; does not account for difficulty or user recall grading (Again/Hard/Good/Easy). Currently lacks a dedicated review deck UI. | Only if user intends to build a flashcard UI. |
+| **Option 3: Upgrade to FSRS / SM-2** | State-of-the-art memory retention modeling (FSRS algorithm), optimal review scheduling. | Substantial complexity: requires difficulty, stability, retrievability parameters, card-level entities, and full flashcard review loop. Overkill for a general note repository. | Defer unless product pivots to flashcards. |
+
+> [!IMPORTANT]
+> **Decision Required from User:**
+> 1. Delete `src/features/notes/lib/spaced-repetition.ts` completely (drop review stats from dashboard).
+> 2. Or retain `getReviewStats` for informational note hygiene, connecting `getNotesForReview` to a future mobile review card.
+
+---
+
+## 3. Section C: Unreferenced Prisma Models and Columns for Later Schema Drop
+
+Because Phase 2 was strictly **code-only** (zero database writes or schema migrations), the following Prisma models, enums, and columns remain in `prisma/schema.prisma` for database backwards compatibility, but are **100% unreferenced in application code**:
+
+### Models Slated for Schema Drop:
+1. `model BehavioralPattern` (lines 828–845 in schema) — Pattern detection and behavioral tracking.
+2. `model LifeMetric` (lines 847–865 in schema) — Mood, sleep, energy tracking.
+3. `model Identity` (lines 510–527 in schema) — Identity-first habit tracking.
+4. `model Person` (lines 742–765 in schema) — Academic CRM and contact tracking.
+5. `model BudgetEntry` (lines 648–663 in schema) — Financial and budget tracking.
+6. `model Quote` (lines 457–468 in schema) — Quotes repository.
+7. `model Resource` (lines 727–738 in schema) — External bookmarks and resources.
+
+### Enums Slated for Schema Drop:
+1. `enum IdentityStatus` (lines 705–709 in schema)
+2. `enum MetricType` (lines 711–716 in schema)
+
+### Columns Slated for Schema Drop:
+1. `Task.energyRequirement` (`EnergyLevel?`)
+2. `Task.optimalTimeOfDay` (`TimeOfDay?`)
+3. `Routine.identityId` (`String?`)
+4. `Routine.energyImpact` (`EnergyImpact @default(neutral)`)
+5. `Note.extractedText` (`String?` — OCR output)
+
+*Note: In the next database release, a migration script will drop these 7 tables, 2 enums, and 5 columns using standard PostgreSQL `ALTER TABLE ... DROP COLUMN` and `DROP TABLE` statements.*
+
+---
+
+## 4. Section D: Manual Smoke Checklist for Phone Browser
+
+Before deploying to production, run this checklist on a mobile browser (via Cloudflare Tunnel or local network):
+
+- [ ] **1. Navigation & Menu Entries:**
+  - Open bottom navigation bar / hamburger sheet.
+  - Verify absent: no "Budget", no "Library", no "People", no "Identities".
+  - Verify present: Today, Tasks, Calendar, Reviews, Semesters, Routines, Notes, Graph, Projects, Search, Settings.
+- [ ] **2. Today Dashboard:**
+  - Open `/today`.
+  - Verify clean layout: Top Three, Daily Timeline, Up Next, Open Tasks, Ongoing Projects, Semester Snapshot, Routine preview.
+  - Verify absent: `DailyQuote` widget is completely gone; no blank layout spaces or hydration errors in console.
+- [ ] **3. Task Creation & Quick Add:**
+  - Tap Floating Action Button (FAB) or go to `/tasks`.
+  - Open task creation dialog: verify inputs include only Title, Course/Project, Due Date, Priority, Notes.
+  - Verify absent: Energy requirement selector, Optimal time-of-day selector.
+  - Submit task: verify task appears immediately.
+- [ ] **4. Routine Tracking:**
+  - Open `/routines`.
+  - Verify routine items display name, scheduled time, and streak fire icon.
+  - Verify absent: no identity badges, no energy impact tags.
+  - Tap checkmark to complete routine: streak increments immediately.
+  - Open new routine dialog: form contains name, time of day, specific time, active days. No identity linking options.
+- [ ] **5. Notes & Second Brain:**
+  - Open `/notes`.
+  - Verify Document Library tab functions for PDF and document attachments.
+  - Open `/notes/graph`: verify interactive force-directed graph renders note connections cleanly without people/resource/quote nodes.
+  - Open FAB quick note: verify standard text capture works cleanly without photo/OCR mode.
+- [ ] **6. Academic Reviews:**
+  - Open `/reviews`.
+  - Verify list displays weekly, monthly, and quarterly reviews.
+  - Verify filter dropdown contains only Weekly, Monthly, Quarterly (no Daily review filter option).
+  - Open latest review: verifies metrics section does not render sleep/mood questions.
+- [ ] **7. Global Search Overlay:**
+  - Tap search icon in top header.
+  - Type a search query.
+  - Verify results grouped only into: Notes, Tasks, Courses, Projects.
+  - Verify no search errors and no Quote, Resource, Person, or Budget results.
+- [ ] **8. Offline PWA Documents (Airplane Mode):**
+  - Pin a PDF document note in `/notes`.
+  - Switch phone to Airplane Mode (no internet).
+  - Tap the pinned note: confirm PDF renders from Cache Storage (`/offline-doc/[id]`).
+
+---
+
+## 5. Raw Verification Outputs
+
+### A. CI Test Suite (`npm run test:ci`)
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+> dashboard-management@0.1.0 lint
+> eslint
+
+✖ 215 problems (0 errors, 215 warnings)
+  0 errors and 5 warnings potentially fixable with the `--fix` option.
+
+ RUN  v4.1.10 /home/bhawesh/Projects/dashboard-management
+
+ ✓ src/lib/pdf/__tests__/offline-cache.test.ts (5 tests) 13ms
+ ✓ src/features/knowledge-graph/lib/__tests__/traversal.test.ts (6 tests) 20ms
+ ✓ scripts/__tests__/guard.test.ts (14 tests) 9ms
+ ✓ src/features/semesters/lib/__tests__/ownership.test.ts (4 tests) 11ms
+ ✓ src/lib/__tests__/auth.test.ts (4 tests) 8ms
+ ✓ src/features/attendance/lib/__tests__/ownership.test.ts (4 tests) 16ms
+ ✓ src/lib/sync/__tests__/dexie-migration.test.ts (3 tests) 6ms
+ ✓ src/lib/__tests__/clock.test.ts (7 tests) 60ms
+ ✓ src/app/api/notifications/trigger/__tests__/trigger-asof.test.ts (9 tests) 120ms
+ ✓ src/lib/__tests__/owner-scoping.test.ts (3 tests) 8ms
+ ✓ src/lib/sync/__tests__/seed-dirty.test.ts (8 tests) 18ms
+
+ Test Files  11 passed (11)
+      Tests  67 passed (67)
+   Start at  16:41:11
+   Duration  835ms (transform 774ms, setup 0ms, import 1.38s, tests 288ms, environment 1ms)
+```
+
+### B. Production Build (`npm run build`)
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.5s
+  Finished TypeScript in 15.5s    ✓ Finished TypeScript in 15.5s 
+  Collecting page data using 15 workers in 1447ms    ✓ Collecting page data using 15 workers in 1447ms 
+✓ Generating static pages using 15 workers (19/19) in 304ms
+  Finalizing page optimization in 341ms    ✓ Finalizing page optimization in 341ms 
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/attendance/mark-from-push
+├ ƒ /api/auth/google/callback
+├ ƒ /api/cron/daily-diagnostics
+├ ƒ /api/cron/reviews
+├ ƒ /api/notes/[id]/backlinks
+├ ƒ /api/notes/[id]/related
+├ ƒ /api/notes/graph
+├ ƒ /api/notes/link-metadata
+├ ƒ /api/notifications/mark-opened
+├ ƒ /api/notifications/snooze
+├ ƒ /api/notifications/trigger
+├ ƒ /api/sync/calendar
+├ ƒ /api/sync/dashboard
+├ ƒ /api/sync/google-calendar
+├ ƒ /api/sync/seed
+├ ƒ /api/sync/write
+├ ƒ /api/widget/quick-add
+├ ƒ /api/widget/routines/[id]/complete
+├ ƒ /api/widget/summary
+├ ƒ /api/widget/tasks/[id]/toggle
+├ ƒ /ask
+├ ƒ /calendar
+├ ƒ /courses/[id]
+├ ƒ /login
+├ ƒ /more
+├ ƒ /notes
+├ ƒ /notes/[id]
+├ ƒ /notes/graph
+├ ƒ /notifications/digest
+├ ƒ /projects
+├ ƒ /projects/[id]
+├ ƒ /reviews
+├ ƒ /reviews/[id]
+├ ƒ /routines
+├ ƒ /search
+├ ƒ /semesters
+├ ƒ /semesters/[id]
+├ ƒ /settings
+├ ƒ /signup
+├ ƒ /tasks
+└ ƒ /today
+
+ƒ Proxy (Middleware)
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+### C. Grep Verification Outputs
+**Command 1:**
+```bash
+grep -rniE "energy|behavioral|lifemetric|identity|identities|tesseract|knowledge.?gap" src
+```
+**Raw Output:**
+```text
+src/app/api/sync/write/route.ts:219:          energyImpact: "neutral",
+src/lib/sync/db.ts:204:      routines: "id, userId, identityId, dirty, _deleted",
+src/lib/sync/db.ts:222: * - Drops removed columns (energyRequirement, optimalTimeOfDay) from tasks
+src/lib/sync/db.ts:223: * - Drops removed columns (identityId, energyImpact) from routines
+src/lib/sync/db.ts:224: * - Removes identityId index from routines table
+src/lib/sync/db.ts:234:      delete task.energyRequirement;
+src/lib/sync/db.ts:243:      delete routine.identityId;
+src/lib/sync/db.ts:244:      delete routine.energyImpact;
+src/lib/sync/__tests__/dexie-migration.test.ts:9:  it("verifies routines table schema in v3 does not index identityId", () => {
+src/lib/sync/__tests__/dexie-migration.test.ts:15:    expect(indexNames).not.toContain("identityId");
+src/lib/sync/__tests__/dexie-migration.test.ts:45:        energyRequirement: "high",
+src/lib/sync/__tests__/dexie-migration.test.ts:72:        energyRequirement: "low",
+src/lib/sync/__tests__/dexie-migration.test.ts:93:        identityId: "identity-student-1",
+src/lib/sync/__tests__/dexie-migration.test.ts:94:        energyImpact: "high_energy",
+src/lib/sync/__tests__/dexie-migration.test.ts:135:      expect("energyRequirement" in task).toBe(false);
+src/lib/sync/__tests__/dexie-migration.test.ts:137:      expect(task.energyRequirement).toBeUndefined();
+src/lib/sync/__tests__/dexie-migration.test.ts:157:      expect("identityId" in routine).toBe(false);
+src/lib/sync/__tests__/dexie-migration.test.ts:158:      expect("energyImpact" in routine).toBe(false);
+src/lib/sync/__tests__/dexie-migration.test.ts:159:      expect(routine.identityId).toBeUndefined();
+src/lib/sync/__tests__/dexie-migration.test.ts:160:      expect(routine.energyImpact).toBeUndefined();
+```
+*(Analysis: Confirms zero feature references in application code. The only hits are the safe fallback for Prisma non-null column, historical Dexie v2 definition in migration, and the migration test suite.)*
+
+**Command 2:**
+```bash
+grep -rniE "people|person|budget|library" src
+```
+**Raw Output:**
+```text
+src/app/(app)/notes/[id]/page.tsx:49:          {note.s3Url && note.isDocumentLibraryEntry && (
+src/app/api/sync/seed/route.ts:138:      isDocumentLibraryEntry: n.isDocumentLibraryEntry,
+src/app/api/sync/write/route.ts:161:          isDocumentLibraryEntry: (noteData.isDocumentLibraryEntry as boolean) ?? false,
+src/app/api/sync/write/route.ts:186:          isDocumentLibraryEntry: noteData.isDocumentLibraryEntry as boolean | undefined,
+src/app/layout.tsx:27:  description: "Your personal dashboard — courses, attendance, grades, tasks, and more.",
+src/features/ask/lib/actions.ts:14:const SYSTEM_PROMPT = `You are an academic assistant for a student's personal command center.
+src/features/domains/lib/queries.ts:6:  { name: "Personal", color: "#22c55e" },
+src/features/knowledge-graph/lib/__tests__/traversal.test.ts:273:  it("should operate without people nodes", async () => {
+src/features/knowledge-graph/lib/__tests__/traversal.test.ts:279:    const hasPerson = result.nodes.some((n) => (n.type as string) === "person");
+src/features/knowledge-graph/lib/__tests__/traversal.test.ts:280:    expect(hasPerson).toBe(false);
+src/features/notes/components/DocumentLibrary.tsx:77:    isDocumentLibraryEntry: false,
+src/features/notes/components/DocumentLibrary.tsx:111:export interface DocumentLibraryProps {
+src/features/notes/components/DocumentLibrary.tsx:117:export function DocumentLibrary({
+src/features/notes/components/DocumentLibrary.tsx:121:}: DocumentLibraryProps) {
+src/features/notes/components/NotesPageClient.tsx:8:import { DocumentLibrary } from "./DocumentLibrary";
+src/features/notes/components/NotesPageClient.tsx:33:    documents: initialNotes.filter((n) => n.isDocumentLibraryEntry).length,
+src/features/notes/components/NotesPageClient.tsx:40:    // Skip document library entries from regular note lists
+src/features/notes/components/NotesPageClient.tsx:41:    if (note.isDocumentLibraryEntry && activeTab !== "documents") return false;
+src/features/notes/components/NotesPageClient.tsx:74:    (n) => !n.isDocumentLibraryEntry && !!n.sourceLink
+src/features/notes/components/NotesPageClient.tsx:209:            <DocumentLibrary
+src/features/notes/lib/actions-annotations.ts:101:      // Revalidate course/semester page if needed, but /notes is usually enough for library
+src/features/notes/lib/actions-documents.ts:393:        isDocumentLibraryEntry: true,
+src/features/notes/lib/actions-documents.ts:538:      isDocumentLibraryEntry: true,
+src/features/notes/lib/actions-documents.ts:625:        isDocumentLibraryEntry: true,
+src/features/notes/lib/actions-import.ts:162:          isDocumentLibraryEntry: true,
+src/features/notes/lib/actions.ts:98:    isDocumentLibraryEntry?: boolean;
+src/features/notes/lib/queries.ts:7:  isDocumentLibraryEntry?: boolean;
+src/features/notes/lib/queries.ts:14:      isDocumentLibraryEntry: filters?.isDocumentLibraryEntry,
+src/features/notes/lib/queries.ts:38:export const getDocumentLibraryNotes = cache(async (filters?: {
+src/features/notes/lib/queries.ts:45:      isDocumentLibraryEntry: true,
+src/features/reviews/lib/prompts.ts:111:4. NEXT QUARTER PRIORITIES: top 3-5 priorities for next quarter, tied to academic and personal growth goals
+src/features/tasks/components/link-to-picker.tsx:36:  const [personalOpen, setPersonalOpen] = useState(false);
+src/features/tasks/components/link-to-picker.tsx:74:    setPersonalOpen(false);
+src/features/tasks/components/link-to-picker.tsx:97:              setPersonalOpen(true);
+src/features/tasks/components/link-to-picker.tsx:131:        None (Personal inbox)
+src/features/tasks/components/link-to-picker.tsx:187:      {/* Personal section */}
+src/features/tasks/components/link-to-picker.tsx:191:          onClick={() => setPersonalOpen(!personalOpen)}
+src/features/tasks/components/link-to-picker.tsx:194:          {personalOpen ? (
+src/features/tasks/components/link-to-picker.tsx:199:          Personal
+src/features/tasks/components/link-to-picker.tsx:201:        {personalOpen && (
+src/features/tasks/components/task-link-badge.tsx:6: * - Project task: "PERSONAL › Project Name"
+src/features/tasks/components/task-link-badge.tsx:25:    const domainName = "Personal";
+src/lib/sync/db.ts:62:  isDocumentLibraryEntry: boolean;
+src/lib/sync/db.ts:203:      notes: "id, userId, courseId, taskId, projectId, folderId, isDocumentLibraryEntry, dirty, _deleted, [userId+courseId]",
+src/lib/sync/hooks.ts:88:  isDocumentLibraryEntry?: boolean;
+src/lib/sync/hooks.ts:100:    if (filters?.isDocumentLibraryEntry !== undefined) {
+src/lib/sync/hooks.ts:101:      notes = notes.filter((n) => n.isDocumentLibraryEntry === filters.isDocumentLibraryEntry);
+src/lib/sync/hooks.ts:113:  }, [filters?.courseId, filters?.folderId, filters?.isDocumentLibraryEntry, filters?.search]) ?? [];
+src/lib/sync/hooks.ts:378:      isDocumentLibraryEntry: false,
+src/lib/cron-auth.ts:1:import { OAuth2Client } from "google-auth-library";
+src/lib/cron-auth.ts:22: * 2. Google Cloud Scheduler OIDC ID token verified via google-auth-library,
+src/types/index.ts:232:// ─── Document Library ────────────────────────────────────────
+```
+*(Analysis: Confirms zero budget, people, or external resource/quote library references in application code. All hits correspond to the kept note attachment DocumentLibrary, the adjective "personal", and the google-auth-library package.)*

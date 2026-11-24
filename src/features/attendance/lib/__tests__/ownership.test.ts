@@ -46,12 +46,14 @@ describe("Attendance Ownership Scoping", () => {
       })
     ).rejects.toThrow(UnauthorizedError);
 
-    expect(prisma.course.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "course-unauthorized",
-        semester: { OR: [{ userId: "user-owner-1" }, { userId: null }] },
-      },
-    });
+    expect(prisma.course.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "course-unauthorized",
+          semester: { OR: [{ userId: "user-owner-1" }, { userId: null }] },
+        },
+      })
+    );
   });
 
   it("markAttendance succeeds when course belongs to user", async () => {
@@ -62,17 +64,25 @@ describe("Attendance Ownership Scoping", () => {
     (prisma.attendanceRecord.upsert as any).mockResolvedValue({
       id: "att-1",
       courseId: "course-valid",
+      classScheduleId: "sched-1",
+      date: new Date("2026-03-15T00:00:00.000Z"),
       status: "present",
     });
+    (prisma.attendanceRecord.findMany as any).mockResolvedValue([
+      { status: "present" },
+    ]);
 
     const result = await markAttendance({
       courseId: "course-valid",
+      classScheduleId: "sched-1",
       date: "2026-03-15",
       status: "present",
     });
 
     expect(result).toBeDefined();
-    expect(result.status).toBe("present");
+    expect(result.success).toBe(true);
+    expect(result.record.status).toBe("present");
+    expect(result.summary.present).toBe(1);
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalled();
   });
 

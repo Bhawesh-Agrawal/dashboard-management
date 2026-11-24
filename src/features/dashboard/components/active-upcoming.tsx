@@ -121,6 +121,7 @@ function ActiveClassCard({ cls, now }: { cls: ClassItem; now: Date }) {
       const today = new Date().toISOString().split("T")[0];
       await markAttendance({
         courseId: cls.course.id,
+        classScheduleId: cls.id,
         date: today,
         status: "present",
       });

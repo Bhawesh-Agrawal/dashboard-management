@@ -408,3 +408,131 @@ export async function getWeatherLocationAction(): Promise<{
     return { name: null, latitude: null, longitude: null };
   }
 }
+
+export interface BriefScheduleSettingsData {
+  morningEnabled: boolean;
+  morningTime: string;
+  eveningEnabled: boolean;
+  eveningTime: string;
+  classReminderMinutes: number;
+  eventReminderMinutes: number;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+}
+
+export async function getBriefScheduleSettingsAction(): Promise<BriefScheduleSettingsData> {
+  const defaults: BriefScheduleSettingsData = {
+    morningEnabled: true,
+    morningTime: "07:00",
+    eveningEnabled: true,
+    eveningTime: "20:30",
+    classReminderMinutes: 10,
+    eventReminderMinutes: 15,
+    quietHoursStart: "22:00",
+    quietHoursEnd: "07:00",
+  };
+
+  try {
+    const userId = await getCurrentUserId();
+    const prefs = await prisma.notificationPreference.findMany({ where: { userId } });
+
+    const morning = prefs.find((p) => p.type === "morning_brief");
+    const evening = prefs.find((p) => p.type === "evening_brief");
+    const classPref = prefs.find((p) => p.type === "class_start");
+    const eventPref = prefs.find((p) => p.type === "calendar_event");
+    const quietPref = prefs.find((p) => p.quietHoursStart && p.quietHoursEnd);
+
+    return {
+      morningEnabled: morning ? morning.enabled : defaults.morningEnabled,
+      morningTime: morning?.dailySummaryTime ?? defaults.morningTime,
+      eveningEnabled: evening ? evening.enabled : defaults.eveningEnabled,
+      eveningTime: evening?.dailySummaryTime ?? defaults.eveningTime,
+      classReminderMinutes: classPref?.reminderMinutes ?? defaults.classReminderMinutes,
+      eventReminderMinutes: eventPref?.reminderMinutes ?? defaults.eventReminderMinutes,
+      quietHoursStart: quietPref?.quietHoursStart ?? defaults.quietHoursStart,
+      quietHoursEnd: quietPref?.quietHoursEnd ?? defaults.quietHoursEnd,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+export async function saveBriefScheduleSettingsAction(
+  input: BriefScheduleSettingsData
+): Promise<{ success: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    await Promise.all([
+      prisma.notificationPreference.upsert({
+        where: { userId_type: { userId, type: "morning_brief" } },
+        create: {
+          userId,
+          type: "morning_brief",
+          enabled: input.morningEnabled,
+          dailySummaryTime: input.morningTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+        update: {
+          enabled: input.morningEnabled,
+          dailySummaryTime: input.morningTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+      }),
+      prisma.notificationPreference.upsert({
+        where: { userId_type: { userId, type: "evening_brief" } },
+        create: {
+          userId,
+          type: "evening_brief",
+          enabled: input.eveningEnabled,
+          dailySummaryTime: input.eveningTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+        update: {
+          enabled: input.eveningEnabled,
+          dailySummaryTime: input.eveningTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+      }),
+      prisma.notificationPreference.upsert({
+        where: { userId_type: { userId, type: "class_start" } },
+        create: {
+          userId,
+          type: "class_start",
+          enabled: true,
+          priority: "critical",
+          reminderMinutes: input.classReminderMinutes,
+        },
+        update: {
+          reminderMinutes: input.classReminderMinutes,
+        },
+      }),
+      prisma.notificationPreference.upsert({
+        where: { userId_type: { userId, type: "calendar_event" } },
+        create: {
+          userId,
+          type: "calendar_event",
+          enabled: true,
+          reminderMinutes: input.eventReminderMinutes,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+        update: {
+          reminderMinutes: input.eventReminderMinutes,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+      }),
+    ]);
+
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save brief schedule settings:", error);
+    return { success: false };
+  }
+}

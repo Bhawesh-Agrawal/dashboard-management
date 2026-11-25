@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { currentSemesterWhere } from "@/features/semesters/lib/current";
+import { generateAndPersistBrief } from "@/features/briefs/lib/generate";
 import {
   buildDedupKey,
   dispatchNotifications,
@@ -412,6 +413,19 @@ export async function generateMorningBriefCandidates(
     return [];
   }
 
+  let body = "Your morning brief is ready.";
+  try {
+    const payload = await generateAndPersistBrief({
+      userId,
+      kind: "morning",
+      now,
+      timezone,
+    });
+    body = payload.pushSummary;
+  } catch {
+    // Fallback when brief dependencies are not mocked
+  }
+
   return [
     {
       userId,
@@ -421,7 +435,7 @@ export async function generateMorningBriefCandidates(
       scheduledFor: now,
       dedupKey: buildDedupKey("morning_brief", "daily", local.dateOnly),
       title: "Morning Brief",
-      body: "Your morning brief is ready.",
+      body,
       url: "/brief",
       actions: [{ action: "view", title: "Open Brief" }],
       requireInteraction: false,
@@ -430,7 +444,7 @@ export async function generateMorningBriefCandidates(
 }
 
 /**
- * 6. Evening Brief (stubbed summary for Step 3; full DailyBrief storage/content added in Steps 5–8).
+ * 6. Evening Brief.
  */
 export async function generateEveningBriefCandidates(
   userId: string,
@@ -447,6 +461,19 @@ export async function generateEveningBriefCandidates(
     return [];
   }
 
+  let body = "Your evening brief for tomorrow is ready.";
+  try {
+    const payload = await generateAndPersistBrief({
+      userId,
+      kind: "evening",
+      now,
+      timezone,
+    });
+    body = payload.pushSummary;
+  } catch {
+    // Fallback when brief dependencies are not mocked
+  }
+
   return [
     {
       userId,
@@ -456,7 +483,7 @@ export async function generateEveningBriefCandidates(
       scheduledFor: now,
       dedupKey: buildDedupKey("evening_brief", "daily", local.dateOnly),
       title: "Evening Brief",
-      body: "Your evening brief for tomorrow is ready.",
+      body,
       url: "/brief",
       actions: [{ action: "view", title: "Open Brief" }],
       requireInteraction: false,
@@ -510,18 +537,40 @@ export async function runNotificationScheduler(
 
   for (const userId of activeUserIds) {
     let timezone = DEFAULT_TIMEZONE;
+    let morningTime = DEFAULT_MORNING_BRIEF_TIME;
+    let eveningTime = DEFAULT_EVENING_BRIEF_TIME;
+    let classMinutes = DEFAULT_CLASS_REMINDER_MINUTES;
+    let eventMinutes = DEFAULT_EVENT_REMINDER_MINUTES;
+
     try {
-      const pref = await prisma.notificationPreference.findFirst({
-        where: { userId, timezone: { not: null } },
-        select: { timezone: true },
+      const prefs = await prisma.notificationPreference.findMany({
+        where: { userId },
       });
-      if (pref?.timezone) timezone = pref.timezone;
+      const tzRow = prefs.find((p) => p.timezone);
+      if (tzRow?.timezone) timezone = tzRow.timezone;
+
+      const morningPref = prefs.find((p) => p.type === "morning_brief");
+      if (morningPref?.dailySummaryTime) morningTime = morningPref.dailySummaryTime;
+
+      const eveningPref = prefs.find((p) => p.type === "evening_brief");
+      if (eveningPref?.dailySummaryTime) eveningTime = eveningPref.dailySummaryTime;
+
+      const classPref = prefs.find((p) => p.type === "class_start");
+      if (classPref?.reminderMinutes != null) classMinutes = classPref.reminderMinutes;
+
+      const eventPref = prefs.find((p) => p.type === "calendar_event");
+      if (eventPref?.reminderMinutes != null) eventMinutes = eventPref.reminderMinutes;
     } catch {
-      // Fallback to DEFAULT_TIMEZONE
+      // Fallback to defaults
     }
 
     if (!only || only === "class_start") {
-      candidates.push(...(await generateClassStartCandidates(userId, now, timezone, { force })));
+      candidates.push(
+        ...(await generateClassStartCandidates(userId, now, timezone, {
+          minutesBefore: classMinutes,
+          force,
+        }))
+      );
     }
     if (!only || only === "class_end") {
       candidates.push(...(await generateClassEndCandidates(userId, now, timezone, { force })));
@@ -530,13 +579,28 @@ export async function runNotificationScheduler(
       candidates.push(...(await generateTaskDueCandidates(userId, now, timezone, { force })));
     }
     if (!only || only === "calendar_event") {
-      candidates.push(...(await generateCalendarEventCandidates(userId, now, timezone, { force })));
+      candidates.push(
+        ...(await generateCalendarEventCandidates(userId, now, timezone, {
+          minutesBefore: eventMinutes,
+          force,
+        }))
+      );
     }
     if (!only || only === "morning_brief") {
-      candidates.push(...(await generateMorningBriefCandidates(userId, now, timezone, { force })));
+      candidates.push(
+        ...(await generateMorningBriefCandidates(userId, now, timezone, {
+          targetTime: morningTime,
+          force,
+        }))
+      );
     }
     if (!only || only === "evening_brief") {
-      candidates.push(...(await generateEveningBriefCandidates(userId, now, timezone, { force })));
+      candidates.push(
+        ...(await generateEveningBriefCandidates(userId, now, timezone, {
+          targetTime: eveningTime,
+          force,
+        }))
+      );
     }
   }
 

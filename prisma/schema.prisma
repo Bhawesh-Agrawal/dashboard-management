@@ -567,6 +567,7 @@ model NotificationPreference {
   locationName         String?  @map("location_name")
   locationLat          Float?   @map("location_lat")
   locationLon          Float?   @map("location_lon")
+  reminderMinutes      Int?     @map("reminder_minutes")
 
   @@unique([userId, type])
   @@index([userId])

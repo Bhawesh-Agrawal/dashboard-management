@@ -19,8 +19,10 @@ import {
   getNotificationPreferences,
   getDailySummaryPreferences,
   getWeatherLocationAction,
+  getBriefScheduleSettingsAction,
 } from "@/features/notifications/lib/actions";
 import { LocationSettings } from "@/features/notifications/components/location-settings";
+import { BriefScheduleSettings } from "@/features/notifications/components/brief-schedule-settings";
 
 export default async function SettingsPage() {
   let courses: Awaited<ReturnType<typeof getAllCourses>> = [];
@@ -41,8 +43,19 @@ export default async function SettingsPage() {
     longitude: null,
   };
 
+  let briefSchedule: Awaited<ReturnType<typeof getBriefScheduleSettingsAction>> = {
+    morningEnabled: true,
+    morningTime: "07:00",
+    eveningEnabled: true,
+    eveningTime: "20:30",
+    classReminderMinutes: 10,
+    eventReminderMinutes: 15,
+    quietHoursStart: "22:00",
+    quietHoursEnd: "07:00",
+  };
+
   try {
-    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone, weatherLocation] = await Promise.all([
+    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone, weatherLocation, briefSchedule] = await Promise.all([
       getAllCourses().catch(() => []),
       getNotificationPreferences().catch(() => []),
       getDailySummaryPreferences().catch(() => null),
@@ -54,6 +67,7 @@ export default async function SettingsPage() {
       })),
       getUserTimezone().catch(() => "Asia/Kathmandu"),
       getWeatherLocationAction().catch(() => ({ name: null, latitude: null, longitude: null })),
+      getBriefScheduleSettingsAction().catch(() => briefSchedule),
     ]);
   } catch {
     // All fallbacks are already set above
@@ -117,6 +131,7 @@ export default async function SettingsPage() {
                 initialTimezone={dailySummaryPrefs.timezone}
               />
             )}
+            <BriefScheduleSettings initial={briefSchedule} />
             <LocationSettings
               initialName={weatherLocation.name}
               initialLat={weatherLocation.latitude}

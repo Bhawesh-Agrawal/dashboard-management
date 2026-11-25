@@ -71,6 +71,25 @@ DEPLOY_ENV=staging npx prisma migrate deploy
 
 When applying migrations to the live production database, the production safety guard must be explicitly acknowledged:
 
+### Pre-Migration Drift Check & Baselining
+
+> [!WARNING]
+> **Schema Drift Check Required:** Before applying any migration to production, compare the production schema to `prisma/migrations` with `prisma migrate diff`, and baseline if they differ:
+>
+> ```bash
+> # 1. Inspect differences between production DB and migrations folder:
+> npx prisma migrate diff \
+>   --from-url "$DATABASE_URL" \
+>   --to-migrations ./prisma/migrations \
+>   --exit-code
+>
+> # 2. If the diff indicates production already has tables/columns from an existing migration
+> # (e.g. created manually or out-of-band), baseline the migration history:
+> npx prisma migrate resolve --applied <migration_directory_name>
+> ```
+
+### Executing Migrations
+
 ```bash
 # Verify connection and guard:
 DEPLOY_ENV=production npx tsx scripts/guard.ts --i-know-this-is-production

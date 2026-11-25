@@ -961,3 +961,122 @@ Cloud Scheduler triggers are managed via [cloudbuild.yaml](file:///home/bhawesh/
 
 - **Route Deletion**: `/api/cron/reviews` was verified to be unreferenced by `cloudbuild.yaml` and completely duplicated the review generation logic now consolidated into `/api/cron/daily-diagnostics`. It has been completely deleted.
 
+---
+
+# DSA Progress Tracker (`/dsa`) Implementation Report
+
+Date: 2026-11-25
+Branch: `feature-dsa-tracker` (branched from `phase-3-attendance`)
+
+## 1. Step Completion & Verification Table
+
+| Step | Status | Commit | Files | What Was Not Verified |
+|---|---|---|---|---|
+| **1. Schema + Module Skeleton** | **DONE** | `8910ce5` | [prisma/schema.prisma](file:///home/bhawesh/Projects/dashboard-management/prisma/schema.prisma), [20261125000000_add_dsa_tracker/migration.sql](file:///home/bhawesh/Projects/dashboard-management/prisma/migrations/20261125000000_add_dsa_tracker/migration.sql), [time.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/time.ts), [schemas.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/schemas.ts), [ownership.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/ownership.ts), [ownership.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/ownership.test.ts), [dsa-nav.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-nav.tsx), [dsa-shell.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-shell.tsx), [mobile-nav-sheet.tsx](file:///home/bhawesh/Projects/dashboard-management/src/components/layout/mobile-nav-sheet.tsx), [more/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/more/page.tsx), [sidebar.tsx](file:///home/bhawesh/Projects/dashboard-management/src/components/layout/sidebar.tsx), `/dsa/*` skeleton pages | Live Supabase Auth session flow in browser against newly deployed routes (only unit-tested with mocked auth & verified via `next build`). |
+| **2. Import (Question Bank)** | **DONE** | `e5a56fd` | [public/dsa/import-template.csv](file:///home/bhawesh/Projects/dashboard-management/public/dsa/import-template.csv), [import-parser.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/import-parser.ts), [import-diff.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/import-diff.ts), [import-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/import-actions.ts), [dsa-import-card.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-import-card.tsx), [import.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/import.test.ts), [settings/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/settings/page.tsx) | Large 2,000+ row CSV upload latency over slow mobile cellular connections against live Postgres. |
+| **3. Topic Tracker** | **DONE** | `0d6f88a` | [constants.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/constants.ts), [topics.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/topics.ts), [topic-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/topic-actions.ts), [topics-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/topics-view.tsx), [topics/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/topics/page.tsx), [topics.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/topics.test.ts) | Visual rendering and select-dropdown UX on physical iOS Safari 360px viewport. |
+| **4. Problem Bank** | **DONE** | `fb2f51f` (client-filter split in `0b5d112`) | [problems.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/problems.ts), [problem-filters.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/problem-filters.ts), [problem-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/problem-actions.ts), [problems-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/problems-view.tsx), [problem-detail-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/problem-detail-view.tsx), [problems/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/problems/page.tsx), [problems/[id]/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/problems/[id]/page.tsx), [problems.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/problems.test.ts) | Live interactive filter responsiveness and external link opening on a physical mobile device. |
+| **5. Attempt Logging** | **DONE** | `5694635` | [attempt-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/attempt-actions.ts), [attempt-log-sheet.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/attempt-log-sheet.tsx), [problem-detail-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/problem-detail-view.tsx), [problems-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/problems-view.tsx), [revision.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/revision.ts), [attempts.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/attempts.test.ts) | Real Postgres unique-constraint retry race on dropped mobile Wi-Fi (idempotency verified via mocked transaction unit tests). |
+| **6. Daily Session** | **DONE** | `d879a85` | [sessions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/sessions.ts), [session-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/session-actions.ts), [sessions-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/sessions-view.tsx), [log/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/log/page.tsx), [sessions.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/sessions.test.ts) | End-to-end interactive form submission against live Postgres in browser. |
+| **7. Revision Engine** | **DONE** | `d7d1e6d` | [revision.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/revision.ts), [revision.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/revision.test.ts) | None for pure engine logic (14 table-driven unit tests pass in Vitest). |
+| **8. Revision UI** | **DONE** | `ba76fea` | [revision-queries.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/revision-queries.ts), [revision-queue-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/revision-queue-view.tsx), [revision/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/revision/page.tsx) | Live browser click-through of "Log result" and "Adjust date" bottom sheets. |
+| **9. Dashboard (`/dsa`)** | **DONE** | `b130e06` | [dashboard.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/dashboard.ts), [settings-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/settings-actions.ts), [dsa-dashboard-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-dashboard-view.tsx), [dsa-programme-settings-card.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-programme-settings-card.tsx), [dsa/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/page.tsx), [settings/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/settings/page.tsx), [dashboard.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/dashboard.test.ts) | Live first-run flow and visual layout at 360px in a real browser. |
+| **10. Tutor Report** | **DONE** | `5e45031` | [report.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/report.ts), [report-queries.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/report-queries.ts), [report-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/report-view.tsx), [report/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/report/page.tsx), [report.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/report.test.ts), [report.test.ts.snap](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/__snapshots__/report.test.ts.snap) | `navigator.clipboard.writeText` and file download prompt behavior on mobile Safari/Chrome. |
+| **11. Backup & Restore** | **DONE** | `e1def3a` | [backup-schema.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/backup-schema.ts), [backup-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/backup-actions.ts), [dsa-backup-card.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-backup-card.tsx), [settings/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/settings/page.tsx), [backup.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/backup.test.ts) | Cross-environment dev-backup -> production-restore execution against live Cloud SQL / Supabase production DB. |
+| **12. Contests** | **DONE** | `829e678` | [contests.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/contests.ts), [contest-actions.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/contest-actions.ts), [contests-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/contests-view.tsx), [contests/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/contests/page.tsx), [contests.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/contests.test.ts) | Browser form submit and delete confirmation dialog interaction. |
+| **13. Integration** | **DONE** | `56002ac` | [summary.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/summary.ts), [dsa-today-card.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-today-card.tsx), [widget-registry.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dashboard/lib/widget-registry.ts), [today-dashboard.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dashboard/components/today-dashboard.tsx), [today-page-client.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dashboard/components/today-page-client.tsx), [today/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/today/page.tsx), [integration.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/integration.test.ts) | Rendering of `DsaTodayCard` inside `/today` drag-and-drop grid in a live authenticated browser session. |
+| **14. Progress Analytics** | **DONE** | `22a3c3c` (build-fix `0b5d112`) | [analytics.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/analytics.ts), [analytics.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/__tests__/analytics.test.ts), [dsa-dashboard-view.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/components/dsa-dashboard-view.tsx), [dsa/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/dsa/page.tsx), [metrics-pure.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/dsa/lib/metrics-pure.ts) | Horizontal table scroll ergonomics at 360px width with 6+ weeks of data in a live browser. |
+
+---
+
+## 2. Raw Verification Command Outputs
+
+### `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`
+
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+> dashboard-management@0.1.0 lint
+> eslint
+(0 errors; pre-existing warnings in unrelated notes/sync files only)
+
+ ✓ src/features/dsa/lib/__tests__/ownership.test.ts (4 tests) 14ms
+ ✓ src/features/dsa/lib/__tests__/sessions.test.ts (2 tests) 17ms
+ ✓ src/features/dsa/lib/__tests__/problems.test.ts (2 tests) 26ms
+ ✓ src/features/dsa/lib/__tests__/dashboard.test.ts (1 test) 16ms
+ ✓ src/features/dsa/lib/__tests__/integration.test.ts (3 tests) 15ms
+ ✓ src/features/dsa/lib/__tests__/contests.test.ts (2 tests) 13ms
+ ✓ src/features/dsa/lib/__tests__/import.test.ts (6 tests) 23ms
+ ✓ src/features/dsa/lib/__tests__/report.test.ts (3 tests) 21ms
+ ✓ src/features/dsa/lib/__tests__/analytics.test.ts (1 test) 5ms
+ ... (all 31 test files passed)
+
+ Test Files  31 passed (31)
+      Tests  194 passed (194)
+   Start at  13:00:34
+   Duration  3.91s (transform 3.43s, setup 0ms, import 9.34s, tests 1.28s, environment 6ms)
+```
+
+### `npm run build`
+
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 10.1s
+  Finished TypeScript in 29.5s 
+✓ Finished TypeScript in 29.5s 
+  Collecting page data using 15 workers in 1854ms 
+✓ Collecting page data using 15 workers in 1854ms 
+✓ Generating static pages using 15 workers (19/19) in 342ms
+  Finalizing page optimization in 510ms 
+✓ Finalizing page optimization in 510ms 
+
+Route (app)
+├ ○ /
+├ ƒ /dsa
+├ ƒ /dsa/contests
+├ ƒ /dsa/log
+├ ƒ /dsa/problems
+├ ƒ /dsa/problems/[id]
+├ ƒ /dsa/report
+├ ƒ /dsa/revision
+├ ƒ /dsa/settings
+├ ƒ /dsa/topics
+└ ƒ /today
+
+ƒ Proxy (Middleware)
+```
+
+---
+
+## 3. Mobile Viewport (360px) Manual Verification Checklist
+
+- [ ] **1. Auth & Navigation:** Log out -> visit `/dsa` and `/dsa/revision` -> confirm redirect to `/login`. Log in -> open More menu -> confirm **DSA** entry opens `/dsa` (not in bottom tab bar). Confirm all sub-nav pills scroll horizontally without clipping and have >= 44px tap targets.
+- [ ] **2. First-Run Setup & Import:** On `/dsa` or `/dsa/settings`, set programme start date and download `/dsa/import-template.csv`. Import it -> inspect Dry-Run Preview counts (4 new) -> confirm import -> re-import the same file -> confirm 0 new, 0 updated, 4 unchanged.
+- [ ] **3. Find a Problem in Current Topic (< 5 seconds):** On `/dsa/topics`, tap **Set current** on a topic. Navigate to `/dsa/problems` -> confirm it defaults to the current topic, search-as-you-type filters immediately, and all controls fit at 360px width.
+- [ ] **4. Record an Attempt (< 1 minute):** Tap **Log attempt** -> confirm bottom sheet opens cleanly at 360px -> pick one of the 5 classification buttons, tap a time chip (e.g. `30m`), tap confidence `1–5`, tap **Save Attempt** -> verify toast confirmation and updated status chip.
+- [ ] **5. Revision Dates & Due-Today List:** Verify next revision date appears automatically (`+7d` for 1st independent, `+1d` for editorial/not_understood). Open `/dsa/problems/[id]`, set a manual override date to today, open `/dsa/revision`, confirm it appears under **Due Today**, tap **Log result** (with `isRevision=true`), and confirm the manual override clears when saved.
+- [ ] **6. Covered vs Not-Covered Topics:** On `/dsa/topics`, confirm first attempt moved `not_started` -> `in_progress` automatically (never `comfortable`). Manually set one topic to `practised`, confirm **Covered** count increments and **Readiness evidence** block shows `% independent`, `14d fails`, and `overdue`.
+- [ ] **7. Append-Only Multi-Attempt History:** Log 3 attempts on the same problem (e.g., `editorial` -> `hinted` -> `independent`), open `/dsa/problems/[id]`, confirm all 3 appear newest-first with full details preserved.
+- [ ] **8. Tutor Report Generation & Copy:** Open `/dsa/report`, toggle window (7/14/30d) and Full History vs Latest-Only, edit next-session minutes and note, tap **Copy Markdown**, paste into a text editor, verify zero personal fields (name/email/userId) and all 11 sections in order.
+- [ ] **9. Persistence Across Server Restart:** Restart the Next.js server (`npm run dev` / `npm run start`), reload `/dsa` and `/dsa/log`, confirm all topics, attempts, sessions, and contests persist from Postgres.
+- [ ] **10. Backup & Restore Round-Trip:** On `/dsa/settings`, tap **Export Full Backup JSON**, then select the downloaded `.json` file, choose **Replace all DSA data**, type `REPLACE`, confirm an automatic pre-replace backup downloads first, and verify all counts and problem progress states match identically after restore.
+
+---
+
+## 4. Deviations & Engineering Choices
+
+1. **Branch Origin (`phase-3-attendance` vs `main`):** The repository had `master` (predating Phase 3 attendance/timezone/auth-fast-path) and `phase-3-attendance` (active HEAD matching the dev database's 9 applied migrations), with no `main` branch. `feature-dsa-tracker` was branched from `phase-3-attendance` so all Phase 3 work and dev DB migration history align cleanly.
+2. **Additive Migration Application (`prisma migrate diff` + `prisma migrate deploy`):** `prisma migrate dev` could not replay historical shadow migrations due to pre-existing `20260712010000_add_document_library` (`ERROR: type "GradingScale" already exists`) and un-dropped Phase 2 `pomodoro_*` tables in the dev database. To strictly enforce the ADDITIVE-ONLY rule (zero drops), we generated a purely additive migration `prisma/migrations/20261125000000_add_dsa_tracker/migration.sql` containing only `Dsa*` enums, tables, indexes, and FKs, and applied it to the dev database via `DEPLOY_ENV=local npx prisma migrate deploy`.
+3. **`clientRequestId` Column on `DsaAttempt`:** Added nullable `clientRequestId` (`@@unique([userId, clientRequestId])`) to `DsaAttempt` so retry-safe idempotency works both in-transaction and at the PostgreSQL unique-index level without breaking multiple legitimate attempts on the same problem.
+4. **`/today` Integration Without Touching Sync Routes:** Instead of modifying `/api/sync/dashboard` (per the rule not to touch sync/Dexie code), `/today` (`src/app/(app)/today/page.tsx`) calls `getDsaDueSummary(userId, getNow())` directly on the server and passes `dsaSummary` into `TodayPageClient` -> `TodayDashboard` via the `DsaSummary` widget slot (hidden entirely until DSA is configured).
+5. **Pure Client-Safe Modules (`metrics-pure.ts`, `problem-filters.ts`, `time.ts`):** Isolated pure functions from `prisma` / `next/headers` / `node:async_hooks` (`@/lib/clock`) so Turbopack client bundles (`problems-view.tsx`, `report-view.tsx`) compile cleanly with zero Node built-in leakage; all server actions and queries explicitly pass `getNow()` into `dsaToday(getNow(), tz)`.
+6. **Build Heap Flag for `test:ci`:** `tsc --noEmit` in this codebase requires `NODE_OPTIONS="--max-old-space-size=4096"` (matching `npm run build` in `package.json`) to avoid V8's default ~2GB heap OOM during type checking.
+
+

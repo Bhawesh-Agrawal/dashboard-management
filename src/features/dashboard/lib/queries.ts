@@ -293,6 +293,7 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
   }
 
   return {
+    hasCurrentSemester: Boolean(activeSemester),
     topTasks,
     allOpenTasks,
     todayClasses,

@@ -264,6 +264,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
+      hasCurrentSemester: Boolean(activeSemester),
       todayClasses,
       attendanceAlerts,
       upcomingDeadlines: upcomingBirthdays,

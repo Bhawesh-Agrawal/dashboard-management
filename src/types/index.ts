@@ -65,6 +65,7 @@ export type NoteWithAttachments = NoteWithCourse & {
 
 // ─── Dashboard data ─────────────────────────────────────────
 export type DashboardData = {
+  hasCurrentSemester?: boolean;
   topTasks: TaskWithCourse[];
   allOpenTasks: TaskWithCourse[];
   todayClasses: (ClassSchedule & { course: Pick<Course, "id" | "name" | "color" | "code">; exceptions?: any[] })[];

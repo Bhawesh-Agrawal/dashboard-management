@@ -179,6 +179,7 @@ export default function TodayPageClient({
 
   // Build full DashboardData
   const dashboardData: DashboardData = {
+    hasCurrentSemester: serverData ? serverData.hasCurrentSemester ?? false : undefined,
     topTasks: topTasks as any,
     allOpenTasks: allOpenTasks as any,
     todayClasses: serverData?.todayClasses ?? [],

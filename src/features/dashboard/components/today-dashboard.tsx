@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { DashboardGrid } from "./dashboard-grid";
 import { TopThree } from "@/features/dashboard/components/top-three";
@@ -98,6 +99,7 @@ export function TodayDashboard({
           />
         );
       case "AttendanceAlerts":
+        if (data.hasCurrentSemester === false) return null;
         return <AttendanceAlerts alerts={data.attendanceAlerts} />;
       case "TomorrowRoutines":
         return (
@@ -117,10 +119,12 @@ export function TodayDashboard({
           />
         );
       case "SemesterSnapshot":
+        if (data.hasCurrentSemester === false) return null;
         return <SemesterSnapshot sgpa={data.sgpa} cgpa={data.cgpa} />;
       case "ContributionGraph":
         return <ContributionGraph streakData={data.streakData} />;
       case "ActiveUpcoming":
+        if (data.hasCurrentSemester === false) return null;
         return <TodayClassesCard todayClasses={data.todayClasses} />;
       case "DsaSummary":
         return <DsaTodayCard summary={dsaSummary} />;
@@ -130,11 +134,24 @@ export function TodayDashboard({
   };
 
   return (
-    <DashboardGrid
-      mainWidgets={layout.main}
-      sidebarWidgets={layout.sidebar}
-      hiddenWidgets={hiddenWidgets}
-      renderWidget={renderWidget}
-    />
+    <div className="space-y-6">
+      {data.hasCurrentSemester === false && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+          <span className="text-muted-foreground">No active semester</span>
+          <Link
+            href="/semesters"
+            className="font-medium text-primary hover:underline min-h-[44px] inline-flex items-center"
+          >
+            Add semester
+          </Link>
+        </div>
+      )}
+      <DashboardGrid
+        mainWidgets={layout.main}
+        sidebarWidgets={layout.sidebar}
+        hiddenWidgets={hiddenWidgets}
+        renderWidget={renderWidget}
+      />
+    </div>
   );
 }

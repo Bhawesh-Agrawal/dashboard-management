@@ -1,4 +1,8 @@
-import { getSemesterById } from "@/features/semesters/lib/queries";
+import { getSemesterById, getSemesters } from "@/features/semesters/lib/queries";
+import { semesterStatus } from "@/features/semesters/lib/status";
+import { getNow } from "@/lib/clock";
+import { getTodayInTimezone } from "@/lib/timezone";
+import { getUserTimezone } from "@/lib/timezone-server";
 export const revalidate = 0;
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,15 +15,32 @@ import { computeSGPA } from "@/features/assessments/lib/calculations";
 import { EditSemesterDialog } from "@/features/semesters/components/edit-semester-dialog";
 import { FileManager } from "@/features/files/components/FileManager";
 
+const STATUS_LABELS = {
+  active: "Active",
+  upcoming: "Upcoming",
+  ended: "Ended",
+} as const;
+
 export default async function SemesterDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const semester = await getSemesterById(id);
+  const [semester, allSemesters, timezone] = await Promise.all([
+    getSemesterById(id),
+    getSemesters(),
+    getUserTimezone(),
+  ]);
 
   if (!semester) notFound();
+
+  const todayDateOnly = getTodayInTimezone(timezone, getNow());
+  const status = semesterStatus(semester, todayDateOnly);
+  const overlappingActiveCount = allSemesters.filter(
+    (s) => semesterStatus(s, todayDateOnly) === "active"
+  ).length;
+  const showTieBreaker = status === "active" && overlappingActiveCount > 1 && !semester.isActive;
 
   // Compute grade point for each course
   const courseGrades = await Promise.all(
@@ -32,10 +53,10 @@ export default async function SemesterDetailPage({
     <div>
       <PageHeader
         title={semester.name}
-        subtitle={`${new Date(semester.startDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })} — ${new Date(semester.endDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}${sgpa !== null ? ` · SGPA ${sgpa.toFixed(2)}` : ""}`}
+        subtitle={`${STATUS_LABELS[status]} · ${new Date(semester.startDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })} — ${new Date(semester.endDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}${sgpa !== null ? ` · SGPA ${sgpa.toFixed(2)}` : ""}`}
         backHref="/semesters"
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <EditSemesterDialog
               semester={{
                 id: semester.id,
@@ -45,13 +66,13 @@ export default async function SemesterDetailPage({
                 gradingScale: semester.gradingScale,
               }}
             />
-            {!semester.isActive && (
+            {showTieBreaker && (
               <form action={setActiveSemester.bind(null, semester.id)}>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent transition-colors"
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent transition-colors min-h-[44px]"
                 >
-                  Set as Active
+                  Prefer as current (tie-breaker)
                 </button>
               </form>
             )}

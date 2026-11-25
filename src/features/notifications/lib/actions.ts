@@ -265,17 +265,12 @@ export async function resetToDefaultPreferences(): Promise<{ success: boolean }>
 
     // Create rows for all other types (OFF)
     const allTypes: NotificationType[] = [
-      "routine_reminder",
-      "task_due",
       "class_start",
       "class_end",
-      "assessment",
-      "daily_summary",
-      "missed_routine",
-      "overdue_task",
-      "review_daily",
-      "review_weekly",
-      "review_monthly",
+      "task_due",
+      "calendar_event",
+      "morning_brief",
+      "evening_brief",
     ];
     for (const type of allTypes) {
       if (!DEFAULT_ENABLED_TYPES.includes(type)) {

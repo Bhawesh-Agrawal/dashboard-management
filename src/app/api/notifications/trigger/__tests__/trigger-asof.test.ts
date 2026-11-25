@@ -7,8 +7,28 @@ vi.mock("@/lib/cron-auth", () => ({
   verifyCronRequest: vi.fn(),
 }));
 
+const EMPTY_DISPATCH_RESULT = {
+  sent: 0,
+  deliveredPushes: 0,
+  skippedDedup: 0,
+  skippedDisabled: 0,
+  skippedQuietHours: 0,
+  skippedNoSubscription: 0,
+  removedSubscriptions: 0,
+  failed: 0,
+};
+
 vi.mock("@/features/notifications/lib/scheduler", () => ({
-  runNotificationScheduler: vi.fn().mockResolvedValue(undefined),
+  runNotificationScheduler: vi.fn().mockResolvedValue({
+    sent: 0,
+    deliveredPushes: 0,
+    skippedDedup: 0,
+    skippedDisabled: 0,
+    skippedQuietHours: 0,
+    skippedNoSubscription: 0,
+    removedSubscriptions: 0,
+    failed: 0,
+  }),
 }));
 
 import { verifyCronRequest } from "@/lib/cron-auth";
@@ -53,6 +73,7 @@ describe("/api/notifications/trigger with asOf simulation", () => {
 
       vi.mocked(runNotificationScheduler).mockImplementationOnce(async () => {
         capturedTimeDuringRun = getNow().toISOString();
+        return EMPTY_DISPATCH_RESULT;
       });
 
       const req = new Request(
@@ -104,6 +125,7 @@ describe("/api/notifications/trigger with asOf simulation", () => {
         } else {
           capturedTimeWithoutAsOf = getNow().getTime();
         }
+        return EMPTY_DISPATCH_RESULT;
       });
 
       const reqWithAsOf = new Request(

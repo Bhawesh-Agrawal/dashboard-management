@@ -6,31 +6,21 @@ import { NotificationReasonBanner } from "@/features/notifications/components/no
 import type { NotificationType } from "@/features/notifications/lib/scheduler";
 
 const TYPE_LABELS: Record<string, string> = {
-  routine_reminder: "Routine Reminders",
-  task_due: "Task Due Dates",
   class_start: "Class Start",
   class_end: "Class End / Attendance",
-  assessment: "Assessment Reminders",
-  daily_summary: "Daily Summary",
-  missed_routine: "Missed Routines",
-  overdue_task: "Overdue Tasks",
-  review_daily: "Daily Review",
-  review_weekly: "Weekly Review",
-  review_monthly: "Monthly Review",
+  task_due: "Task Reminders",
+  calendar_event: "Calendar Events",
+  morning_brief: "Morning Brief",
+  evening_brief: "Evening Brief",
 };
 
 const TYPE_URLS: Record<string, string> = {
-  routine_reminder: "/routines",
-  task_due: "/tasks",
   class_start: "/courses",
   class_end: "/courses",
-  assessment: "/tasks",
-  daily_summary: "/today",
-  missed_routine: "/routines",
-  overdue_task: "/tasks",
-  review_daily: "/reviews",
-  review_weekly: "/reviews",
-  review_monthly: "/reviews",
+  task_due: "/tasks",
+  calendar_event: "/calendar",
+  morning_brief: "/brief",
+  evening_brief: "/brief",
 };
 
 function DigestContent() {

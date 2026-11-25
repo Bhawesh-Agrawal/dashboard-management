@@ -8,17 +8,12 @@ import {
 import { BarChart3, Loader2 } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
-  routine_reminder: "Routine Reminders",
-  task_due: "Task Due Dates",
   class_start: "Class Start",
   class_end: "Class End / Attendance",
-  assessment: "Assessment Reminders",
-  daily_summary: "Daily Summary",
-  missed_routine: "Missed Routines",
-  overdue_task: "Overdue Tasks",
-  review_daily: "Daily Review",
-  review_weekly: "Weekly Review",
-  review_monthly: "Monthly Review",
+  task_due: "Task Reminders",
+  calendar_event: "Calendar Events",
+  morning_brief: "Morning Brief",
+  evening_brief: "Evening Brief",
 };
 
 export function NotificationWeeklyStats() {

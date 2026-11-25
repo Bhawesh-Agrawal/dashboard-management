@@ -89,6 +89,7 @@ vi.mock("@/lib/prisma", () => ({
     assessment: { findMany: vi.fn(async () => []) },
     routine: { findMany: vi.fn(async () => []) },
     task: { findMany: vi.fn(async () => []), count: vi.fn(async () => 0) },
+    event: { findMany: vi.fn(async () => []) },
     review: { findFirst: vi.fn(async () => null) },
     sentNotification: {
       findFirst: vi.fn(async () => null),

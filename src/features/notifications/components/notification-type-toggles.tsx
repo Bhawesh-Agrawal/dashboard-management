@@ -10,17 +10,12 @@ import { Loader2, RotateCcw, Shield, AlertTriangle, Minus } from "lucide-react";
 import { toast } from "sonner";
 
 type NotificationType =
-  | "routine_reminder"
-  | "task_due"
   | "class_start"
   | "class_end"
-  | "assessment"
-  | "daily_summary"
-  | "missed_routine"
-  | "overdue_task"
-  | "review_daily"
-  | "review_weekly"
-  | "review_monthly";
+  | "task_due"
+  | "calendar_event"
+  | "morning_brief"
+  | "evening_brief";
 
 type Priority = "critical" | "normal" | "low";
 
@@ -33,68 +28,38 @@ const NOTIFICATION_TYPES: {
   {
     type: "class_start",
     label: "Class Start",
-    description: "Notification when a class is about to begin",
+    description: "Reminder before a scheduled class begins",
     defaultPriority: "critical",
   },
   {
     type: "class_end",
     label: "Class End / Attendance",
-    description: "Prompt to mark attendance after class ends",
+    description: "Prompt to mark attendance after a class ends",
     defaultPriority: "critical",
-  },
-  {
-    type: "overdue_task",
-    label: "Overdue Tasks",
-    description: "Morning alert for tasks past their due date",
-    defaultPriority: "critical",
-  },
-  {
-    type: "daily_summary",
-    label: "Daily Summary",
-    description: "Detailed digest with schedule, tasks, routines, and attendance",
-    defaultPriority: "normal",
   },
   {
     type: "task_due",
-    label: "Task Due Dates",
-    description: "Alerts for tasks due today or tomorrow",
+    label: "Task Reminders",
+    description: "Reminders for tasks with an explicit due time",
     defaultPriority: "normal",
   },
   {
-    type: "assessment",
-    label: "Assessment Reminders",
-    description: "Alerts for assessments due today or tomorrow",
+    type: "calendar_event",
+    label: "Calendar Events",
+    description: "Reminders before scheduled events and meetings",
     defaultPriority: "normal",
   },
   {
-    type: "routine_reminder",
-    label: "Routine Reminders",
-    description: "Get reminded when a routine is scheduled",
-    defaultPriority: "normal",
-  },
-  {
-    type: "missed_routine",
-    label: "Missed Routines",
-    description: "Evening alert for routines you haven't completed today",
-    defaultPriority: "normal",
-  },
-  {
-    type: "review_daily",
+    type: "morning_brief",
     label: "Morning Brief",
-    description: "Morning alert when your daily brief is ready",
+    description: "Daily morning summary of classes, tasks, DSA, and weather",
     defaultPriority: "normal",
   },
   {
-    type: "review_weekly",
-    label: "Weekly Review",
-    description: "Sunday evening alert for your weekly review",
-    defaultPriority: "low",
-  },
-  {
-    type: "review_monthly",
-    label: "Monthly Review",
-    description: "End-of-month alert for your strategic review",
-    defaultPriority: "low",
+    type: "evening_brief",
+    label: "Evening Brief",
+    description: "Evening preview of tomorrow's schedule and unmarked classes",
+    defaultPriority: "normal",
   },
 ];
 

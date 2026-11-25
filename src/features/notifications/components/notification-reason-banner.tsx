@@ -6,19 +6,12 @@ import { Info, X } from "lucide-react";
 import type { NotificationType } from "@/features/notifications/lib/scheduler";
 
 const TYPE_LABELS: Record<NotificationType, string> = {
-  routine_reminder: "Routine Reminders",
-  task_due: "Task Due Dates",
   class_start: "Class Start",
   class_end: "Class End / Attendance",
-  class_cancelled: "Class Cancelled",
-  class_rescheduled: "Class Rescheduled",
-  assessment: "Assessment Reminders",
-  daily_summary: "Daily Summary",
-  missed_routine: "Missed Routines",
-  overdue_task: "Overdue Tasks",
-  review_daily: "Daily Review",
-  review_weekly: "Weekly Review",
-  review_monthly: "Monthly Review",
+  task_due: "Task Reminders",
+  calendar_event: "Calendar Events",
+  morning_brief: "Morning Brief",
+  evening_brief: "Evening Brief",
 };
 
 /**

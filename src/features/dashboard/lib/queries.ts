@@ -16,7 +16,6 @@ import {
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
 import { getCurrentUserId } from "@/lib/auth";
-import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
 
 /**
  * Aggregate all data needed for the /today dashboard.
@@ -67,7 +66,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     activeProjectsRaw,
     latestReview,
     unviewedReviewCount,
-    reviewStats,
   ] = await Promise.all([
     // Active semester + courses in one query
     prisma.semester.findFirst({
@@ -129,8 +127,6 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     prisma.review.count({
       where: { userId, status: "generated" },
     }),
-    // Review stats
-    getReviewStats(userId),
   ]);
 
   const topTaskIds = new Set(topTasks.map((t) => t.id));
@@ -312,6 +308,5 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     cgpa,
     latestReview,
     unviewedReviewCount,
-    reviewStats,
   };
 }

@@ -6,7 +6,6 @@ import { getCurrentUserId } from "@/lib/auth";
 import { deleteFile } from "@/lib/s3/actions";
 import { getPresignedUrl } from "@/lib/s3/client";
 import { generateSemanticLinks } from "./semantic-links";
-import { markNoteReviewed as markReviewed } from "./spaced-repetition";
 import { createExplicitLink as createLink, removeLink as deleteLink } from "./semantic-links";
 import { addNoteAttachment, removeNoteAttachment } from "./actions-attachments";
 import { createNoteSchema } from "./validation";
@@ -218,14 +217,6 @@ export async function recordNoteView(
     console.error("Failed to record note view:", message);
     return { ok: false, error: "Failed to record view" };
   }
-}
-
-// ─── Review Note ────────────────────────────────────────────
-
-export async function reviewNote(noteId: string): Promise<void> {
-  await markReviewed(noteId);
-  revalidatePath("/notes");
-  revalidatePath(`/notes/${noteId}`);
 }
 
 // ─── Explicit Links ─────────────────────────────────────────

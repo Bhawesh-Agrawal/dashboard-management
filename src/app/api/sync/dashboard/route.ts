@@ -11,7 +11,6 @@ import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
-import { getReviewStats } from "@/features/notes/lib/spaced-repetition";
 
 /**
  * Returns server-only dashboard data that isn't in the sync scope.
@@ -41,7 +40,6 @@ export async function GET() {
       activeProjectsRaw,
       latestReview,
       unviewedReviewCount,
-      reviewStats,
       dashboardPref,
     ] = await Promise.all([
       prisma.semester.findFirst({
@@ -106,7 +104,6 @@ export async function GET() {
       prisma.review.count({
         where: { userId, status: "generated" },
       }),
-      getReviewStats(userId),
       prisma.userDashboardPreference.findUnique({
         where: { userId },
       }),
@@ -266,7 +263,6 @@ export async function GET() {
           }
         : null,
       unviewedReviewCount,
-      reviewStats,
       sgpa,
       cgpa,
       widgetOrder: (dashboardPref?.widgetOrder as string[]) || [],

@@ -108,12 +108,6 @@ export type DashboardData = {
     summary: string;
   } | null;
   unviewedReviewCount: number;
-  reviewStats: {
-    totalNotes: number;
-    notesDueToday: number;
-    notesReviewedThisWeek: number;
-    averageReviewCount: number;
-  };
 };
 
 // ─── Calendar event (merged view) ───────────────────────────

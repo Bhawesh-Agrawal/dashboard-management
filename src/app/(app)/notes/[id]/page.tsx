@@ -5,7 +5,6 @@ import { useNoteById } from "@/lib/sync/hooks";
 import { PageHeader } from "@/components/shared/page-header";
 import ReactMarkdown from "react-markdown";
 import { RelatedNotesPanel, BacklinksPanel } from "@/features/notes/components/related-notes-panel";
-import { ReviewButton } from "@/features/notes/components/review-button";
 import { EditNoteDialog } from "@/features/notes/components/edit-note-dialog";
 
 export default function NoteDetailPage({
@@ -37,7 +36,6 @@ export default function NoteDetailPage({
         backHref="/notes"
         action={
           <div className="flex items-center gap-2">
-            <ReviewButton noteId={note.id} />
             <EditNoteDialog note={note as any} />
           </div>
         }

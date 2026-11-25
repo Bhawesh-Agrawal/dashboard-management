@@ -185,7 +185,6 @@ export default function TodayPageClient() {
     activeProjects: serverData?.activeProjects ?? [],
     latestReview: serverData?.latestReview ?? null,
     unviewedReviewCount: serverData?.unviewedReviewCount ?? 0,
-    reviewStats: serverData?.reviewStats ?? { totalNotes: 0, notesDueToday: 0, notesReviewedThisWeek: 0, averageReviewCount: 0 },
     sgpa: serverData?.sgpa ?? null,
     cgpa: serverData?.cgpa ?? null,
   };

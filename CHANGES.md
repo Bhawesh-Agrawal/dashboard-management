@@ -328,10 +328,13 @@ This section documents all removals and adaptations executed during **Phase 2 (R
 | **Option 2: Keep Leitner Model** | Zero extra dependencies, already implemented, provides simple intervals. | The intervals are static; does not account for difficulty or user recall grading (Again/Hard/Good/Easy). Currently lacks a dedicated review deck UI. | Only if user intends to build a flashcard UI. |
 | **Option 3: Upgrade to FSRS / SM-2** | State-of-the-art memory retention modeling (FSRS algorithm), optimal review scheduling. | Substantial complexity: requires difficulty, stability, retrievability parameters, card-level entities, and full flashcard review loop. Overkill for a general note repository. | Defer unless product pivots to flashcards. |
 
-> [!IMPORTANT]
-> **Decision Required from User:**
-> 1. Delete `src/features/notes/lib/spaced-repetition.ts` completely (drop review stats from dashboard).
-> 2. Or retain `getReviewStats` for informational note hygiene, connecting `getNotesForReview` to a future mobile review card.
+> [!NOTE]
+> **Decision Executed in Phase 3b:**
+> Option 1 (Complete Removal) was chosen and implemented:
+> - Deleted [src/features/notes/lib/spaced-repetition.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/notes/lib/spaced-repetition.ts).
+> - Deleted `ReviewButton` UI component and `reviewNote` / `markNoteReviewed` server actions.
+> - Removed `reviewStats` from `/api/sync/dashboard` and `dashboard/lib/queries.ts`.
+> - Kept `Note.lastReviewedAt` and `Note.reviewCount` in `prisma/schema.prisma` for schema stability.
 
 ---
 
@@ -357,9 +360,11 @@ Because Phase 2 was strictly **code-only** (zero database writes or schema migra
 2. `Task.optimalTimeOfDay` (`TimeOfDay?`)
 3. `Routine.identityId` (`String?`)
 4. `Routine.energyImpact` (`EnergyImpact @default(neutral)`)
-5. `Note.extractedText` (`String?` — OCR output)
 
-*Note: In the next database release, a migration script will drop these 7 tables, 2 enums, and 5 columns using standard PostgreSQL `ALTER TABLE ... DROP COLUMN` and `DROP TABLE` statements.*
+> [!NOTE]
+> `Note.extractedText` was removed from the drop list: it is intentionally kept to hold extracted text from PDFs and saved articles later. Similarly, `Note.lastReviewedAt` and `Note.reviewCount` are preserved in the schema.
+
+*Note: In the next database release, a migration script will drop these 7 tables, 2 enums, and 4 columns using standard PostgreSQL `ALTER TABLE ... DROP COLUMN` and `DROP TABLE` statements.*
 
 ---
 

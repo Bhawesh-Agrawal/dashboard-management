@@ -159,14 +159,23 @@ export async function generateReview(
   const config = getReviewPrompt(type);
   const { periodStart, periodEnd } = getPeriodBounds(type, date, options?.timezone);
 
-  // Dedup: check if a review already exists for this period
+  // Dedup: check if a review already exists for this period.
+  // For weekly reviews, enforce strict idempotency: never generate twice in the same calendar week.
   const existing = await prisma.review.findFirst({
     where: {
       userId,
       type,
-      periodStart,
-      periodEnd,
+      ...(type === "weekly"
+        ? {
+            periodStart: { lte: periodEnd },
+            periodEnd: { gte: periodStart },
+          }
+        : {
+            periodStart,
+            periodEnd,
+          }),
     },
+    orderBy: { periodStart: "desc" },
   });
 
   // For daily reviews, always regenerate to ensure fresh data.

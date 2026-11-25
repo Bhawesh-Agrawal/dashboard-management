@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 /**
  * Consolidated daily diagnostics cron endpoint.
- * Runs weekly review generation and log/sent-notification cleanup.
+ * Runs log & sent-notification cleanup (weekly reviews are generated exclusively by /api/cron/reviews).
  * Protected by fail-closed cron authentication (Google Cloud Scheduler OIDC or static bearer token).
  */
 export async function GET(request: Request) {
@@ -17,24 +17,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(request.url);
-  const baseUrl = url.origin;
-  const authHeader = request.headers.get("authorization");
   const results: Record<string, unknown> = {};
 
-  // 1. Weekly review generation via reviews cron
-  try {
-    const res = await fetch(`${baseUrl}/api/cron/reviews`, {
-      headers: authHeader ? { Authorization: authHeader } : {},
-    });
-    results["reviews"] = await res.json();
-  } catch (err) {
-    results["reviews"] = {
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
-  }
-
-  // 2. Log & sent-notification cleanup (delete entries older than 7 days)
+  // Log & sent-notification cleanup (delete entries older than 7 days)
   try {
     const cutoff = getNow();
     cutoff.setDate(cutoff.getDate() - 7);

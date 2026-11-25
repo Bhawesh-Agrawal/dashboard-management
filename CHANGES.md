@@ -1182,3 +1182,91 @@ $ grep -rnE "(bg|text|border|ring)-(red|green|amber|yellow|blue|emerald|rose|ora
 ✓ Generating static pages using 15 workers (19/19) in 276ms
 ✓ Finalizing page optimization in 613ms
 ```
+
+---
+
+# PHASE 4: NOTIFICATIONS (ONE ENGINE) + MORNING/EVENING BRIEFS — CHANGES & VERIFICATION
+
+**Branch:** `phase-4-notifications` (branched from `phase-3d-semester-ui`)
+
+## 1. Step Status & Commit Table
+
+| Step | Status | Commit | Files | What was NOT verified |
+| :--- | :--- | :--- | :--- | :--- |
+| **Step 1** | DONE | `718c88a` | `docs/NOTIFICATIONS_AUDIT.md` | Live production Cloud Scheduler logs (audit derived directly from repo source) |
+| **Step 2** | DONE | `15931dd` | `prisma/schema.prisma`, `prisma/migrations/20261125010000_add_sent_notification_dedup_key/migration.sql`, `src/features/notifications/lib/engine.ts`, `src/features/notifications/lib/scheduler.ts`, `src/features/notifications/lib/subscription.ts`, `src/features/notifications/lib/__tests__/engine.test.ts`, `src/features/notifications/lib/__tests__/semester-lifecycle.test.ts` | Live Web Push delivery to a physical browser/phone |
+| **Step 3** | DONE | `fae4840` | `src/features/notifications/lib/scheduler.ts`, `src/features/notifications/lib/actions.ts`, `src/features/notifications/components/notification-reason-banner.tsx`, `src/features/notifications/components/notification-type-toggles.tsx`, `src/features/notifications/components/notification-weekly-stats.tsx`, `src/app/(app)/notifications/digest/page.tsx`, `src/app/api/notifications/trigger/__tests__/trigger-asof.test.ts`, `src/features/notifications/lib/__tests__/semester-lifecycle.test.ts` | Live browser check of Settings type toggles |
+| **Step 4** | DONE | `1663b4c` | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | Verified with mocked Prisma and injected push sender under `withSimulatedTime` |
+| **Step 5** | DONE | `703d1cc` | `prisma/schema.prisma`, `prisma/migrations/20261125020000_add_daily_brief/migration.sql`, `src/features/briefs/lib/storage.ts` | Live runtime DB round-trip against `/brief` |
+| **Step 6** | DONE | `093cda4` | `src/features/briefs/lib/build.ts`, `src/features/briefs/lib/__tests__/build.test.ts` | Visual formatting on 360px viewport |
+| **Step 7** | DONE | `6b1a3c8` | `prisma/schema.prisma`, `prisma/migrations/20261125030000_add_weather_location_and_cache/migration.sql`, `src/features/briefs/lib/weather.ts`, `src/features/briefs/lib/__tests__/weather.test.ts`, `src/features/notifications/lib/actions.ts`, `src/features/notifications/components/location-settings.tsx`, `src/app/(app)/settings/page.tsx` | Live HTTP call to `api.open-meteo.com` / `geocoding-api.open-meteo.com` (tested via injected `fetcher`) |
+| **Step 8** | DONE | `158885e` | `prisma/schema.prisma`, `prisma/migrations/20261125040000_add_notification_reminder_minutes/migration.sql`, `src/features/briefs/lib/generate.ts`, `src/features/notifications/lib/scheduler.ts`, `src/features/notifications/lib/actions.ts`, `src/features/notifications/components/brief-schedule-settings.tsx`, `src/app/(app)/settings/page.tsx`, `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | Live browser interaction with `BriefScheduleSettings` |
+| **Step 9** | DONE | `a93271d` | `src/features/briefs/lib/actions.ts`, `src/features/briefs/components/brief-view.tsx`, `src/features/briefs/components/brief-today-card.tsx`, `src/app/(app)/brief/page.tsx`, `src/app/(app)/today/page.tsx`, `src/features/dashboard/components/today-page-client.tsx`, `src/features/dashboard/components/today-dashboard.tsx`, `src/app/(app)/notifications/digest/page.tsx`, `public/sw.js` | Live browser navigation & `/notifications/digest` -> `/brief` redirect |
+| **Step 10** | DONE | `12bca34` | `prisma/schema.prisma`, `prisma/migrations/20261125050000_add_event_travel_and_documents/migration.sql`, `src/features/briefs/lib/travel.ts`, `src/features/briefs/lib/pin-tickets.ts`, `src/features/briefs/lib/generate.ts`, `src/features/briefs/components/brief-view.tsx`, `src/features/calendar/components/event-creation-dialog.tsx`, `src/features/briefs/lib/__tests__/travel.test.ts` | Live airplane-mode PDF opening on phone after `/brief` visit |
+| **Step 11** | DONE | `c8109fc` | `src/app/api/notifications/trigger/route.ts`, `src/app/api/notifications/trigger/__tests__/trigger-asof.test.ts`, `docs/TEST_PLAN.md` | Live `curl` execution against running dev server |
+
+---
+
+## 2. Step 3 — Removed Notification Types & Generators
+
+Kept **only** the 6 core types: `class_start`, `class_end`, `task_due`, `calendar_event`, `morning_brief`, `evening_brief`.
+Removed from `scheduler.ts`, `actions.ts`, `notification-type-toggles.tsx`, `notification-reason-banner.tsx`, `notification-weekly-stats.tsx`, and `digest/page.tsx`:
+
+- `routine_reminder` (`generateRoutineReminders`) — lacked `SentNotification` dedup; routines are tracked in-app.
+- `missed_routine` (`generateMissedRoutineNotifications`) — lacked `SentNotification` dedup.
+- `overdue_task` (`generateOverdueTaskNotifications`) — lacked `SentNotification` dedup; overdue tasks are surfaced in the Morning Brief.
+- `assessment` (`generateAssessmentNotifications`) — lacked `SentNotification` dedup; upcoming assessments are surfaced in Morning/Evening Briefs.
+- `class_cancelled` (`generateClassCancellationNotifications`) — redundant; cancelled classes appear in `/today` and briefs.
+- `class_rescheduled` (`generateClassRescheduleNotifications`) — redundant; rescheduled times are used directly by `class_start` and briefs.
+- `daily_summary` (`generateDailySummary`) — replaced by `DailyBrief` + `morning_brief` / `evening_brief`.
+- `review_daily`, `review_weekly`, `review_monthly` (`generateDailyReviewAlert`, `generateWeeklyReviewAlert`, `generateMonthlyReviewAlert`) — lacked `SentNotification` dedup; `daily` reviews had no generator (`daily-diagnostics` only generated weekly/monthly/quarterly).
+
+---
+
+## 3. VERIFY Outputs
+
+### `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`
+
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+ Test Files  41 passed (41)
+      Tests  226 passed (226)
+   Duration  3.33s
+```
+
+### `npm run build`
+
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+✓ Compiled successfully in 8.9s
+✓ Finished TypeScript in 27.1s
+✓ Collecting page data using 15 workers in 1844ms
+✓ Generating static pages using 15 workers (19/19) in 288ms
+✓ Finalizing page optimization in 492ms
+```
+
+### 12-Tick Simulated Clock Output (`engine-clock.test.ts`)
+
+```text
+$ npx vitest run src/features/notifications/lib/__tests__/engine-clock.test.ts
+
+[NotificationEngine] dispatched=1 pushes=2 skipped(dedup=0,disabled=0,quiet=0,noSub=0) removedSubs=0 failed=0
+[NotificationEngine] dispatched=0 pushes=0 skipped(dedup=1,disabled=0,quiet=0,noSub=0) removedSubs=0 failed=0
+...
+ ✓ src/features/notifications/lib/__tests__/engine-clock.test.ts (5 tests) 56ms
+```
+
+---
+
+## 4. Phone Verification Checklist
+
+- [ ] **Morning Brief Push:** Trigger `morning_brief` via `/api/notifications/trigger?asOf=...&only=morning_brief`, confirm 1 push arrives on phone, tap it, and confirm `/brief` opens.
+- [ ] **Offline Ticket Pinning:** Attach a Document Library PDF to a Travel event within 48 hours, open `/brief` once while online, switch phone to Airplane Mode, and tap **Open ticket** to confirm it opens offline.
+- [ ] **Class Reminder Dedup:** Trigger `class_start` twice with the same `?asOf=` timestamp using `docs/TEST_PLAN.md` curl commands and confirm the second call returns `"sent": 0, "skippedDedup": 1`.

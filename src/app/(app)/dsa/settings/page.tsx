@@ -5,6 +5,7 @@ import { dsaDateStr, dsaToday, DSA_DEFAULT_TIMEZONE } from "@/features/dsa/lib/t
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
 import { DsaProgrammeSettingsCard } from "@/features/dsa/components/dsa-programme-settings-card";
 import { DsaImportCard } from "@/features/dsa/components/dsa-import-card";
+import { DsaBackupCard } from "@/features/dsa/components/dsa-backup-card";
 import type { DsaPhase } from "@/features/dsa/lib/schemas";
 
 export const revalidate = 0;
@@ -30,6 +31,9 @@ export default async function DsaSettingsPage() {
           currentTopicId={settings?.currentTopicId ?? null}
         />
         <DsaImportCard />
+        <DsaBackupCard
+          lastBackupAt={settings?.lastBackupAt ? settings.lastBackupAt.toISOString() : null}
+        />
       </div>
     </DsaShell>
   );

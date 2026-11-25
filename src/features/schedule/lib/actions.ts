@@ -130,16 +130,18 @@ export async function createScheduleException(data: {
 
   // Also mark attendance as cancelled if the class is cancelled
   if (data.type === "cancelled") {
+    const dateObj = new Date(data.date);
     await prisma.attendanceRecord.upsert({
       where: {
-        courseId_date: {
-          courseId: schedule.courseId,
-          date: new Date(data.date),
+        classScheduleId_date: {
+          classScheduleId: data.classScheduleId,
+          date: dateObj,
         },
       },
       create: {
         courseId: schedule.courseId,
-        date: new Date(data.date),
+        classScheduleId: data.classScheduleId,
+        date: dateObj,
         status: "cancelled",
       },
       update: { status: "cancelled" },

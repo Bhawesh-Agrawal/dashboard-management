@@ -136,9 +136,9 @@ model AttendanceRecord {
   course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   classSchedule ClassSchedule? @relation(fields: [classScheduleId], references: [id], onDelete: SetNull)
 
-  @@unique([courseId, date])
   @@unique([classScheduleId, date])
   @@index([classScheduleId])
+  @@index([courseId, date])
   @@map("attendance_records")
 }
 

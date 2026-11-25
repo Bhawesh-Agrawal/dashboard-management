@@ -23,7 +23,7 @@ export interface OccurrenceSchedule {
 export interface OccurrenceException {
   id?: string;
   classScheduleId: string;
-  date: Date | string;
+  date: Date | string; // "YYYY-MM-DD" or Date
   type: "cancelled" | "rescheduled";
   newStartTime?: string | null;
   newEndTime?: string | null;
@@ -56,6 +56,16 @@ export interface ClassOccurrence {
   isPast: boolean;
   isToday: boolean;
   isFuture: boolean;
+  needsReview?: boolean;
+}
+
+export interface UnmatchedLegacyRecord {
+  recordId?: string;
+  courseId: string;
+  date: string;
+  status: string;
+  reason: "ambiguous" | "no_schedule";
+  candidateScheduleIds: string[];
 }
 
 const DOW_NUMBER_TO_ENUM: Record<number, DayOfWeek> = {
@@ -68,29 +78,58 @@ const DOW_NUMBER_TO_ENUM: Record<number, DayOfWeek> = {
   6: "SAT",
 };
 
+export interface GenerateOccurrencesOptions {
+  schedules: OccurrenceSchedule[];
+  exceptions?: OccurrenceException[];
+  records?: OccurrenceRecord[];
+  semesterStartDate?: Date | string | null;
+  semesterEndDate?: Date | string | null;
+  startDate?: string; // "YYYY-MM-DD" override
+  endDate?: string; // "YYYY-MM-DD" override
+  timezone?: string;
+  now?: Date;
+}
+
 /**
- * Pure function: given a list of schedules, exceptions, and attendance records across a date range,
- * generates all occurrences with their exact status.
+ * Pure occurrence engine.
+ * Computes individual class occurrences across recurring schedules,
+ * respecting semester bounds, effective dates, schedule exceptions,
+ * and attendance record matching with ambiguous legacy resolution.
  */
 export function generateOccurrences({
   schedules,
   exceptions = [],
   records = [],
-  startDate,
-  endDate,
+  semesterStartDate,
+  semesterEndDate,
+  startDate: explicitStartDate,
+  endDate: explicitEndDate,
   timezone = DEFAULT_TIMEZONE,
   now,
-}: {
-  schedules: OccurrenceSchedule[];
-  exceptions?: OccurrenceException[];
-  records?: OccurrenceRecord[];
-  startDate: string; // "YYYY-MM-DD"
-  endDate: string; // "YYYY-MM-DD"
-  timezone?: string;
-  now?: Date;
-}): ClassOccurrence[] {
+}: GenerateOccurrencesOptions): ClassOccurrence[] {
   const currentClock = now ?? new Date();
   const todayStr = getTodayInTimezone(timezone, currentClock);
+
+  // If no schedules exist, return empty occurrences immediately
+  if (!schedules || schedules.length === 0) {
+    return [];
+  }
+
+  // Determine date bounds
+  let startDate = explicitStartDate;
+  let endDate = explicitEndDate;
+
+  if (!startDate) {
+    startDate = semesterStartDate ? formatDateOnly(semesterStartDate) : todayStr;
+  }
+  if (!endDate) {
+    endDate = semesterEndDate ? formatDateOnly(semesterEndDate) : todayStr;
+  }
+
+  // If start is after end, return empty
+  if (startDate > endDate) {
+    return [];
+  }
 
   // Index exceptions by `${classScheduleId}_${dateStr}`
   const exceptionMap = new Map<string, OccurrenceException>();
@@ -99,16 +138,17 @@ export function generateOccurrences({
     exceptionMap.set(`${ex.classScheduleId}_${dStr}`, ex);
   }
 
-  // Index records by `${classScheduleId}_${dateStr}` and fallback by `${courseId}_${dateStr}`
+  // Index direct records by `${classScheduleId}_${dateStr}`
   const recordBySchedule = new Map<string, OccurrenceRecord>();
-  const recordByCourse = new Map<string, OccurrenceRecord>();
+  const legacyRecords: OccurrenceRecord[] = [];
+
   for (const rec of records) {
-    const dStr = formatDateOnly(rec.date);
     if (rec.classScheduleId) {
+      const dStr = formatDateOnly(rec.date);
       recordBySchedule.set(`${rec.classScheduleId}_${dStr}`, rec);
+    } else {
+      legacyRecords.push(rec);
     }
-    // For legacy records without classScheduleId
-    recordByCourse.set(`${rec.courseId}_${dStr}`, rec);
   }
 
   const occurrences: ClassOccurrence[] = [];
@@ -159,19 +199,23 @@ export function generateOccurrences({
         }
       }
 
-      // Check attendance record (linked schedule first, then course fallback)
-      const record = recordBySchedule.get(occurrenceKey) || recordByCourse.get(`${schedule.courseId}_${dateStr}`);
+      // Check direct attendance record
+      const directRecord = recordBySchedule.get(occurrenceKey);
 
       let status: OccurrenceStatus = "unmarked";
       let attendanceRecordId: string | undefined;
 
-      if (record) {
-        attendanceRecordId = record.id;
-        if (record.status === "present") status = "present";
-        else if (record.status === "absent") status = "absent";
-        else if (record.status === "cancelled") status = "cancelled";
+      if (directRecord) {
+        attendanceRecordId = directRecord.id;
+        if (directRecord.status === "present") status = "present";
+        else if (directRecord.status === "absent") status = "absent";
+        else if (directRecord.status === "cancelled") status = "cancelled";
         else status = "unmarked";
-      } else if (exception?.type === "cancelled") {
+      }
+
+      // Cancellation Rule: A ScheduleException of type "cancelled" ALWAYS wins.
+      // If a record exists, we keep its ID but override status to "cancelled".
+      if (exception?.type === "cancelled") {
         status = "cancelled";
       }
 
@@ -206,6 +250,47 @@ export function generateOccurrences({
         isToday,
         isFuture,
       });
+    }
+  }
+
+  // Match legacy records in memory (classScheduleId is NULL/undefined)
+  // Rule: Match only when exactly ONE schedule of that course runs on that day.
+  // When ambiguous (>1 schedule on that day), they stay unmatched in a "needs review" state.
+  if (legacyRecords.length > 0) {
+    // Group occurrences by `${courseId}_${date}`
+    const occsByCourseDate = new Map<string, ClassOccurrence[]>();
+    for (const occ of occurrences) {
+      const key = `${occ.courseId}_${occ.date}`;
+      const list = occsByCourseDate.get(key) || [];
+      list.push(occ);
+      occsByCourseDate.set(key, list);
+    }
+
+    for (const rec of legacyRecords) {
+      const dStr = formatDateOnly(rec.date);
+      const key = `${rec.courseId}_${dStr}`;
+      const matchingOccs = occsByCourseDate.get(key) || [];
+
+      if (matchingOccs.length === 1) {
+        // Unique match: attach to the single occurrence if it doesn't already have a direct record
+        const targetOcc = matchingOccs[0];
+        if (!targetOcc.attendanceRecordId) {
+          targetOcc.attendanceRecordId = rec.id;
+          // Apply legacy status unless occurrence was cancelled by an exception
+          if (targetOcc.exceptionType !== "cancelled") {
+            if (rec.status === "present") targetOcc.status = "present";
+            else if (rec.status === "absent") targetOcc.status = "absent";
+            else if (rec.status === "cancelled") targetOcc.status = "cancelled";
+            else targetOcc.status = "unmarked";
+          }
+        }
+      } else if (matchingOccs.length > 1) {
+        // Ambiguous match: multiple schedules run on the same day.
+        // Legacy record stays UNMATCHED and occurrences enter a "needs review" state.
+        for (const occ of matchingOccs) {
+          occ.needsReview = true;
+        }
+      }
     }
   }
 

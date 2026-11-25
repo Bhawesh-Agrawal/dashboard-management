@@ -577,9 +577,16 @@ async function generateClassEndNotifications(
       // Skip if snoozed (user tapped snooze)
       if (await isNotificationSnoozed(userId, tag)) continue;
 
-      // Skip if attendance already recorded for this course+date
-      const existing = await prisma.attendanceRecord.findUnique({
-        where: { courseId_date: { courseId: schedule.courseId, date: today } },
+      // Skip if attendance already recorded for this schedule+date
+      const existing = await prisma.attendanceRecord.findFirst({
+        where: {
+          courseId: schedule.courseId,
+          date: today,
+          OR: [
+            { classScheduleId: schedule.id },
+            { classScheduleId: null },
+          ],
+        },
       });
       if (existing && existing.status !== "not_marked") continue;
 

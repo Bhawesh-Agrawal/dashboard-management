@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
-import { parseDateOnly, formatDateOnly, getTodayInTimezone } from "@/lib/timezone";
+import { parseDateOnly, formatDateOnly, getTodayInTimezone, getDayOfWeekInTimezone } from "@/lib/timezone";
 import { getUserTimezone } from "@/lib/timezone-server";
 import { getNow } from "@/lib/clock";
 import {
@@ -70,14 +70,42 @@ export async function markAttendance(input: MarkAttendanceInput): Promise<MarkAt
 
   const dbStatus: AttendanceStatus = validated.status === "unmarked" ? "not_marked" : validated.status;
 
+  let scheduleId = validated.classScheduleId;
+
+  if (!scheduleId) {
+    const dow = getDayOfWeekInTimezone(timezone, dateObj);
+    const matchingSchedules = await prisma.classSchedule.findMany({
+      where: {
+        courseId: validated.courseId,
+        dayOfWeek: dow,
+        OR: [
+          { effectiveStartDate: null },
+          { effectiveStartDate: { lte: dateObj } },
+        ],
+        AND: [
+          {
+            OR: [
+              { effectiveEndDate: null },
+              { effectiveEndDate: { gte: dateObj } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (matchingSchedules.length === 1) {
+      scheduleId = matchingSchedules[0].id;
+    }
+  }
+
   let record;
 
-  if (validated.classScheduleId) {
+  if (scheduleId) {
     // Idempotent upsert on (classScheduleId, date)
     record = await prisma.attendanceRecord.upsert({
       where: {
         classScheduleId_date: {
-          classScheduleId: validated.classScheduleId,
+          classScheduleId: scheduleId,
           date: dateObj,
         },
       },
@@ -87,29 +115,35 @@ export async function markAttendance(input: MarkAttendanceInput): Promise<MarkAt
       },
       create: {
         courseId: validated.courseId,
-        classScheduleId: validated.classScheduleId,
+        classScheduleId: scheduleId,
         date: dateObj,
         status: dbStatus,
       },
     });
   } else {
-    // Idempotent fallback upsert on (courseId, date)
-    record = await prisma.attendanceRecord.upsert({
+    // Ambiguous match or no schedule: match record with classScheduleId: null
+    const existing = await prisma.attendanceRecord.findFirst({
       where: {
-        courseId_date: {
-          courseId: validated.courseId,
-          date: dateObj,
-        },
-      },
-      update: {
-        status: dbStatus,
-      },
-      create: {
         courseId: validated.courseId,
         date: dateObj,
-        status: dbStatus,
+        classScheduleId: null,
       },
     });
+
+    if (existing) {
+      record = await prisma.attendanceRecord.update({
+        where: { id: existing.id },
+        data: { status: dbStatus },
+      });
+    } else {
+      record = await prisma.attendanceRecord.create({
+        data: {
+          courseId: validated.courseId,
+          date: dateObj,
+          status: dbStatus,
+        },
+      });
+    }
   }
 
   // Fetch updated attendance records for the course to produce new metrics
@@ -199,20 +233,28 @@ export async function bulkMarkAttendance(
         },
       });
     } else {
-      await prisma.attendanceRecord.upsert({
+      const existing = await prisma.attendanceRecord.findFirst({
         where: {
-          courseId_date: {
-            courseId,
-            date: dateObj,
-          },
-        },
-        update: { status: dbStatus },
-        create: {
           courseId,
           date: dateObj,
-          status: dbStatus,
+          classScheduleId: null,
         },
       });
+
+      if (existing) {
+        await prisma.attendanceRecord.update({
+          where: { id: existing.id },
+          data: { status: dbStatus },
+        });
+      } else {
+        await prisma.attendanceRecord.create({
+          data: {
+            courseId,
+            date: dateObj,
+            status: dbStatus,
+          },
+        });
+      }
     }
   }
 

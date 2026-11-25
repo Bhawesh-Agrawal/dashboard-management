@@ -12,6 +12,8 @@ import { OngoingProjects } from "@/features/dashboard/components/ongoing-project
 import { DailyTimeline } from "@/features/dashboard/components/daily-timeline";
 import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
 import { TodayClassesCard } from "@/features/attendance/components/today-classes-card";
+import { DsaTodayCard } from "@/features/dsa/components/dsa-today-card";
+import type { DsaDueSummary } from "@/features/dsa/lib/summary";
 import dynamic from "next/dynamic";
 import { resolveLayout, type WidgetId } from "../lib/widget-registry";
 import type { DashboardData } from "@/types";
@@ -32,11 +34,13 @@ export function TodayDashboard({
   widgetOrder,
   hiddenWidgets,
   userId,
+  dsaSummary,
 }: {
   data: DashboardData;
   widgetOrder: string[];
   hiddenWidgets: string[];
   userId: string;
+  dsaSummary?: DsaDueSummary | null;
 }) {
   const [layout, setLayout] = useState(() => resolveLayout(widgetOrder));
   const today = new Date();
@@ -118,6 +122,8 @@ export function TodayDashboard({
         return <ContributionGraph streakData={data.streakData} />;
       case "ActiveUpcoming":
         return <TodayClassesCard todayClasses={data.todayClasses} />;
+      case "DsaSummary":
+        return <DsaTodayCard summary={dsaSummary} />;
       default:
         return null;
     }

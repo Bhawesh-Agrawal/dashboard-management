@@ -6,6 +6,7 @@ import { db } from "@/lib/sync/db";
 import { useLiveQuery } from "dexie-react-hooks";
 import { TodayDashboard } from "@/features/dashboard/components/today-dashboard";
 import { getRoutinesWithStreaks } from "@/features/routines/lib/completions";
+import type { DsaDueSummary } from "@/features/dsa/lib/summary";
 import type { DashboardData } from "@/types";
 
 type ServerDashboardData = DashboardData & {
@@ -13,7 +14,11 @@ type ServerDashboardData = DashboardData & {
   hiddenWidgets: string[];
 };
 
-export default function TodayPageClient() {
+export default function TodayPageClient({
+  dsaSummary,
+}: {
+  dsaSummary?: DsaDueSummary | null;
+}) {
   const [serverData, setServerData] = useState<ServerDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -221,6 +226,7 @@ export default function TodayPageClient() {
         widgetOrder={serverData?.widgetOrder ?? []}
         hiddenWidgets={serverData?.hiddenWidgets ?? []}
         userId="local"
+        dsaSummary={dsaSummary}
       />
     </div>
   );

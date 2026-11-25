@@ -13,7 +13,8 @@ export type WidgetId =
   | "FocusCarousel"
   | "SemesterSnapshot"
   | "ContributionGraph"
-  | "ActiveUpcoming";
+  | "ActiveUpcoming"
+  | "DsaSummary";
 
 export type WidgetColumn = "main" | "sidebar";
 
@@ -28,6 +29,7 @@ export const WIDGET_REGISTRY: Record<
   OngoingProjects: { label: "Ongoing Projects", defaultColumn: "main" },
   ReviewPreviewWidget: { label: "Latest Review", defaultColumn: "sidebar" },
   AttendanceAlerts: { label: "Attendance Alerts", defaultColumn: "sidebar" },
+  DsaSummary: { label: "DSA Revisions", defaultColumn: "sidebar" },
   TomorrowRoutines: { label: "Tomorrow's Routines", defaultColumn: "sidebar" },
   FocusCarousel: { label: "Focus", defaultColumn: "sidebar" },
   SemesterSnapshot: { label: "Semester Snapshot", defaultColumn: "sidebar" },
@@ -45,6 +47,7 @@ export const DEFAULT_MAIN_ORDER: WidgetId[] = [
 
 export const DEFAULT_SIDEBAR_ORDER: WidgetId[] = [
   "ActiveUpcoming",
+  "DsaSummary",
   "ReviewPreviewWidget",
   "AttendanceAlerts",
   "TomorrowRoutines",

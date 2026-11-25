@@ -64,100 +64,103 @@ export async function createDsaAttempt(
       ? now
       : new Date(`${attemptDateStr}T12:00:00.000Z`);
 
-  const result = await prisma.$transaction(async (tx) => {
-    if (validated.clientRequestId) {
-      const existing = await tx.dsaAttempt.findFirst({
-        where: { userId, clientRequestId: validated.clientRequestId },
-      });
-      if (existing) {
-        return { attempt: existing, deduplicated: true };
+  const result = await prisma.$transaction(
+    async (tx) => {
+      if (validated.clientRequestId) {
+        const existing = await tx.dsaAttempt.findFirst({
+          where: { userId, clientRequestId: validated.clientRequestId },
+        });
+        if (existing) {
+          return { attempt: existing, deduplicated: true };
+        }
       }
-    }
 
-    const existingCount = await tx.dsaAttempt.count({
-      where: { userId, problemId: problem.id },
-    });
+      const existingCount = await tx.dsaAttempt.count({
+        where: { userId, problemId: problem.id },
+      });
 
-    const isRevision =
-      validated.isRevision !== undefined ? validated.isRevision : existingCount > 0;
+      const isRevision =
+        validated.isRevision !== undefined ? validated.isRevision : existingCount > 0;
 
-    const session = await tx.dsaSession.upsert({
-      where: {
-        userId_date: {
+      const session = await tx.dsaSession.upsert({
+        where: {
+          userId_date: {
+            userId,
+            date: attemptDateObj,
+          },
+        },
+        update: {},
+        create: {
           userId,
           date: attemptDateObj,
         },
-      },
-      update: {},
-      create: {
-        userId,
-        date: attemptDateObj,
-      },
-    });
+      });
 
-    const created = await tx.dsaAttempt.create({
-      data: {
-        userId,
-        problemId: problem.id,
-        attemptedAt,
-        attemptDate: attemptDateObj,
-        classification: validated.classification,
-        timeSpentMin: validated.timeSpentMin,
-        confidence: validated.confidence,
-        isRevision,
-        helpType: validated.helpType,
-        initialApproach: cleanOptionalText(validated.initialApproach),
-        finalApproach: cleanOptionalText(validated.finalApproach),
-        mistakes: cleanOptionalText(validated.mistakes),
-        mistakeTags: validated.mistakeTags,
-        timeComplexity: cleanOptionalText(validated.timeComplexity),
-        spaceComplexity: cleanOptionalText(validated.spaceComplexity),
-        observation: cleanOptionalText(validated.observation),
-        sessionId: session.id,
-        clientRequestId: validated.clientRequestId ?? null,
-      },
-    });
+      const created = await tx.dsaAttempt.create({
+        data: {
+          userId,
+          problemId: problem.id,
+          attemptedAt,
+          attemptDate: attemptDateObj,
+          classification: validated.classification,
+          timeSpentMin: validated.timeSpentMin,
+          confidence: validated.confidence,
+          isRevision,
+          helpType: validated.helpType,
+          initialApproach: cleanOptionalText(validated.initialApproach),
+          finalApproach: cleanOptionalText(validated.finalApproach),
+          mistakes: cleanOptionalText(validated.mistakes),
+          mistakeTags: validated.mistakeTags,
+          timeComplexity: cleanOptionalText(validated.timeComplexity),
+          spaceComplexity: cleanOptionalText(validated.spaceComplexity),
+          observation: cleanOptionalText(validated.observation),
+          sessionId: session.id,
+          clientRequestId: validated.clientRequestId ?? null,
+        },
+      });
 
-    const allAttempts = await tx.dsaAttempt.findMany({
-      where: { userId, problemId: problem.id },
-      orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
-      select: {
-        attemptedAt: true,
-        attemptDate: true,
-        classification: true,
-      },
-    });
+      const allAttempts = await tx.dsaAttempt.findMany({
+        where: { userId, problemId: problem.id },
+        orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
+        select: {
+          attemptedAt: true,
+          attemptDate: true,
+          classification: true,
+        },
+      });
 
-    const recomputed = recomputeProblemState(allAttempts);
-    const isNewerThanPrior =
-      !problem.lastAttemptAt || attemptedAt.getTime() >= problem.lastAttemptAt.getTime();
+      const recomputed = recomputeProblemState(allAttempts);
+      const isNewerThanPrior =
+        !problem.lastAttemptAt || attemptedAt.getTime() >= problem.lastAttemptAt.getTime();
 
-    await tx.dsaProblem.update({
-      where: { id: problem.id },
-      data: {
-        lastClassification: recomputed.lastClassification,
-        lastAttemptAt: recomputed.lastAttemptAt,
-        intervalDays: recomputed.intervalDays,
-        consecutiveIndependent: recomputed.consecutiveIndependent,
-        nextRevisionDate: recomputed.nextRevisionDate
-          ? dsaParseDate(recomputed.nextRevisionDate)
-          : null,
-        ...(isNewerThanPrior ? { manualNextRevisionDate: null } : {}),
-      },
-    });
+      await tx.dsaProblem.update({
+        where: { id: problem.id },
+        data: {
+          lastClassification: recomputed.lastClassification,
+          lastAttemptAt: recomputed.lastAttemptAt,
+          intervalDays: recomputed.intervalDays,
+          consecutiveIndependent: recomputed.consecutiveIndependent,
+          nextRevisionDate: recomputed.nextRevisionDate
+            ? dsaParseDate(recomputed.nextRevisionDate)
+            : null,
+          ...(isNewerThanPrior ? { manualNextRevisionDate: null } : {}),
+        },
+      });
 
-    // Only automatic topic transition allowed: not_started -> in_progress
-    await tx.dsaTopic.updateMany({
-      where: {
-        id: problem.topicId,
-        userId,
-        status: "not_started",
-      },
-      data: { status: "in_progress" },
-    });
+      // Only automatic topic transition allowed: not_started -> in_progress
+      await tx.dsaTopic.updateMany({
+        where: {
+          id: problem.topicId,
+          userId,
+          status: "not_started",
+        },
+        data: { status: "in_progress" },
+      });
 
-    return { attempt: created, deduplicated: false };
-  });
+      return { attempt: created, deduplicated: false };
+    },
+    { maxWait: 5_000, timeout: 15_000 }
+  );
 
   revalidateDsaAttemptPaths(problem.id);
   return { ok: true, ...result };
@@ -180,68 +183,71 @@ export async function updateDsaAttempt(
       ? existing.attemptedAt
       : new Date(`${validated.attemptDate}T12:00:00.000Z`);
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const session = await tx.dsaSession.upsert({
-      where: {
-        userId_date: {
+  const updated = await prisma.$transaction(
+    async (tx) => {
+      const session = await tx.dsaSession.upsert({
+        where: {
+          userId_date: {
+            userId,
+            date: attemptDateObj,
+          },
+        },
+        update: {},
+        create: {
           userId,
           date: attemptDateObj,
         },
-      },
-      update: {},
-      create: {
-        userId,
-        date: attemptDateObj,
-      },
-    });
+      });
 
-    const row = await tx.dsaAttempt.update({
-      where: { id: existing.id },
-      data: {
-        attemptedAt,
-        attemptDate: attemptDateObj,
-        classification: validated.classification,
-        timeSpentMin: validated.timeSpentMin,
-        confidence: validated.confidence,
-        isRevision: validated.isRevision,
-        helpType: validated.helpType,
-        initialApproach: cleanOptionalText(validated.initialApproach),
-        finalApproach: cleanOptionalText(validated.finalApproach),
-        mistakes: cleanOptionalText(validated.mistakes),
-        mistakeTags: validated.mistakeTags,
-        timeComplexity: cleanOptionalText(validated.timeComplexity),
-        spaceComplexity: cleanOptionalText(validated.spaceComplexity),
-        observation: cleanOptionalText(validated.observation),
-        sessionId: session.id,
-      },
-    });
+      const row = await tx.dsaAttempt.update({
+        where: { id: existing.id },
+        data: {
+          attemptedAt,
+          attemptDate: attemptDateObj,
+          classification: validated.classification,
+          timeSpentMin: validated.timeSpentMin,
+          confidence: validated.confidence,
+          isRevision: validated.isRevision,
+          helpType: validated.helpType,
+          initialApproach: cleanOptionalText(validated.initialApproach),
+          finalApproach: cleanOptionalText(validated.finalApproach),
+          mistakes: cleanOptionalText(validated.mistakes),
+          mistakeTags: validated.mistakeTags,
+          timeComplexity: cleanOptionalText(validated.timeComplexity),
+          spaceComplexity: cleanOptionalText(validated.spaceComplexity),
+          observation: cleanOptionalText(validated.observation),
+          sessionId: session.id,
+        },
+      });
 
-    const allAttempts = await tx.dsaAttempt.findMany({
-      where: { userId, problemId: existing.problemId },
-      orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
-      select: {
-        attemptedAt: true,
-        attemptDate: true,
-        classification: true,
-      },
-    });
+      const allAttempts = await tx.dsaAttempt.findMany({
+        where: { userId, problemId: existing.problemId },
+        orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
+        select: {
+          attemptedAt: true,
+          attemptDate: true,
+          classification: true,
+        },
+      });
 
-    const recomputed = recomputeProblemState(allAttempts);
-    await tx.dsaProblem.update({
-      where: { id: existing.problemId },
-      data: {
-        lastClassification: recomputed.lastClassification,
-        lastAttemptAt: recomputed.lastAttemptAt,
-        intervalDays: recomputed.intervalDays,
-        consecutiveIndependent: recomputed.consecutiveIndependent,
-        nextRevisionDate: recomputed.nextRevisionDate
-          ? dsaParseDate(recomputed.nextRevisionDate)
-          : null,
-      },
-    });
+      const recomputed = recomputeProblemState(allAttempts);
+      await tx.dsaProblem.update({
+        where: { id: existing.problemId },
+        data: {
+          lastClassification: recomputed.lastClassification,
+          lastAttemptAt: recomputed.lastAttemptAt,
+          intervalDays: recomputed.intervalDays,
+          consecutiveIndependent: recomputed.consecutiveIndependent,
+          nextRevisionDate: recomputed.nextRevisionDate
+            ? dsaParseDate(recomputed.nextRevisionDate)
+            : null,
+        },
+      });
 
-    return row;
-  });
+      return row;
+    },
+    { maxWait: 5_000, timeout: 15_000 }
+  );
 
   revalidateDsaAttemptPaths(existing.problemId);
   return { ok: true, attempt: updated };
@@ -257,34 +263,37 @@ export async function deleteDsaAttempt(
   const userId = await requireDsaUserId();
   const existing = await assertDsaAttemptOwner(userId, validated.attemptId);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.dsaAttempt.delete({ where: { id: existing.id } });
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.dsaAttempt.delete({ where: { id: existing.id } });
 
-    const remaining = await tx.dsaAttempt.findMany({
-      where: { userId, problemId: existing.problemId },
-      orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
-      select: {
-        attemptedAt: true,
-        attemptDate: true,
-        classification: true,
-      },
-    });
+      const remaining = await tx.dsaAttempt.findMany({
+        where: { userId, problemId: existing.problemId },
+        orderBy: [{ attemptedAt: "asc" }, { createdAt: "asc" }],
+        select: {
+          attemptedAt: true,
+          attemptDate: true,
+          classification: true,
+        },
+      });
 
-    const recomputed = recomputeProblemState(remaining);
-    await tx.dsaProblem.update({
-      where: { id: existing.problemId },
-      data: {
-        lastClassification: recomputed.lastClassification,
-        lastAttemptAt: recomputed.lastAttemptAt,
-        intervalDays: recomputed.intervalDays,
-        consecutiveIndependent: recomputed.consecutiveIndependent,
-        nextRevisionDate: recomputed.nextRevisionDate
-          ? dsaParseDate(recomputed.nextRevisionDate)
-          : null,
-        ...(remaining.length === 0 ? { manualNextRevisionDate: null } : {}),
-      },
-    });
-  });
+      const recomputed = recomputeProblemState(remaining);
+      await tx.dsaProblem.update({
+        where: { id: existing.problemId },
+        data: {
+          lastClassification: recomputed.lastClassification,
+          lastAttemptAt: recomputed.lastAttemptAt,
+          intervalDays: recomputed.intervalDays,
+          consecutiveIndependent: recomputed.consecutiveIndependent,
+          nextRevisionDate: recomputed.nextRevisionDate
+            ? dsaParseDate(recomputed.nextRevisionDate)
+            : null,
+          ...(remaining.length === 0 ? { manualNextRevisionDate: null } : {}),
+        },
+      });
+    },
+    { maxWait: 5_000, timeout: 15_000 }
+  );
 
   revalidateDsaAttemptPaths(existing.problemId);
   return { ok: true };

@@ -190,8 +190,9 @@ export async function restoreDsaBackup(
 
   const { data } = check.payload;
 
-  await prisma.$transaction(async (tx) => {
-    if (req.mode === "replace") {
+  await prisma.$transaction(
+    async (tx) => {
+      if (req.mode === "replace") {
       await tx.dsaAttempt.deleteMany({ where: { userId } });
       await tx.dsaProblem.deleteMany({ where: { userId } });
       await tx.dsaTopic.deleteMany({ where: { userId } });
@@ -555,7 +556,9 @@ export async function restoreDsaBackup(
         },
       });
     }
-  });
+  },
+    { maxWait: 10_000, timeout: 60_000 }
+  );
 
   revalidateAllDsaPaths();
 

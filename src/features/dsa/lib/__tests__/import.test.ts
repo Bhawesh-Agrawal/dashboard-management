@@ -21,14 +21,17 @@ vi.mock("next/cache", () => ({
 const mockTx = {
   dsaTopic: {
     create: vi.fn(),
+    createManyAndReturn: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    deleteMany: vi.fn(),
   },
   dsaProblem: {
     createMany: vi.fn(),
     update: vi.fn(),
     updateMany: vi.fn(),
     count: vi.fn(),
+    groupBy: vi.fn(),
   },
   dsaSettings: {
     findUnique: vi.fn(),
@@ -269,8 +272,8 @@ describe("DSA Question Bank Import", () => {
         archived: false,
       } as never,
     ]);
-    mockTx.dsaTopic.create.mockResolvedValue({ id: "t-graphs" });
-    mockTx.dsaProblem.count.mockResolvedValue(1);
+    mockTx.dsaTopic.createManyAndReturn.mockResolvedValue([{ id: "t-graphs", name: "Graphs" }]);
+    mockTx.dsaProblem.groupBy.mockResolvedValue([{ topicId: "t-legacy", _count: { _all: 1 } }]);
     mockTx.dsaSettings.findUnique.mockResolvedValue({ id: "s-1", currentTopicId: "t-arr" });
 
     const preview = await previewDsaImport({ content: SAMPLE_CSV, format: "csv" });
@@ -299,7 +302,7 @@ describe("DSA Question Bank Import", () => {
       data: { archived: true },
     });
     // Legacy topic had 1 problem (now archived) so it was NOT deleted
-    expect(mockTx.dsaTopic.delete).not.toHaveBeenCalled();
+    expect(mockTx.dsaTopic.deleteMany).not.toHaveBeenCalled();
   });
 
   it("confirmDsaImport rejects bad rows with no database writes", async () => {

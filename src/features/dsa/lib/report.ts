@@ -1,9 +1,11 @@
 import { CLASSIFICATION_META, HELP_TYPE_LABELS, TOPIC_STATUS_LABELS } from "./constants";
-import { resolveCurrentPhase } from "./dashboard";
 import { buildRevisionQueue, computeFailureCount } from "./revision";
-import { deriveSessionMetrics } from "./sessions";
+import {
+  computeTopicsOverview,
+  deriveSessionMetrics,
+  resolveCurrentPhase,
+} from "./metrics-pure";
 import { addDaysToDateStr, diffCalendarDays, dsaDateStr } from "./time";
-import { computeTopicsOverview } from "./topics";
 import {
   DSA_CLASSIFICATIONS,
   type DsaClassificationValue,

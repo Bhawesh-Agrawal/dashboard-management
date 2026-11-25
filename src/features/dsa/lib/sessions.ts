@@ -2,7 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { dsaDateStr, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { deriveSessionMetrics, type DerivedSessionCounts } from "./metrics-pure";
 import type { DsaClassificationValue, DsaHelpTypeValue } from "./schemas";
+
+export { deriveSessionMetrics };
+export type { DerivedSessionCounts };
 
 export interface SessionAttemptItem {
   id: string;
@@ -25,14 +29,6 @@ export interface SessionAttemptItem {
   observation: string | null;
 }
 
-export interface DerivedSessionCounts {
-  attempted: number;
-  solvedIndependently: number;
-  needingHelp: number;
-  notUnderstood: number;
-  topicsPractised: string[];
-}
-
 export interface DsaSessionViewItem {
   id: string;
   date: string;
@@ -42,39 +38,6 @@ export interface DsaSessionViewItem {
   nextSessionNote: string | null;
   derived: DerivedSessionCounts;
   attempts: SessionAttemptItem[];
-}
-
-/**
- * Pure computation of derived session counts and topics practised from linked attempts.
- * Never stored on DsaSession.
- */
-export function deriveSessionMetrics(
-  attempts: Array<{ classification: DsaClassificationValue; topicName: string }>
-): DerivedSessionCounts {
-  let solvedIndependently = 0;
-  let needingHelp = 0;
-  let notUnderstood = 0;
-  const topics = new Set<string>();
-
-  for (const a of attempts) {
-    topics.add(a.topicName);
-    if (a.classification === "independent") {
-      solvedIndependently++;
-    } else if (a.classification === "not_understood") {
-      notUnderstood++;
-    } else {
-      // effortful, hinted, editorial
-      needingHelp++;
-    }
-  }
-
-  return {
-    attempted: attempts.length,
-    solvedIndependently,
-    needingHelp,
-    notUnderstood,
-    topicsPractised: Array.from(topics),
-  };
 }
 
 export async function getDsaSessionsPageData(

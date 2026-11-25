@@ -10,7 +10,7 @@ import {
   type ProblemListItem,
   type ProblemRevisionDueFilter,
   type ProblemStatusFilter,
-} from "../lib/problems";
+} from "../lib/problem-filters";
 import { DSA_CLASSIFICATIONS, DSA_DIFFICULTIES, type DsaDifficultyValue } from "../lib/schemas";
 import { AttemptLogSheet, type AttemptSheetTarget } from "./attempt-log-sheet";
 

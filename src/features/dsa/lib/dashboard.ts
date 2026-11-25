@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { computeFailureCount, getEffectiveRevisionDate } from "./revision";
+import { resolveCurrentPhase } from "./metrics-pure";
 import {
   addDaysToDateStr,
   diffCalendarDays,
@@ -10,6 +11,8 @@ import {
   getWeekStartMonday,
   DSA_DEFAULT_TIMEZONE,
 } from "./time";
+
+export { resolveCurrentPhase };
 import type {
   DsaClassificationValue,
   DsaDifficultyValue,
@@ -139,13 +142,6 @@ export interface DsaDashboardData {
     confidence: number;
     isRevision: boolean;
   }>;
-}
-
-export function resolveCurrentPhase(phases: DsaPhase[], programmeDay: number): string | null {
-  if (!phases || phases.length === 0) return null;
-  const sorted = [...phases].sort((a, b) => b.startDay - a.startDay);
-  const match = sorted.find((p) => p.startDay <= programmeDay);
-  return match ? match.name : null;
 }
 
 export function computeDsaDashboard(input: DashboardInput): DsaDashboardData {

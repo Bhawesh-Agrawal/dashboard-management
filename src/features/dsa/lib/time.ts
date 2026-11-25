@@ -1,4 +1,3 @@
-import { getNow } from "@/lib/clock";
 import { formatDateOnly, getTodayInTimezone, parseDateOnly } from "@/lib/timezone";
 
 /** Single default timezone constant for the DSA module. */
@@ -9,7 +8,7 @@ export const DSA_DEFAULT_TIMEZONE = "Asia/Kathmandu";
  * All DSA "today" calculations go through this single function.
  */
 export function dsaToday(
-  now: Date = getNow(),
+  now: Date = new Date(),
   tz: string = DSA_DEFAULT_TIMEZONE
 ): string {
   return getTodayInTimezone(tz, now);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { filterDsaProblems, type ProblemListItem } from "../problems";
+import { filterDsaProblems, type ProblemListItem } from "../problem-filters";
 import { setManualRevisionDate } from "../problem-actions";
 import { prisma } from "@/lib/prisma";
 import { UnauthorizedError } from "@/lib/auth";

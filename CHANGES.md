@@ -931,3 +931,33 @@ Audit of every network URL fetched or referenced by [public/sw.js](file:///home/
 - **Unsubscribe**: Web Push unsubscribe operations are handled via the Server Action `unsubscribeFromPush(endpoint)` in the same file.
 - **Security**: Both server actions invoke `getCurrentUserId()` to authenticate and bind subscriptions strictly to the current Supabase session user.
 
+---
+
+# Phase 3c Implementation Report: Attendance & System Hardening Corrections
+
+Date: 2026-11-25
+Branch: `phase-3-attendance`
+
+## 1. Summary of Items & Verification
+
+| # | Item Description | Status | Commit Hash | Files Changed | What Was Not Verified |
+|---|------------------|--------|-------------|---------------|-----------------------|
+| **1** | **SERVICE WORKER SHELL:** Audit `APP_SHELL_FILES` against actual Next.js App Router page tree. Fix mismatch by replacing non-existent route `/courses` with `/semesters` in [public/sw.js](file:///home/bhawesh/Projects/dashboard-management/public/sw.js). Make service worker install robust by caching each URL individually with try/catch and error logging so one bad route cannot abort installation. Update test in [service-worker-routes.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/notifications/__tests__/service-worker-routes.test.ts) to dynamically scan `src/app` for real page routes, and prove it fails on invalid routes. | **DONE** | `4c75f64` | [public/sw.js](file:///home/bhawesh/Projects/dashboard-management/public/sw.js)<br>[src/features/notifications/__tests__/service-worker-routes.test.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/notifications/__tests__/service-worker-routes.test.ts) | Service worker cache eviction and byte-range streaming for large media assets when offline storage is under OS storage pressure. |
+| **2** | **BACKFILL AMBIGUITY HANDLING:** Update [scripts/backfill-attendance-occurrence.ts](file:///home/bhawesh/Projects/dashboard-management/scripts/backfill-attendance-occurrence.ts) so courses with two or more schedules on the same weekday preserve legacy records as unmatched (`classScheduleId: null`), never guess or overwrite, and classify them as `"needs review"` (`[NEEDS REVIEW]` in dry-run output). Add comprehensive test in [scripts/__tests__/backfill-attendance-occurrence.test.ts](file:///home/bhawesh/Projects/dashboard-management/scripts/__tests__/backfill-attendance-occurrence.test.ts). | **DONE** | `bddcbc3` | [scripts/backfill-attendance-occurrence.ts](file:///home/bhawesh/Projects/dashboard-management/scripts/backfill-attendance-occurrence.ts)<br>[scripts/__tests__/backfill-attendance-occurrence.test.ts](file:///home/bhawesh/Projects/dashboard-management/scripts/__tests__/backfill-attendance-occurrence.test.ts) | Multi-year backfill performance against production datasets with >100,000 legacy attendance rows (tested on local dev dataset). |
+| **3** | **WEEKLY REVIEW OWNERSHIP & ROUTE CONSOLIDATION:** Designate `/api/cron/daily-diagnostics` as the single canonical route responsible for periodic review generation (weekly on Sunday, monthly on month-end, quarterly on quarter-end) and daily log/notification cleanup. Confirm `/api/cron/reviews` was not invoked by any Cloud Scheduler job in `cloudbuild.yaml` and delete the redundant endpoint. Document active Cloud Scheduler jobs. | **DONE** | `45fa889` | [src/app/api/cron/daily-diagnostics/route.ts](file:///home/bhawesh/Projects/dashboard-management/src/app/api/cron/daily-diagnostics/route.ts)<br>[src/app/api/cron/reviews/route.ts](file:///home/bhawesh/Projects/dashboard-management/src/app/api/cron/reviews/route.ts) (deleted) | Real Cloud Scheduler OIDC bearer token issuance in production GCP environment (local tests verify auth validation logic). |
+| **4** | **DOCS & CANCELLATION/TIMEZONE RULES:** Update [docs/ATTENDANCE_AUDIT.md](file:///home/bhawesh/Projects/dashboard-management/docs/ATTENDANCE_AUDIT.md) with comprehensive documentation of the user timezone setting architecture (default `Asia/Kathmandu`, user selectable in Settings, stored in `DailySummaryPreference.timezone`, zero-skew date boundary calculations) and reaffirm the "exception cancelled always wins" rule. Append Phase 3c completion report to [CHANGES.md](file:///home/bhawesh/Projects/dashboard-management/CHANGES.md). | **DONE** | `56d1878` | [docs/ATTENDANCE_AUDIT.md](file:///home/bhawesh/Projects/dashboard-management/docs/ATTENDANCE_AUDIT.md)<br>[CHANGES.md](file:///home/bhawesh/Projects/dashboard-management/CHANGES.md) | None (documentation changes verified against code implementation and test coverage). |
+
+---
+
+## 2. Cloud Scheduler Jobs & Topography
+
+Cloud Scheduler triggers are managed via [cloudbuild.yaml](file:///home/bhawesh/Projects/dashboard-management/cloudbuild.yaml) and capped at 2 active jobs (well within GCP free-tier limit of 3 jobs):
+
+| Job Name | Schedule | Timezone | Target URI | Purpose & Responsibilities |
+|---|---|---|---|---|
+| `notifications` | `*/5 6-23 * * *` | `Asia/Kathmandu` | `$$SERVICE_URL/api/notifications/trigger` | 5-minute waking tick (06:00 to 23:00 NPT). Dispatches upcoming class reminders, attendance prompts post-class, task alerts, and daily brief notifications. |
+| `daily-maintenance` | `0 2 * * *` | `Asia/Kathmandu` | `$$SERVICE_URL/api/cron/daily-diagnostics` | Daily maintenance tick (02:00 NPT). Executes weekly review generation on Sundays (UTC 0), monthly/quarterly reviews at period boundaries, and purges sent notifications older than 7 days. |
+| *(Job 3)* | *Reserved* | - | - | Spare slot reserved for future workloads without exceeding free tier. |
+
+- **Route Deletion**: `/api/cron/reviews` was verified to be unreferenced by `cloudbuild.yaml` and completely duplicated the review generation logic now consolidated into `/api/cron/daily-diagnostics`. It has been completely deleted.
+

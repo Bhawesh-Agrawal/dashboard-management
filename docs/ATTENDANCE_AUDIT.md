@@ -143,6 +143,7 @@ In [src/features/assessments/lib/calculations.ts](file:///home/bhawesh/Projects/
 
 ## 6. Date Storage, Timezone & Comparison Analysis
 
+### 6.1 Historical Date Parsing and Storage Flaws
 - **Storage Type**: Postgres `@db.Date` via Prisma `DateTime @db.Date`.
 - **Parsing Bug**:
   In [src/features/attendance/lib/actions.ts:26](file:///home/bhawesh/Projects/dashboard-management/src/features/attendance/lib/actions.ts#L26):
@@ -159,6 +160,19 @@ In [src/features/assessments/lib/calculations.ts](file:///home/bhawesh/Projects/
   ```
   - `new Date().toISOString()` returns the UTC date string.
   - In Nepal (`UTC+05:45`) or India (`UTC+05:30`), between midnight and 05:30/05:45 AM, UTC is still on the previous calendar date. Any early morning or post-midnight operation marks attendance on the wrong calendar date!
+
+### 6.2 User Timezone Setting & Resolution Architecture
+To eliminate timezone drift across Cloud Run (UTC), local developer machines, and user devices, attendance operations rely on a unified timezone configuration:
+- **Canonical Timezone Setting**: The application defines a default fallback of `Asia/Kathmandu` (`DEFAULT_TIMEZONE` in [src/lib/timezone.ts](file:///home/bhawesh/Projects/dashboard-management/src/lib/timezone.ts#L6)).
+- **User Preference Storage**: The user's timezone is persisted in the database via `DailySummaryPreference.timezone` and resolved server-side through `getUserTimezone(userId)` in [src/lib/timezone-server.ts](file:///home/bhawesh/Projects/dashboard-management/src/lib/timezone-server.ts#L9-L21).
+- **Settings Management**: Configurable by the user in the UI at `/settings` ([src/app/(app)/settings/page.tsx](file:///home/bhawesh/Projects/dashboard-management/src/app/(app)/settings/page.tsx#L134)) via the `TimezoneSettings` component ([src/features/settings/components/timezone-settings.tsx](file:///home/bhawesh/Projects/dashboard-management/src/features/settings/components/timezone-settings.tsx)), with instant local time preview and standard IANA timezone search.
+- **Consistent Boundary Evaluation**:
+  - `getTodayInTimezone(timezone, now)`: Obtains the calendar date string (`YYYY-MM-DD`) in the user's timezone.
+  - `getDayOfWeekInTimezone(timezone, now)`: Computes the 0-6 weekday index in the user's timezone.
+  - `getTimeInTimezone(timezone, now)`: Extracts minutes since midnight in the user's timezone for accurate class window checking.
+- **Normalized Date Storage**:
+  - `parseDateOnly(dateStr)` converts `YYYY-MM-DD` strings to UTC midnight Date objects (`YYYY-MM-DDT00:00:00.000Z`) exclusively for PostgreSQL `@db.Date` fields.
+  - `formatDateOnly(date)` formats any Date object as `YYYY-MM-DD` using UTC components (`getUTCFullYear()`, `getUTCMonth()`, `getUTCDate()`), guaranteeing zero local browser/server skew.
 
 ---
 

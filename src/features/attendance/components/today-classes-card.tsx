@@ -3,7 +3,6 @@
 import { useState, useTransition, useEffect } from "react";
 import { useIsOnline } from "@/lib/use-online";
 import { markAttendance } from "@/features/attendance/lib/actions";
-import { Check, X, Ban, AlertTriangle, RotateCcw, WifiOff, MapPin, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import type { DashboardData } from "@/types";
@@ -154,35 +153,34 @@ export function TodayClassesCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
+    <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
       {/* Header and Quick Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-border">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-foreground">Today&apos;s Classes</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className="section-label">Today&apos;s Classes</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {todayClasses.length} {todayClasses.length === 1 ? "class" : "classes"} scheduled
           </p>
         </div>
         <button
+          type="button"
           onClick={handleMarkAllPresent}
           disabled={bulkPending || !isOnline}
-          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 py-2 text-xs font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center min-h-[44px] px-3 py-2 text-xs font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
         >
-          <CheckCheck className="h-4 w-4" />
-          <span>Mark all today present</span>
+          Mark all today present
         </button>
       </div>
 
-      {/* Offline Alert Banner */}
+      {/* Offline Notice */}
       {!isOnline && (
-        <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400">
-          <WifiOff className="h-4 w-4 shrink-0" />
-          <span>You are offline. Connect to internet to mark attendance.</span>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Offline — connect to the internet to mark attendance.
+        </p>
       )}
 
       {/* Class Rows */}
-      <div className="divide-y divide-border/60">
+      <div className="divide-y divide-border">
         {todayClasses.map((cls) => {
           const state = rowStates[cls.id] || {
             status: "unmarked",
@@ -197,137 +195,86 @@ export function TodayClassesCard({
           const startTime = isRescheduled && exception.newStartTime ? exception.newStartTime : cls.startTime;
           const endTime = isRescheduled && exception.newEndTime ? exception.newEndTime : cls.endTime;
           const location = isRescheduled && exception.newLocation ? exception.newLocation : cls.location;
+          const isCancelledByException = exception?.type === "cancelled";
 
           return (
-            <div key={cls.id} className="py-3.5 first:pt-0 last:pb-0 space-y-3">
-              {/* Class Info */}
-              <div className="flex items-start justify-between gap-2">
+            <div
+              key={cls.id}
+              className={`py-3 first:pt-0 last:pb-0 space-y-2 ${
+                isCancelledByException ? "opacity-60" : ""
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: cls.course.color || "hsl(var(--primary))" }}
-                    />
                     <Link
                       href={`/courses/${cls.course.id}`}
-                      className="font-medium text-sm hover:underline truncate"
+                      className="font-medium text-sm text-foreground hover:underline truncate"
                     >
                       {cls.course.name}
                     </Link>
                     {cls.course.code && (
-                      <span className="text-xs text-muted-foreground font-mono">
-                        ({cls.course.code})
+                      <span className="text-xs text-muted-foreground">
+                        {cls.course.code}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{startTime} - {endTime}</span>
-                    {location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {location}
-                      </span>
-                    )}
+                  <div className="text-xs text-muted-foreground">
+                    {startTime} - {endTime}
+                    {location ? ` · ${location}` : ""}
                   </div>
                 </div>
 
-                {/* Status Badge */}
-                <div>
-                  {state.status === "present" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                      <Check className="h-3 w-3" /> Present
-                    </span>
-                  )}
-                  {state.status === "absent" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                      <X className="h-3 w-3" /> Absent
-                    </span>
-                  )}
-                  {state.status === "cancelled" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                      <Ban className="h-3 w-3" /> Cancelled
-                    </span>
-                  )}
-                  {state.status === "unmarked" && (
-                    <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground">
-                      Unmarked
-                    </span>
-                  )}
-                </div>
+                {isCancelledByException ? (
+                  <span className="text-xs text-muted-foreground sm:text-right">
+                    Cancelled
+                  </span>
+                ) : (
+                  <div
+                    role="group"
+                    aria-label={`Attendance for ${cls.course.name}`}
+                    className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid rounded-md border border-border overflow-hidden divide-x divide-border"
+                  >
+                    {(["present", "absent", "cancelled"] as const).map((segment) => {
+                      const selected = state.status === segment;
+                      const label =
+                        segment === "present"
+                          ? "Present"
+                          : segment === "absent"
+                          ? "Absent"
+                          : "Cancelled";
+                      return (
+                        <button
+                          key={segment}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            handleMark(cls, selected ? "unmarked" : segment)
+                          }
+                          disabled={state.pending || !isOnline}
+                          className={`min-h-[44px] px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                            selected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {/* Error banner if save failed */}
               {state.error && (
-                <div className="flex items-center justify-between p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>{state.error}</span>
-                  </div>
+                <div className="flex items-center justify-between text-xs text-destructive">
+                  <span>{state.error}</span>
                   <button
+                    type="button"
                     onClick={() => handleMark(cls, state.status !== "unmarked" ? state.status : "present")}
-                    className="inline-flex items-center gap-1 font-medium hover:underline ml-2"
+                    className="font-medium underline ml-2 min-h-[44px] px-2"
                   >
-                    <RotateCcw className="h-3 w-3" /> Retry
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons: Min 44px height, responsive */}
-              {state.status === "cancelled" || exception?.type === "cancelled" ? (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <Ban className="h-4 w-4 text-muted-foreground" />
-                    <span>Class is cancelled{exception?.type === "cancelled" ? " (Schedule Exception)" : ""}</span>
-                  </div>
-                  {exception?.type !== "cancelled" && (
-                    <button
-                      type="button"
-                      onClick={() => handleMark(cls, "unmarked")}
-                      disabled={state.pending || !isOnline}
-                      className="text-xs text-muted-foreground hover:text-foreground underline font-medium"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleMark(cls, "present")}
-                    disabled={state.pending || !isOnline}
-                    className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      state.status === "present"
-                        ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
-                        : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
-                    }`}
-                  >
-                    <Check className="h-4 w-4" />
-                    <span>Present</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleMark(cls, "absent")}
-                    disabled={state.pending || !isOnline}
-                    className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      state.status === "absent"
-                        ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
-                        : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
-                    }`}
-                  >
-                    <X className="h-4 w-4" />
-                    <span>Absent</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleMark(cls, "cancelled")}
-                    disabled={state.pending || !isOnline}
-                    className="min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
-                  >
-                    <Ban className="h-3.5 w-3.5" />
-                    <span>Cancelled</span>
+                    Retry
                   </button>
                 </div>
               )}

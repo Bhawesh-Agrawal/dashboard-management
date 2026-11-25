@@ -11,7 +11,6 @@ import {
   AttendanceMetrics,
 } from "@/features/attendance/lib/calculations";
 import { formatDateOnly } from "@/lib/timezone";
-import { Check, X, Ban, AlertTriangle, RotateCcw, WifiOff, Calendar, MapPin, TrendingUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ClassSchedule, ScheduleException, AttendanceRecord, Semester, AttendanceStatus } from "@prisma/client";
 
@@ -247,69 +246,47 @@ export function CourseAttendanceSection({
 
   return (
     <div className="space-y-6">
-      {/* Top Section: Metrics and Academic Buffer / Recovery Forecast */}
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+      {/* Summary Line */}
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
           <div>
             <h2 className="section-label">Attendance</h2>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-bold tracking-tight text-foreground">
+              <span
+                className={`text-3xl font-bold tracking-tight ${
+                  metrics.status === "below_target"
+                    ? "text-destructive"
+                    : "text-foreground"
+                }`}
+              >
                 {metrics.percent}%
               </span>
               <span className="text-xs text-muted-foreground">
-                ({metrics.present} of {metrics.totalCounted} classes counted)
+                {metrics.present} of {metrics.totalCounted} classes · Target {metrics.targetPercent}%
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                metrics.status === "above_target"
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : metrics.status === "at_target"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-              }`}
-            >
-              Target: {metrics.targetPercent}%
-            </span>
+          <div className="text-xs text-muted-foreground">
+            {metrics.canMissCount > 0 && (
+              <span>
+                Can miss {metrics.canMissCount} more{" "}
+                {metrics.canMissCount === 1 ? "class" : "classes"}
+              </span>
+            )}
+            {metrics.mustAttendCount > 0 && (
+              <span className="text-destructive">
+                Must attend next {metrics.mustAttendCount}{" "}
+                {metrics.mustAttendCount === 1 ? "class" : "classes"}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Academic Forecasting Card */}
-        {metrics.canMissCount > 0 && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm">
-            <TrendingUp className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <div>
-              <span className="font-semibold">Buffer available: </span>
-              <span>
-                You can miss <strong>{metrics.canMissCount}</strong> more{" "}
-                {metrics.canMissCount === 1 ? "class" : "classes"} and remain above the {metrics.targetPercent}% target.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {metrics.mustAttendCount > 0 && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs sm:text-sm">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-rose-600 dark:text-rose-400" />
-            <div>
-              <span className="font-semibold">Attendance alert: </span>
-              <span>
-                You must attend the next <strong>{metrics.mustAttendCount}</strong> consecutive{" "}
-                {metrics.mustAttendCount === 1 ? "class" : "classes"} to recover to {metrics.targetPercent}%.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Offline Warning */}
         {!isOnline && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400">
-            <WifiOff className="h-4 w-4 shrink-0" />
-            <span>You are offline. Connect to internet to mark attendance.</span>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Offline — connect to the internet to mark attendance.
+          </p>
         )}
       </div>
 
@@ -319,156 +296,97 @@ export function CourseAttendanceSection({
           <p className="text-sm text-muted-foreground">No class occurrences found for this course schedule.</p>
         ) : (
           groupedWeeks.map((week) => (
-            <div key={week.weekKey} className="space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{week.title}</span>
-              </div>
+            <div key={week.weekKey} className="space-y-2">
+              <h3 className="section-label px-1">{week.title}</h3>
 
-              <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden shadow-sm">
+              <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
                 {week.occurrences.map((occ) => {
                   const key = occ.occurrenceId;
                   const isPending = pendingMap[key] || false;
                   const errorMsg = rowErrors[key];
                   const isPastUnmarked = occ.isPast && occ.status === "unmarked";
+                  const isCancelledByException = occ.exceptionType === "cancelled";
 
                   return (
                     <div
                       key={key}
-                      className={`p-3.5 sm:p-4 space-y-3 transition-colors ${
-                        isPastUnmarked ? "bg-amber-500/5 dark:bg-amber-500/10" : ""
+                      className={`p-3.5 sm:px-4 sm:py-3 space-y-2 ${
+                        isCancelledByException ? "opacity-60" : ""
                       }`}
                     >
-                      {/* Occurrence Details Header */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="space-y-0.5 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm text-foreground">
+                            <span className="font-medium text-sm text-foreground">
                               {occ.dayOfWeek}, {occ.date}
                             </span>
                             {occ.isToday && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                                TODAY
-                              </span>
+                              <span className="text-xs text-muted-foreground">Today</span>
                             )}
                             {occ.isException && occ.exceptionType === "rescheduled" && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                                Rescheduled
-                              </span>
+                              <span className="text-xs text-muted-foreground">Rescheduled</span>
                             )}
                             {isPastUnmarked && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40">
-                                <AlertTriangle className="h-3 w-3" />
-                                Unmarked past class
-                              </span>
+                              <span className="text-xs text-muted-foreground">Not marked</span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>
-                              {occ.startTime} - {occ.endTime}
-                            </span>
-                            {occ.location && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {occ.location}
-                              </span>
-                            )}
+                          <div className="text-xs text-muted-foreground">
+                            {occ.startTime} - {occ.endTime}
+                            {occ.location ? ` · ${occ.location}` : ""}
                           </div>
                         </div>
 
-                        {/* Current Status Pill */}
-                        <div>
-                          {occ.status === "present" && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                              <Check className="h-3 w-3" /> Present
-                            </span>
-                          )}
-                          {occ.status === "absent" && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                              <X className="h-3 w-3" /> Absent
-                            </span>
-                          )}
-                          {occ.status === "cancelled" && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              <Ban className="h-3 w-3" /> Cancelled
-                            </span>
-                          )}
-                        </div>
+                        {isCancelledByException ? (
+                          <span className="text-xs text-muted-foreground sm:text-right">
+                            Cancelled
+                          </span>
+                        ) : (
+                          <div
+                            role="group"
+                            aria-label={`Attendance for ${occ.date}`}
+                            className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid rounded-md border border-border overflow-hidden divide-x divide-border"
+                          >
+                            {(["present", "absent", "cancelled"] as const).map((segment) => {
+                              const selected = occ.status === segment;
+                              const label =
+                                segment === "present"
+                                  ? "Present"
+                                  : segment === "absent"
+                                  ? "Absent"
+                                  : "Cancelled";
+                              return (
+                                <button
+                                  key={segment}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    handleMark(occ, selected ? "unmarked" : segment)
+                                  }
+                                  disabled={isPending || !isOnline}
+                                  className={`min-h-[44px] px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                                    selected
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Error state */}
                       {errorMsg && (
-                        <div className="flex items-center justify-between p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                            <span>{errorMsg}</span>
-                          </div>
-                          <button
-                            onClick={() => handleMark(occ, "present")}
-                            className="inline-flex items-center gap-1 font-medium hover:underline ml-2"
-                          >
-                            <RotateCcw className="h-3 w-3" /> Retry
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Large One-Tap Buttons: Min 44px height */}
-                      {occ.status === "cancelled" || occ.exceptionType === "cancelled" ? (
-                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1.5 font-medium">
-                            <Ban className="h-4 w-4 text-muted-foreground" />
-                            <span>Class is cancelled{occ.exceptionType === "cancelled" ? " (Schedule Exception)" : ""}</span>
-                          </div>
-                          {occ.exceptionType !== "cancelled" && (
-                            <button
-                              type="button"
-                              onClick={() => handleMark(occ, "unmarked")}
-                              disabled={isPending || !isOnline}
-                              className="text-xs text-muted-foreground hover:text-foreground underline font-medium"
-                            >
-                              Reset
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="flex items-center justify-between text-xs text-destructive">
+                          <span>{errorMsg}</span>
                           <button
                             type="button"
                             onClick={() => handleMark(occ, "present")}
-                            disabled={isPending || !isOnline}
-                            className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                              occ.status === "present"
-                                ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
-                                : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
-                            }`}
+                            className="font-medium underline ml-2 min-h-[44px] px-2"
                           >
-                            <Check className="h-4 w-4" />
-                            <span>Present</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleMark(occ, "absent")}
-                            disabled={isPending || !isOnline}
-                            className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                              occ.status === "absent"
-                                ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
-                                : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
-                            }`}
-                          >
-                            <X className="h-4 w-4" />
-                            <span>Absent</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleMark(occ, "cancelled")}
-                            disabled={isPending || !isOnline}
-                            className="min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                            <span>Cancelled</span>
+                            Retry
                           </button>
                         </div>
                       )}

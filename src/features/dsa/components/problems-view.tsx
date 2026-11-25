@@ -271,6 +271,7 @@ export function ProblemsView({
         target={sheetTarget}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        defaultDate={todayStr}
       />
     </div>
   );

@@ -2,14 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Calendar, PlusCircle } from "lucide-react";
+import { ExternalLink, Calendar, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CLASSIFICATION_META, DIFFICULTY_BADGE_CLASS, HELP_TYPE_LABELS } from "../lib/constants";
 import { setManualRevisionDate } from "../lib/problem-actions";
+import { deleteDsaAttempt } from "../lib/attempt-actions";
 import type { AttemptDetailItem } from "../lib/problems";
 import type { DsaClassificationValue, DsaDifficultyValue } from "../lib/schemas";
-import { AttemptLogSheet } from "./attempt-log-sheet";
+import { AttemptLogSheet, type AttemptSheetTarget } from "./attempt-log-sheet";
 
 interface ProblemDetailProps {
   problem: {
@@ -41,6 +50,8 @@ export function ProblemDetailView({ problem }: ProblemDetailProps) {
   const router = useRouter();
   const [manualDate, setManualDate] = useState(problem.manualNextRevisionDate ?? "");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetTarget, setSheetTarget] = useState<AttemptSheetTarget | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSaveManualDate(nextVal: string | null) {
@@ -55,6 +66,40 @@ export function ProblemDetailView({ problem }: ProblemDetailProps) {
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to update revision date");
+      }
+    });
+  }
+
+  function openNewAttempt() {
+    setSheetTarget({
+      problemId: problem.id,
+      problemTitle: problem.title,
+      isRevision: problem.attempts.length > 0,
+    });
+    setSheetOpen(true);
+  }
+
+  function openEditAttempt(a: AttemptDetailItem) {
+    setSheetTarget({
+      problemId: problem.id,
+      problemTitle: problem.title,
+      isRevision: a.isRevision,
+      editAttempt: a,
+    });
+    setSheetOpen(true);
+  }
+
+  function handleConfirmDelete() {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    startTransition(async () => {
+      try {
+        await deleteDsaAttempt({ attemptId: id });
+        setDeleteTargetId(null);
+        toast.success("Attempt deleted and progress recomputed");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete attempt");
       }
     });
   }
@@ -99,7 +144,7 @@ export function ProblemDetailView({ problem }: ProblemDetailProps) {
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            onClick={() => setSheetOpen(true)}
+            onClick={openNewAttempt}
             className="min-h-[44px]"
           >
             <PlusCircle className="h-4 w-4 mr-1.5" />
@@ -217,10 +262,29 @@ export function ProblemDetailView({ problem }: ProblemDetailProps) {
                         Revision
                       </span>
                     )}
+                    <span className="text-xs text-muted-foreground">
+                      {a.timeSpentMin}m · Conf {a.confidence}/5 · Help: {HELP_TYPE_LABELS[a.helpType]}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {a.timeSpentMin}m · Conf {a.confidence}/5 · Help: {HELP_TYPE_LABELS[a.helpType]}
-                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditAttempt(a)}
+                      aria-label="Edit attempt"
+                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTargetId(a.id)}
+                      aria-label="Delete attempt"
+                      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {a.mistakeTags.length > 0 && (
@@ -264,14 +328,45 @@ export function ProblemDetailView({ problem }: ProblemDetailProps) {
       </div>
 
       <AttemptLogSheet
-        target={{
-          problemId: problem.id,
-          problemTitle: problem.title,
-          isRevision: problem.attempts.length > 0,
-        }}
+        target={sheetTarget}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+
+      <Dialog
+        open={Boolean(deleteTargetId)}
+        onOpenChange={(o) => {
+          if (!o) setDeleteTargetId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Attempt?</DialogTitle>
+            <DialogDescription>
+              This removes the selected attempt and recomputes the problem&apos;s revision schedule from remaining attempts.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTargetId(null)}
+              className="min-h-[44px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isPending}
+              onClick={handleConfirmDelete}
+              className="min-h-[44px]"
+            >
+              {isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

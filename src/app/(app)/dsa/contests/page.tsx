@@ -1,12 +1,15 @@
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
-import { EmptyState } from "@/components/shared/empty-state";
+import { ContestsView } from "@/features/dsa/components/contests-view";
+import { getDsaContestsPageData } from "@/features/dsa/lib/contests";
 
 export const revalidate = 0;
 
-export default function DsaContestsPage() {
+export default async function DsaContestsPage() {
+  const data = await getDsaContestsPageData();
+
   return (
-    <DsaShell title="Contests" subtitle="Contest Log">
-      <EmptyState title="Contests" description="Record LeetCode, CodeChef, and other contest logs." />
+    <DsaShell title="Contests" subtitle="Manual Contest Log">
+      <ContestsView todayStr={data.todayStr} contests={data.contests} />
     </DsaShell>
   );
 }

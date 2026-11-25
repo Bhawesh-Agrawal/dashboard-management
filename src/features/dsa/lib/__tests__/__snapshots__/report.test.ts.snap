@@ -1,0 +1,64 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DSA Tutor Report > renders Markdown with all 11 sections in order and supports latest-state-only toggle 1`] = `
+"# DSA Progress Report
+
+## 1. Snapshot
+- Generated at: 2026-11-25T10:00:00.000Z
+- Programme Day: 25 of 90
+- Current Phase: Phase 1: Basics
+- Current Topic: Arrays
+- Timezone: Asia/Kathmandu
+
+## 2. Classification & Revision Legend
+- **independent** (Solved independently): No hints, solved on your own. Interval: 7d → 14d → 30d.
+- **effortful** (Solved with considerable effort): Got there yourself, but struggled or took long. Interval: 3d.
+- **hinted** (Solved with hints): Needed a nudge or partial hint to finish. Interval: 2d.
+- **editorial** (Understood after editorial): Read editorial/solution, now understand the idea. Interval: 1d.
+- **not_understood** (Still not understood): Could not follow or still unclear. Interval: 1d.
+
+## 3. Topics Overview
+| # | Topic | Status | Attempted/Total | Indep | Effort | Hinted | Ed | NotUnd | Overdue | 14d Fails |
+|---|-------|--------|-----------------|-------|--------|--------|----|--------|---------|-----------|
+| 1 | Arrays | In progress | 1/1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 |
+
+## 4. Current Topic Problems (Arrays)
+- Two Sum [Hashing] (easy) — independent
+
+## 5. Revision Queue
+### Overdue (0)
+- None
+### Due Today (1)
+- Two Sum (Arrays) — last: independent, failures: 1, due: 2026-11-25
+### Next 7 Days (0)
+- None
+
+## 6. Recent Sessions
+- 2026-11-24 (45m): 1 attempted (1 indep, 0 help, 0 not_understood) | Topics: Arrays | Notes: Solid review
+
+## 7. Attempt History (Problems Touched in Window)
+### Two Sum (Arrays)
+- 2026-11-18 | editorial | 40m | conf 2/5 | help: Editorial | tags: [edge case] | mistakes: "Missed duplicate index check" | obs: "Check i !== map[target - x]" | initial: "Brute force O(n^2)" | final: "Hash map single pass" | T=O(n) | S=O(n)
+- 2026-11-24 | independent | 15m | conf 5/5 | help: None | revision | obs: "Clean solve"
+
+## 8. Recurring Mistakes (Last 30 Days)
+- Overall: edge case (1)
+- Arrays: edge case (1)
+
+## 9. Weak Concepts
+### Topics by Failure Ratio
+- Arrays: 50% (1/2 attempts)
+### Subtopics by Failure Ratio
+- Arrays / Hashing: 50% (1/2)
+### Problems with Failures >= 2
+- None
+### Low-Confidence Problems (<= 2/5)
+- None
+
+## 10. Recent Contests (Last 5)
+- 2026-11-24 [leetcode] Weekly 420: 2/3 solved | Rank/Rating: 1650 | Upsolve: Q3 | Missed: Sliding window
+
+## 11. Availability & Note for Tutor
+- Available time for next session: 60 minutes
+- Note: Focus on graphs next"
+`;

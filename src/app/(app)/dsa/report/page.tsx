@@ -1,12 +1,15 @@
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
-import { EmptyState } from "@/components/shared/empty-state";
+import { TutorReportView } from "@/features/dsa/components/report-view";
+import { getDsaReportSourceData } from "@/features/dsa/lib/report-queries";
 
 export const revalidate = 0;
 
-export default function DsaReportPage() {
+export default async function DsaReportPage() {
+  const source = await getDsaReportSourceData();
+
   return (
-    <DsaShell title="Tutor Report" subtitle="Export for External Review">
-      <EmptyState title="Tutor Report" description="Generate Markdown or JSON progress snapshots here." />
+    <DsaShell title="Tutor Report" subtitle="Export Markdown or JSON Snapshot">
+      <TutorReportView source={source} />
     </DsaShell>
   );
 }

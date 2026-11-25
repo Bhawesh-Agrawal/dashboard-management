@@ -16,6 +16,7 @@ export interface BackfillPlan {
   alreadyLinked: number;
   mappedCount: number;
   unmappedCount: number;
+  needsReviewCount: number;
   plannedUpdates: Array<{
     recordId: string;
     courseId: string;
@@ -32,6 +33,7 @@ export interface BackfillPlan {
     date: string;
     dayOfWeek: DayOfWeek;
     reason: string;
+    status: "unmapped" | "needs review";
   }>;
 }
 
@@ -59,6 +61,7 @@ export function planAttendanceBackfill(
     alreadyLinked: 0,
     mappedCount: 0,
     unmappedCount: 0,
+    needsReviewCount: 0,
     plannedUpdates: [],
     unmappedRecords: [],
   };
@@ -101,16 +104,21 @@ export function planAttendanceBackfill(
         date: dateStr,
         dayOfWeek,
         reason: `No class schedule found for course on ${dayOfWeek}`,
+        status: "unmapped",
       });
     } else {
+      // Ambiguous: 2 or more schedules on the same weekday.
+      // Must NEVER guess. Kept unmatched (classScheduleId: null) and marked as "needs review".
       plan.unmappedCount++;
+      plan.needsReviewCount++;
       plan.unmappedRecords.push({
         recordId: record.id,
         courseId: record.courseId,
         courseName: record.course.name,
         date: dateStr,
         dayOfWeek,
-        reason: `Ambiguous match: ${matchingSchedules.length} schedules found on ${dayOfWeek} (${matchingSchedules.map((s) => `${s.startTime}-${s.endTime}`).join(", ")})`,
+        reason: `Ambiguous match: ${matchingSchedules.length} schedules found on ${dayOfWeek} (${matchingSchedules.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}) — kept unmatched (classScheduleId: NULL, needs review)`,
+        status: "needs review",
       });
     }
   }
@@ -145,12 +153,14 @@ async function main() {
   console.log(` - Total attendance records: ${plan.totalRecords}`);
   console.log(` - Already linked to schedule: ${plan.alreadyLinked}`);
   console.log(` - Successfully mapped to a schedule: ${plan.mappedCount}`);
-  console.log(` - Unmapped records (preserved untouched): ${plan.unmappedCount}\n`);
+  console.log(` - Unmapped records (preserved untouched): ${plan.unmappedCount}`);
+  console.log(`   └─ Needs Review (ambiguous multi-schedule matches, never guessed): ${plan.needsReviewCount}\n`);
 
   if (plan.unmappedRecords.length > 0) {
-    console.log(`⚠️ Unmapped Records (${plan.unmappedRecords.length}):`);
+    console.log(`⚠️ Unmapped / Needs Review Records (${plan.unmappedRecords.length}):`);
     for (const unmapped of plan.unmappedRecords) {
-      console.log(`   - [${unmapped.recordId}] ${unmapped.courseName} on ${unmapped.date} (${unmapped.dayOfWeek}): ${unmapped.reason}`);
+      const badge = unmapped.status === "needs review" ? "[NEEDS REVIEW]" : "[UNMAPPED]";
+      console.log(`   - ${badge} [${unmapped.recordId}] ${unmapped.courseName} on ${unmapped.date} (${unmapped.dayOfWeek}): ${unmapped.reason}`);
     }
     console.log("");
   }

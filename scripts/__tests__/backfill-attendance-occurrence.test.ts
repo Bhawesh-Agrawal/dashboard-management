@@ -138,6 +138,65 @@ describe("planAttendanceBackfill", () => {
     const plan = planAttendanceBackfill(records);
     expect(plan.mappedCount).toBe(0);
     expect(plan.unmappedCount).toBe(1);
+    expect(plan.needsReviewCount).toBe(1);
+    expect(plan.plannedUpdates).toHaveLength(0);
+    expect(plan.unmappedRecords[0].status).toBe("needs review");
     expect(plan.unmappedRecords[0].reason).toContain("Ambiguous match: 2 schedules found on FRI");
+    expect(plan.unmappedRecords[0].reason).toContain("needs review");
+  });
+
+  it("ensures legacy records on multi-schedule weekdays stay unmatched with classScheduleId NULL and never guessed", () => {
+    const twoScheduleCourse = {
+      name: "Chemistry 201 (Lecture + Lab)",
+      classSchedules: [
+        {
+          id: "sched-chem-morning",
+          dayOfWeek: "TUE" as const,
+          startTime: "09:00",
+          endTime: "10:00",
+          effectiveStartDate: null,
+          effectiveEndDate: null,
+        },
+        {
+          id: "sched-chem-afternoon",
+          dayOfWeek: "TUE" as const,
+          startTime: "14:00",
+          endTime: "16:00",
+          effectiveStartDate: null,
+          effectiveEndDate: null,
+        },
+      ],
+    };
+
+    const legacyRecords = [
+      {
+        id: "rec-tue-legacy-1",
+        courseId: "course-chem",
+        classScheduleId: null,
+        date: new Date("2026-11-24T00:00:00.000Z"), // Tuesday
+        course: twoScheduleCourse,
+      },
+      {
+        id: "rec-tue-legacy-2",
+        courseId: "course-chem",
+        classScheduleId: null,
+        date: new Date("2026-12-01T00:00:00.000Z"), // Following Tuesday
+        course: twoScheduleCourse,
+      },
+    ];
+
+    const plan = planAttendanceBackfill(legacyRecords);
+
+    // Neither legacy record should be mapped; neither should receive a guessed classScheduleId
+    expect(plan.mappedCount).toBe(0);
+    expect(plan.plannedUpdates).toHaveLength(0);
+    expect(plan.unmappedCount).toBe(2);
+    expect(plan.needsReviewCount).toBe(2);
+
+    for (const record of plan.unmappedRecords) {
+      expect(record.status).toBe("needs review");
+      expect(record.reason).toContain("Ambiguous match: 2 schedules found on TUE");
+      expect(record.reason).toContain("kept unmatched (classScheduleId: NULL, needs review)");
+    }
   });
 });

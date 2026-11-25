@@ -5,7 +5,15 @@ export class UnauthorizedError extends Error {
   constructor(message = "Unauthorized") {
     super(message);
     this.name = "UnauthorizedError";
+    Object.setPrototypeOf(this, UnauthorizedError.prototype);
   }
+}
+
+export function isUnauthorizedError(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof UnauthorizedError) return true;
+  if (typeof error === "object" && "name" in error && (error as any).name === "UnauthorizedError") return true;
+  return false;
 }
 
 /**

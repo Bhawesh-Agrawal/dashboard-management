@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
+import { getCurrentUserId, isUnauthorizedError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -264,7 +264,7 @@ export async function GET() {
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
+    if (isUnauthorizedError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("[Sync Seed] Failed:", error);

@@ -43,4 +43,22 @@ describe("Service Worker Route Validation & Push Attendance", () => {
     // Verify sw.js does not fetch it
     expect(swContent).not.toContain("/api/notifications/subscribe");
   });
+
+  it("verifies all APP_SHELL_FILES in public/sw.js exist and do not contain dead removed routes", () => {
+    expect(swContent).not.toContain('"/budget"');
+    expect(swContent).not.toContain('"/library"');
+    expect(swContent).not.toContain('"/people"');
+
+    const appShellMatch = swContent.match(/const APP_SHELL_FILES = \[([\s\S]*?)\];/);
+    expect(appShellMatch).not.toBeNull();
+    const files = appShellMatch![1]
+      .split("\n")
+      .map((line) => line.trim().replace(/[",]/g, ""))
+      .filter((line) => line.startsWith("/"));
+
+    expect(files.length).toBeGreaterThan(0);
+    expect(files).toContain("/today");
+    expect(files).toContain("/tasks");
+    expect(files).toContain("/settings");
+  });
 });

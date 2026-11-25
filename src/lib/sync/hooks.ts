@@ -161,61 +161,64 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function useCreateTask() {
-  return useCallback(async (data: {
-    title: string;
-    notes?: string;
-    dueDate?: string;
-    priority?: number;
-    courseId?: string;
-    projectId?: string;
-    starred?: boolean;
-    estimatedDuration?: number;
-  }) => {
-    const id = generateId();
-    const updatedAt = nowIso();
+export interface CreateTaskInput {
+  id?: string;
+  title: string;
+  notes?: string;
+  dueDate?: string;
+  priority?: number;
+  courseId?: string;
+  projectId?: string;
+  starred?: boolean;
+  estimatedDuration?: number;
+}
 
-    // Resolve denormalized course/project names
-    let courseName: string | null = null;
-    let courseColor: string | null = null;
-    if (data.courseId) {
-      const course = await db.courses.get(data.courseId);
-      if (course) {
-        courseName = course.name;
-        courseColor = course.color;
-      }
+export async function createTask(data: CreateTaskInput): Promise<string> {
+  const id = data.id ?? generateId();
+  const updatedAt = nowIso();
+
+  // Resolve denormalized course/project names
+  let courseName: string | null = null;
+  let courseColor: string | null = null;
+  if (data.courseId) {
+    const course = await db.courses.get(data.courseId);
+    if (course) {
+      courseName = course.name;
+      courseColor = course.color;
     }
-    let projectName: string | null = null;
-    let projectColor: string | null = null;
+  }
+  let projectName: string | null = null;
+  let projectColor: string | null = null;
 
-    const task: SyncTask = {
-      id,
-      userId: null, // Server sets this
-      title: data.title,
-      notes: data.notes ?? null,
-      dueDate: data.dueDate ?? null,
-      priority: data.priority ?? 2,
-      status: "open",
-      courseId: data.courseId ?? null,
-      projectId: data.projectId ?? null,
-      domainId: null,
-      starred: data.starred ?? false,
-      completedAt: null,
-      estimatedDuration: data.estimatedDuration ?? null,
-      sortPriority: null,
-      createdAt: updatedAt,
-      updatedAt,
-      courseName,
-      courseColor,
-      projectName,
-      projectColor,
-      dirty: 1,
-      _deleted: 0,
-    };
+  const task: SyncTask = {
+    id,
+    userId: null, // Server sets this
+    title: data.title,
+    notes: data.notes ?? null,
+    dueDate: data.dueDate ?? null,
+    priority: data.priority ?? 2,
+    status: "open",
+    courseId: data.courseId ?? null,
+    projectId: data.projectId ?? null,
+    domainId: null,
+    starred: data.starred ?? false,
+    completedAt: null,
+    estimatedDuration: data.estimatedDuration ?? null,
+    sortPriority: null,
+    createdAt: updatedAt,
+    updatedAt,
+    courseName,
+    courseColor,
+    projectName,
+    projectColor,
+    dirty: 1,
+    _deleted: 0,
+  };
 
-    await db.tasks.put(task);
+  await db.tasks.put(task);
 
-    // Background API sync
+  // Background API sync
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -227,20 +230,27 @@ export function useCreateTask() {
         db.tasks.update(id, { dirty: 0, updatedAt: serverTask.updatedAt });
       })
       .catch(() => {}); // Will retry via pushDirtyRows
+  }
 
-    return id;
-  }, []);
+  return id;
 }
 
-export function useUpdateTask() {
-  return useCallback(async (id: string, data: Partial<Omit<SyncTask, "id" | "createdAt" | "dirty" | "_deleted">>) => {
-    const existing = await db.tasks.get(id);
-    if (!existing) return;
+export function useCreateTask() {
+  return useCallback((data: CreateTaskInput) => createTask(data), []);
+}
 
-    const updatedAt = nowIso();
-    await db.tasks.update(id, { ...data, updatedAt, dirty: 1 });
+export async function updateTask(
+  id: string,
+  data: Partial<Omit<SyncTask, "id" | "createdAt" | "dirty" | "_deleted">>
+): Promise<void> {
+  const existing = await db.tasks.get(id);
+  if (!existing) return;
 
-    // Background API sync
+  const updatedAt = nowIso();
+  await db.tasks.update(id, { ...data, updatedAt, dirty: 1 });
+
+  // Background API sync
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -252,15 +262,23 @@ export function useUpdateTask() {
         db.tasks.update(id, { dirty: 0, updatedAt: serverTask.updatedAt });
       })
       .catch(() => {});
-  }, []);
+  }
 }
 
-export function useDeleteTask() {
-  return useCallback(async (id: string) => {
-    // Soft-delete locally
-    await db.tasks.update(id, { _deleted: 1, dirty: 1, updatedAt: nowIso() });
+export function useUpdateTask() {
+  return useCallback(
+    (id: string, data: Partial<Omit<SyncTask, "id" | "createdAt" | "dirty" | "_deleted">>) =>
+      updateTask(id, data),
+    []
+  );
+}
 
-    // Background API sync
+export async function deleteTask(id: string): Promise<void> {
+  // Soft-delete locally
+  await db.tasks.update(id, { _deleted: 1, dirty: 1, updatedAt: nowIso() });
+
+  // Background API sync
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -271,25 +289,29 @@ export function useDeleteTask() {
         db.tasks.delete(id); // Hard delete after successful API call
       })
       .catch(() => {}); // Will retry via pushDirtyRows
-  }, []);
+  }
 }
 
-export function useToggleTaskDone() {
-  return useCallback(async (id: string) => {
-    const task = await db.tasks.get(id);
-    if (!task) return;
+export function useDeleteTask() {
+  return useCallback((id: string) => deleteTask(id), []);
+}
 
-    const newStatus = task.status === "done" ? "open" : "done";
-    const updatedAt = nowIso();
-    const completedAt = newStatus === "done" ? updatedAt : null;
+export async function toggleTaskDone(id: string): Promise<void> {
+  const task = await db.tasks.get(id);
+  if (!task) return;
 
-    await db.tasks.update(id, {
-      status: newStatus,
-      completedAt,
-      updatedAt,
-      dirty: 1,
-    });
+  const newStatus = task.status === "done" ? "open" : "done";
+  const updatedAt = nowIso();
+  const completedAt = newStatus === "done" ? updatedAt : null;
 
+  await db.tasks.update(id, {
+    status: newStatus,
+    completedAt,
+    updatedAt,
+    dirty: 1,
+  });
+
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -305,21 +327,25 @@ export function useToggleTaskDone() {
         db.tasks.update(id, { dirty: 0, updatedAt: serverTask.updatedAt });
       })
       .catch(() => {});
-  }, []);
+  }
 }
 
-export function useToggleTaskStarred() {
-  return useCallback(async (id: string) => {
-    const task = await db.tasks.get(id);
-    if (!task) return;
+export function useToggleTaskDone() {
+  return useCallback((id: string) => toggleTaskDone(id), []);
+}
 
-    const updatedAt = nowIso();
-    await db.tasks.update(id, {
-      starred: !task.starred,
-      updatedAt,
-      dirty: 1,
-    });
+export async function toggleTaskStarred(id: string): Promise<void> {
+  const task = await db.tasks.get(id);
+  if (!task) return;
 
+  const updatedAt = nowIso();
+  await db.tasks.update(id, {
+    starred: !task.starred,
+    updatedAt,
+    dirty: 1,
+  });
+
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -335,78 +361,85 @@ export function useToggleTaskStarred() {
         db.tasks.update(id, { dirty: 0, updatedAt: serverTask.updatedAt });
       })
       .catch(() => {});
-  }, []);
+  }
+}
+
+export function useToggleTaskStarred() {
+  return useCallback((id: string) => toggleTaskStarred(id), []);
 }
 
 // ─── Notes write hooks ──────────────────────────────────────
 
-export function useCreateNote() {
-  return useCallback(async (data: {
-    title?: string;
-    content: string;
-    sourceType?: string;
-    tags?: string[];
-    courseId?: string;
-    taskId?: string;
-    projectId?: string;
-    folderId?: string | null;
-  }) => {
-    const id = generateId();
-    const updatedAt = nowIso();
+export interface CreateNoteInput {
+  id?: string;
+  title?: string;
+  content: string;
+  sourceType?: string;
+  tags?: string[];
+  courseId?: string;
+  taskId?: string;
+  projectId?: string;
+  folderId?: string | null;
+}
 
-    let courseName: string | null = null;
-    let courseColor: string | null = null;
-    if (data.courseId) {
-      const course = await db.courses.get(data.courseId);
-      if (course) {
-        courseName = course.name;
-        courseColor = course.color;
-      }
+export async function createNote(data: CreateNoteInput): Promise<string> {
+  const id = data.id ?? generateId();
+  const updatedAt = nowIso();
+
+  let courseName: string | null = null;
+  let courseColor: string | null = null;
+  if (data.courseId) {
+    const course = await db.courses.get(data.courseId);
+    if (course) {
+      courseName = course.name;
+      courseColor = course.color;
     }
+  }
 
-    const note: SyncNote = {
-      id,
-      userId: null,
-      title: data.title ?? null,
-      content: data.content,
-      sourceType: data.sourceType ?? "typed",
-      sourceLink: null,
-      tags: data.tags ?? [],
-      courseId: data.courseId ?? null,
-      taskId: data.taskId ?? null,
-      projectId: data.projectId ?? null,
-      isDocumentLibraryEntry: false,
-      folderId: data.folderId ?? null,
-      documentType: null,
-      s3Key: null,
-      s3Url: null,
-      fileSize: null,
-      fileName: null,
-      mimeType: null,
-      pageCount: null,
-      thumbnailUrl: null,
-      originalUrl: null,
-      embedHtml: null,
-      extractedText: null,
-      lastViewedAt: null,
-      viewCount: 0,
-      isPinned: false,
-      isFavorite: false,
-      lastReviewedAt: null,
-      reviewCount: 0,
-      createdAt: updatedAt,
-      updatedAt,
-      courseName,
-      courseColor,
-      folderName: null,
-      folderType: null,
-      folderColor: null,
-      dirty: 1,
-      _deleted: 0,
-    };
+  const note: SyncNote = {
+    id,
+    userId: null,
+    title: data.title ?? null,
+    content: data.content,
+    sourceType: data.sourceType ?? "typed",
+    sourceLink: null,
+    tags: data.tags ?? [],
+    courseId: data.courseId ?? null,
+    taskId: data.taskId ?? null,
+    projectId: data.projectId ?? null,
+    isDocumentLibraryEntry: false,
+    folderId: data.folderId ?? null,
+    documentType: null,
+    s3Key: null,
+    s3Url: null,
+    fileSize: null,
+    fileName: null,
+    mimeType: null,
+    pageCount: null,
+    thumbnailUrl: null,
+    originalUrl: null,
+    embedHtml: null,
+    extractedText: null,
+    lastViewedAt: null,
+    viewCount: 0,
+    isPinned: false,
+    isFavorite: false,
+    lastReviewedAt: null,
+    reviewCount: 0,
+    createdAt: updatedAt,
+    updatedAt,
+    courseName,
+    courseColor,
+    folderName: null,
+    folderType: null,
+    folderColor: null,
+    dirty: 1,
+    _deleted: 0,
+  };
 
-    await db.notes.put(note);
+  await db.notes.put(note);
 
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -418,16 +451,23 @@ export function useCreateNote() {
         db.notes.update(id, { dirty: 0, updatedAt: serverNote.updatedAt });
       })
       .catch(() => {});
+  }
 
-    return id;
-  }, []);
+  return id;
 }
 
-export function useUpdateNote() {
-  return useCallback(async (id: string, data: Partial<Omit<SyncNote, "id" | "createdAt" | "dirty" | "_deleted">>) => {
-    const updatedAt = nowIso();
-    await db.notes.update(id, { ...data, updatedAt, dirty: 1 });
+export function useCreateNote() {
+  return useCallback((data: CreateNoteInput) => createNote(data), []);
+}
 
+export async function updateNote(
+  id: string,
+  data: Partial<Omit<SyncNote, "id" | "createdAt" | "dirty" | "_deleted">>
+): Promise<void> {
+  const updatedAt = nowIso();
+  await db.notes.update(id, { ...data, updatedAt, dirty: 1 });
+
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -439,13 +479,21 @@ export function useUpdateNote() {
         db.notes.update(id, { dirty: 0, updatedAt: serverNote.updatedAt });
       })
       .catch(() => {});
-  }, []);
+  }
 }
 
-export function useDeleteNote() {
-  return useCallback(async (id: string) => {
-    await db.notes.update(id, { _deleted: 1, dirty: 1, updatedAt: nowIso() });
+export function useUpdateNote() {
+  return useCallback(
+    (id: string, data: Partial<Omit<SyncNote, "id" | "createdAt" | "dirty" | "_deleted">>) =>
+      updateNote(id, data),
+    []
+  );
+}
 
+export async function deleteNote(id: string): Promise<void> {
+  await db.notes.update(id, { _deleted: 1, dirty: 1, updatedAt: nowIso() });
+
+  if (typeof fetch !== "undefined") {
     fetch("/api/sync/write", {
       method: "POST",
       credentials: "include",
@@ -456,7 +504,11 @@ export function useDeleteNote() {
         db.notes.delete(id);
       })
       .catch(() => {});
-  }, []);
+  }
+}
+
+export function useDeleteNote() {
+  return useCallback((id: string) => deleteNote(id), []);
 }
 
 // ─── Course write hooks ─────────────────────────────────────

@@ -19,6 +19,14 @@ const EMPTY_DISPATCH_RESULT = {
 };
 
 vi.mock("@/features/notifications/lib/scheduler", () => ({
+  DEFAULT_ENABLED_TYPES: [
+    "class_start",
+    "class_end",
+    "task_due",
+    "calendar_event",
+    "morning_brief",
+    "evening_brief",
+  ],
   runNotificationScheduler: vi.fn().mockResolvedValue({
     sent: 0,
     deliveredPushes: 0,
@@ -174,6 +182,25 @@ describe("/api/notifications/trigger with asOf simulation", () => {
       expect(body.ok).toBe(true);
       expect(runNotificationScheduler).toHaveBeenCalledWith(false);
     });
+
+    it("passes only=<type> to runNotificationScheduler and rejects unknown types with 400", async () => {
+      vi.mocked(verifyCronRequest).mockResolvedValue(true);
+
+      const validReq = new Request(
+        "http://localhost:3000/api/notifications/trigger?asOf=2026-11-25T01:20:00.000Z&only=morning_brief"
+      );
+      const validRes = await GET(validReq);
+      expect(validRes.status).toBe(200);
+      expect(runNotificationScheduler).toHaveBeenCalledWith(false, {
+        only: "morning_brief",
+      });
+
+      const invalidReq = new Request(
+        "http://localhost:3000/api/notifications/trigger?only=routine_reminder"
+      );
+      const invalidRes = await GET(invalidReq);
+      expect(invalidRes.status).toBe(400);
+    });
   });
 
   describe("Production environment", () => {
@@ -219,6 +246,25 @@ describe("/api/notifications/trigger with asOf simulation", () => {
       const body = await res.json();
       expect(body.ok).toBe(true);
       expect(runNotificationScheduler).toHaveBeenCalledWith(false);
+    });
+
+    it("passes only=<type> to runNotificationScheduler and rejects unknown types with 400", async () => {
+      vi.mocked(verifyCronRequest).mockResolvedValue(true);
+
+      const validReq = new Request(
+        "http://localhost:3000/api/notifications/trigger?asOf=2026-11-25T01:20:00.000Z&only=morning_brief"
+      );
+      const validRes = await GET(validReq);
+      expect(validRes.status).toBe(200);
+      expect(runNotificationScheduler).toHaveBeenCalledWith(false, {
+        only: "morning_brief",
+      });
+
+      const invalidReq = new Request(
+        "http://localhost:3000/api/notifications/trigger?only=routine_reminder"
+      );
+      const invalidRes = await GET(invalidReq);
+      expect(invalidRes.status).toBe(400);
     });
   });
 });

@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
-import { runNotificationScheduler } from "@/features/notifications/lib/scheduler";
+import {
+  DEFAULT_ENABLED_TYPES,
+  runNotificationScheduler,
+  type NotificationType,
+} from "@/features/notifications/lib/scheduler";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { getNow, isProductionEnv, withSimulatedTime } from "@/lib/clock";
+
+const VALID_TYPES = new Set<string>(DEFAULT_ENABLED_TYPES);
 
 /**
  * Notification scheduler trigger endpoint.
  * Protected by fail-closed cron authentication (Google Cloud Scheduler OIDC or static bearer token).
  * Query parameter secret (?secret=...) is rejected.
  *
- * Accepts ?asOf=ISO_TIMESTAMP to simulate time in non-production environments only.
- * In production, asOf is ignored and rejected with HTTP 400.
- * Simulated time is strictly request-scoped using AsyncLocalStorage.
+ * Accepts ?asOf=ISO_TIMESTAMP and ?only=<type> in non-production environments only.
+ * In production, asOf and only are rejected with HTTP 400.
  */
 export async function GET(request: Request) {
   const isAuthorized = await verifyCronRequest(request);
@@ -20,6 +25,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const asOf = url.searchParams.get("asOf");
+  const only = url.searchParams.get("only");
 
   if (asOf !== null) {
     if (isProductionEnv()) {
@@ -37,12 +43,34 @@ export async function GET(request: Request) {
     }
   }
 
+  if (only !== null) {
+    if (isProductionEnv()) {
+      return NextResponse.json(
+        { error: "only parameter is not permitted in production" },
+        { status: 400 }
+      );
+    }
+    if (!VALID_TYPES.has(only)) {
+      return NextResponse.json(
+        { error: `Invalid only notification type: ${only}` },
+        { status: 400 }
+      );
+    }
+  }
+
   const force = url.searchParams.get("force") === "true";
 
   const executeHandler = async () => {
     try {
-      await runNotificationScheduler(force);
-      return NextResponse.json({ ok: true, timestamp: getNow().toISOString() });
+      const result = only
+        ? await runNotificationScheduler(force, { only: only as NotificationType })
+        : await runNotificationScheduler(force);
+      return NextResponse.json({
+        ok: true,
+        timestamp: getNow().toISOString(),
+        only: only ?? null,
+        result,
+      });
     } catch (error) {
       console.error("Notification scheduler error:", error);
       return NextResponse.json(

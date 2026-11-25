@@ -30,7 +30,11 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-// Prevent multiple Prisma Client instances in dev (hot-reload leak).
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+// Prevent multiple Prisma Client instances in dev (hot-reload leak),
+// while invalidating stale cached instances if `prisma generate` added new models.
+const cachedPrisma = globalForPrisma.prisma;
+const hasCurrentModels = cachedPrisma != null && "dsaSettings" in cachedPrisma;
+
+export const prisma = hasCurrentModels ? cachedPrisma : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

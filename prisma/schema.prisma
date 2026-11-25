@@ -1106,4 +1106,23 @@ model DsaContest {
   @@index([userId, date])
   @@map("dsa_contests")
 }
+
+// ─── Daily Briefs (Phase 4) ──────────────────────────────────────────────
+enum DailyBriefKind {
+  morning
+  evening
+}
+
+model DailyBrief {
+  id          String         @id @default(uuid())
+  userId      String         @map("user_id")
+  kind        DailyBriefKind
+  forDate     DateTime       @map("for_date") @db.Date
+  generatedAt DateTime       @default(now()) @map("generated_at")
+  payload     Json
+
+  @@unique([userId, kind, forDate])
+  @@index([userId, generatedAt])
+  @@map("daily_briefs")
+}
 // ─── End DSA Progress Tracker ───────────────────────────────

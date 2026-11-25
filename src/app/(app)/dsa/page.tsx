@@ -1,15 +1,20 @@
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
-import { EmptyState } from "@/components/shared/empty-state";
+import { DsaDashboardView } from "@/features/dsa/components/dsa-dashboard-view";
+import { getDsaDashboardData } from "@/features/dsa/lib/dashboard";
 
 export const revalidate = 0;
 
-export default function DsaDashboardPage() {
+export default async function DsaDashboardPage() {
+  const data = await getDsaDashboardData();
+
   return (
-    <DsaShell title="DSA Tracker" subtitle="90-Day Preparation Log">
-      <EmptyState
-        title="DSA Tracker initialized"
-        description="Configure your programme start date and import your question bank in Settings."
-      />
+    <DsaShell
+      title="DSA Tracker"
+      subtitle={`Day ${data.programmeDay} of ${data.programmeLengthDays}${
+        data.currentPhase ? ` · ${data.currentPhase}` : ""
+      }`}
+    >
+      <DsaDashboardView data={data} />
     </DsaShell>
   );
 }

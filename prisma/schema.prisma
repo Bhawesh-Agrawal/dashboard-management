@@ -564,6 +564,9 @@ model NotificationPreference {
   dailySummaryTime     String?  @map("daily_summary_time") // "HH:mm" for daily summary (user's local time)
   dailySummarySections String[] @map("daily_summary_sections") // ['classes', 'tasks', 'routines', 'deadlines', 'attendance', 'tomorrow_classes']
   timezone             String? // IANA timezone identifier, e.g. "Asia/Kathmandu"
+  locationName         String?  @map("location_name")
+  locationLat          Float?   @map("location_lat")
+  locationLon          Float?   @map("location_lon")
 
   @@unique([userId, type])
   @@index([userId])
@@ -1124,5 +1127,15 @@ model DailyBrief {
   @@unique([userId, kind, forDate])
   @@index([userId, generatedAt])
   @@map("daily_briefs")
+}
+
+model WeatherCache {
+  id        String   @id @default(uuid())
+  cacheKey  String   @unique @map("cache_key")
+  summary   String
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+
+  @@index([fetchedAt])
+  @@map("weather_cache")
 }
 // ─── End DSA Progress Tracker ───────────────────────────────

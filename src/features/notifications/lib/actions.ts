@@ -9,6 +9,7 @@ import {
   DEFAULT_PRIORITY,
   type NotificationType,
 } from "./scheduler";
+import { searchCities, type CitySearchResult } from "@/features/briefs/lib/weather";
 
 type DailySummarySection =
   | "classes"
@@ -343,5 +344,67 @@ export async function getNotificationWeeklyStats(): Promise<NotificationTypeStat
     return stats;
   } catch {
     return [];
+  }
+}
+
+export async function searchWeatherCitiesAction(
+  query: string
+): Promise<CitySearchResult[]> {
+  await getCurrentUserId();
+  return searchCities(query);
+}
+
+export async function saveWeatherLocationAction(input: {
+  name: string;
+  latitude: number;
+  longitude: number;
+}): Promise<{ success: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+    await prisma.notificationPreference.upsert({
+      where: {
+        userId_type: { userId, type: "daily_summary" },
+      },
+      create: {
+        userId,
+        type: "daily_summary",
+        enabled: true,
+        locationName: input.name,
+        locationLat: input.latitude,
+        locationLon: input.longitude,
+      },
+      update: {
+        locationName: input.name,
+        locationLat: input.latitude,
+        locationLon: input.longitude,
+      },
+    });
+    revalidatePath("/settings");
+    revalidatePath("/brief");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save weather location:", error);
+    return { success: false };
+  }
+}
+
+export async function getWeatherLocationAction(): Promise<{
+  name: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}> {
+  try {
+    const userId = await getCurrentUserId();
+    const pref = await prisma.notificationPreference.findFirst({
+      where: { userId, locationLat: { not: null }, locationLon: { not: null } },
+      select: { locationName: true, locationLat: true, locationLon: true },
+    });
+    return {
+      name: pref?.locationName ?? null,
+      latitude: pref?.locationLat ?? null,
+      longitude: pref?.locationLon ?? null,
+    };
+  } catch {
+    return { name: null, latitude: null, longitude: null };
   }
 }

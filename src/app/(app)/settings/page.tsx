@@ -18,7 +18,9 @@ export const revalidate = 0;
 import {
   getNotificationPreferences,
   getDailySummaryPreferences,
+  getWeatherLocationAction,
 } from "@/features/notifications/lib/actions";
+import { LocationSettings } from "@/features/notifications/components/location-settings";
 
 export default async function SettingsPage() {
   let courses: Awaited<ReturnType<typeof getAllCourses>> = [];
@@ -33,8 +35,14 @@ export default async function SettingsPage() {
 
   let userTimezone = "Asia/Kathmandu";
 
+  let weatherLocation: Awaited<ReturnType<typeof getWeatherLocationAction>> = {
+    name: null,
+    latitude: null,
+    longitude: null,
+  };
+
   try {
-    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone] = await Promise.all([
+    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone, weatherLocation] = await Promise.all([
       getAllCourses().catch(() => []),
       getNotificationPreferences().catch(() => []),
       getDailySummaryPreferences().catch(() => null),
@@ -45,6 +53,7 @@ export default async function SettingsPage() {
         themeMode: "light",
       })),
       getUserTimezone().catch(() => "Asia/Kathmandu"),
+      getWeatherLocationAction().catch(() => ({ name: null, latitude: null, longitude: null })),
     ]);
   } catch {
     // All fallbacks are already set above
@@ -108,6 +117,11 @@ export default async function SettingsPage() {
                 initialTimezone={dailySummaryPrefs.timezone}
               />
             )}
+            <LocationSettings
+              initialName={weatherLocation.name}
+              initialLat={weatherLocation.latitude}
+              initialLon={weatherLocation.longitude}
+            />
             <NotificationWeeklyStats />
           </div>
         </section>

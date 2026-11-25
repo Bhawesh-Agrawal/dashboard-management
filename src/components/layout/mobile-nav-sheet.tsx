@@ -11,6 +11,7 @@ import {
   Search,
   Newspaper,
   GitBranch,
+  Code2,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const moreSections = [
   {
     label: "Manage",
     items: [
+      { label: "DSA", href: "/dsa", icon: Code2 },
       { label: "Projects", href: "/projects", icon: Briefcase },
     ],
   },

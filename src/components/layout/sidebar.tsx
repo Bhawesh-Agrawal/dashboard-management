@@ -20,6 +20,7 @@ import {
   Newspaper,
   GitBranch,
   RefreshCw,
+  Code2,
 } from "lucide-react";
 import { DailyNoteButton } from "@/features/notes/components/DailyNoteButton";
 import { useState } from "react";
@@ -28,6 +29,7 @@ const navItems = [
   { label: "Today", href: "/today", icon: Calendar },
   { label: "Tasks", href: "/tasks", icon: CheckSquare },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
+  { label: "DSA", href: "/dsa", icon: Code2 },
   { label: "Reviews", href: "/reviews", icon: Newspaper },
   { label: "Semesters", href: "/semesters", icon: GraduationCap },
   { label: "Routines", href: "/routines", icon: Repeat },

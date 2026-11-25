@@ -929,3 +929,179 @@ model UserDashboardPreference {
   @@unique([userId])
   @@map("user_dashboard_preferences")
 }
+
+// ═════════════════════════════════════════════════════════════
+// DSA PROGRESS TRACKER (ADDITIVE MODULE)
+// ═════════════════════════════════════════════════════════════
+
+enum DsaTopicStatus {
+  not_started
+  in_progress
+  practised
+  needs_revision
+  comfortable
+}
+
+enum DsaDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum DsaClassification {
+  independent
+  effortful
+  hinted
+  editorial
+  not_understood
+}
+
+enum DsaHelpType {
+  none
+  small_hint
+  big_hint
+  editorial
+  tutor
+  other
+}
+
+enum DsaContestPlatform {
+  leetcode
+  codechef
+  other
+}
+
+model DsaSettings {
+  id                  String    @id @default(uuid())
+  userId              String    @unique @map("user_id")
+  programmeStartDate  DateTime  @db.Date @map("programme_start_date")
+  programmeLengthDays Int       @default(90) @map("programme_length_days")
+  phases              Json      @default("[]")
+  currentTopicId      String?   @map("current_topic_id")
+  lastBackupAt        DateTime? @map("last_backup_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("dsa_settings")
+}
+
+model DsaTopic {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  name      String
+  order     Int
+  status    DsaTopicStatus @default(not_started)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  problems DsaProblem[]
+
+  @@unique([userId, name])
+  @@index([userId, order])
+  @@map("dsa_topics")
+}
+
+model DsaProblem {
+  id           String         @id @default(uuid())
+  userId       String         @map("user_id")
+  topicId      String         @map("topic_id")
+  subtopic     String         @default("")
+  title        String
+  difficulty   DsaDifficulty?
+  sourceUrl    String         @default("") @map("source_url")
+  platform     String         @default("")
+  platformId   String?        @map("platform_id")
+  orderInTopic Int            @default(0) @map("order_in_topic")
+  tags         String[]       @default([])
+  importKey    String         @map("import_key")
+  archived     Boolean        @default(false)
+
+  // Personal-progress cache columns (imports NEVER overwrite)
+  lastClassification     DsaClassification? @map("last_classification")
+  lastAttemptAt          DateTime?          @map("last_attempt_at")
+  intervalDays           Int?               @map("interval_days")
+  consecutiveIndependent Int                @default(0) @map("consecutive_independent")
+  nextRevisionDate       DateTime?          @db.Date @map("next_revision_date")
+  manualNextRevisionDate DateTime?          @db.Date @map("manual_next_revision_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  topic    DsaTopic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  attempts DsaAttempt[]
+
+  @@unique([userId, importKey])
+  @@index([userId, topicId, orderInTopic])
+  @@index([userId, nextRevisionDate])
+  @@map("dsa_problems")
+}
+
+model DsaAttempt {
+  id              String            @id @default(uuid())
+  userId          String            @map("user_id")
+  problemId       String            @map("problem_id")
+  attemptedAt     DateTime          @default(now()) @map("attempted_at")
+  attemptDate     DateTime          @db.Date @map("attempt_date")
+  classification  DsaClassification
+  timeSpentMin    Int               @map("time_spent_min")
+  confidence      Int
+  isRevision      Boolean           @default(false) @map("is_revision")
+  helpType        DsaHelpType       @default(none) @map("help_type")
+  initialApproach String?           @map("initial_approach")
+  finalApproach   String?           @map("final_approach")
+  mistakes        String?
+  mistakeTags     String[]          @default([]) @map("mistake_tags")
+  timeComplexity  String?           @map("time_complexity")
+  spaceComplexity String?           @map("space_complexity")
+  observation     String?
+  sessionId       String?           @map("session_id")
+  clientRequestId String?           @map("client_request_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  problem DsaProblem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  session DsaSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clientRequestId])
+  @@index([userId, problemId, attemptedAt])
+  @@index([userId, attemptDate])
+  @@index([sessionId])
+  @@map("dsa_attempts")
+}
+
+model DsaSession {
+  id                         String   @id @default(uuid())
+  userId                     String   @map("user_id")
+  date                       DateTime @db.Date
+  durationMin                Int?     @map("duration_min")
+  observations               String?
+  nextSessionAvailabilityMin Int?     @map("next_session_availability_min")
+  nextSessionNote            String?  @map("next_session_note")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  attempts DsaAttempt[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("dsa_sessions")
+}
+
+model DsaContest {
+  id                String             @id @default(uuid())
+  userId            String             @map("user_id")
+  platform          DsaContestPlatform
+  name              String
+  date              DateTime           @db.Date
+  problemsAttempted Int                @map("problems_attempted")
+  problemsSolved    Int                @map("problems_solved")
+  rankOrRating      String?            @map("rank_or_rating")
+  upsolveProblems   String?            @map("upsolve_problems")
+  conceptsMissed    String?            @map("concepts_missed")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("dsa_contests")
+}
+// ─── End DSA Progress Tracker ───────────────────────────────

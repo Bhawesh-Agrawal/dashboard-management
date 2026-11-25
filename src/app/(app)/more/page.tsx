@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { GraduationCap, Repeat, FileText, Briefcase, Settings, LogOut } from "lucide-react";
+import { GraduationCap, Repeat, FileText, Briefcase, Settings, LogOut, Code2 } from "lucide-react";
 import { logout } from "@/features/auth/lib/actions";
 
 export const revalidate = 0;
 
 const moreItems = [
+  { label: "DSA", href: "/dsa", icon: Code2 },
   { label: "Semesters", href: "/semesters", icon: GraduationCap },
   { label: "Routines", href: "/routines", icon: Repeat },
   { label: "Notes", href: "/notes", icon: FileText },

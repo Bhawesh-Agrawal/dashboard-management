@@ -13,7 +13,7 @@ import {
 import { formatDateOnly } from "@/lib/timezone";
 import { Check, X, Ban, AlertTriangle, RotateCcw, WifiOff, Calendar, MapPin, TrendingUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import type { ClassSchedule, ScheduleException, AttendanceRecord, Semester } from "@prisma/client";
+import type { ClassSchedule, ScheduleException, AttendanceRecord, Semester, AttendanceStatus } from "@prisma/client";
 
 interface CourseAttendanceSectionProps {
   courseId: string;
@@ -146,7 +146,7 @@ export function CourseAttendanceSection({
   // Single marking handler with optimistic update and error rollback
   const handleMark = async (
     occ: ClassOccurrence,
-    targetStatus: "present" | "absent" | "cancelled"
+    targetStatus: "present" | "absent" | "cancelled" | "unmarked"
   ) => {
     if (!isOnline) {
       toast.error("Offline — connect to the internet to mark attendance.");
@@ -172,12 +172,14 @@ export function CourseAttendanceSection({
         (r.courseId === occ.courseId && formatDateOnly(r.date) === occ.date)
     );
 
+    const dbStatus: AttendanceStatus = targetStatus === "unmarked" ? "not_marked" : targetStatus;
+
     let nextRecords: AttendanceRecord[];
     if (existingIndex >= 0) {
       nextRecords = [...records];
       nextRecords[existingIndex] = {
         ...nextRecords[existingIndex],
-        status: targetStatus,
+        status: dbStatus,
       };
     } else {
       nextRecords = [
@@ -187,7 +189,7 @@ export function CourseAttendanceSection({
           courseId,
           classScheduleId: occ.classScheduleId,
           date: new Date(`${occ.date}T00:00:00Z`),
-          status: targetStatus,
+          status: dbStatus,
         },
       ];
     }
@@ -412,49 +414,64 @@ export function CourseAttendanceSection({
                       )}
 
                       {/* Large One-Tap Buttons: Min 44px height */}
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleMark(occ, "present")}
-                          disabled={isPending || !isOnline}
-                          className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            occ.status === "present"
-                              ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
-                              : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
-                          }`}
-                        >
-                          <Check className="h-4 w-4" />
-                          <span>Present</span>
-                        </button>
+                      {occ.status === "cancelled" || occ.exceptionType === "cancelled" ? (
+                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <Ban className="h-4 w-4 text-muted-foreground" />
+                            <span>Class is cancelled{occ.exceptionType === "cancelled" ? " (Schedule Exception)" : ""}</span>
+                          </div>
+                          {occ.exceptionType !== "cancelled" && (
+                            <button
+                              type="button"
+                              onClick={() => handleMark(occ, "unmarked")}
+                              disabled={isPending || !isOnline}
+                              className="text-xs text-muted-foreground hover:text-foreground underline font-medium"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleMark(occ, "present")}
+                            disabled={isPending || !isOnline}
+                            className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              occ.status === "present"
+                                ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
+                                : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
+                            }`}
+                          >
+                            <Check className="h-4 w-4" />
+                            <span>Present</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleMark(occ, "absent")}
-                          disabled={isPending || !isOnline}
-                          className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            occ.status === "absent"
-                              ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
-                              : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
-                          }`}
-                        >
-                          <X className="h-4 w-4" />
-                          <span>Absent</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMark(occ, "absent")}
+                            disabled={isPending || !isOnline}
+                            className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              occ.status === "absent"
+                                ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
+                                : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
+                            }`}
+                          >
+                            <X className="h-4 w-4" />
+                            <span>Absent</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleMark(occ, "cancelled")}
-                          disabled={isPending || !isOnline}
-                          className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
-                            occ.status === "cancelled"
-                              ? "bg-slate-700 text-white shadow-sm ring-2 ring-slate-700/30 dark:bg-slate-600"
-                              : "bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
-                          }`}
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                          <span>Cancelled</span>
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => handleMark(occ, "cancelled")}
+                            disabled={isPending || !isOnline}
+                            className="min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                            <span>Cancelled</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -53,7 +53,7 @@ export function TodayClassesCard({
 
   const handleMark = async (
     cls: ClassItem,
-    targetStatus: "present" | "absent" | "cancelled"
+    targetStatus: "present" | "absent" | "cancelled" | "unmarked"
   ) => {
     if (!isOnline) {
       toast.error("Offline — connect to the internet to mark attendance.");
@@ -273,49 +273,64 @@ export function TodayClassesCard({
               )}
 
               {/* Action Buttons: Min 44px height, responsive */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleMark(cls, "present")}
-                  disabled={state.pending || !isOnline}
-                  className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    state.status === "present"
-                      ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
-                      : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
-                  }`}
-                >
-                  <Check className="h-4 w-4" />
-                  <span>Present</span>
-                </button>
+              {state.status === "cancelled" || exception?.type === "cancelled" ? (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <Ban className="h-4 w-4 text-muted-foreground" />
+                    <span>Class is cancelled{exception?.type === "cancelled" ? " (Schedule Exception)" : ""}</span>
+                  </div>
+                  {exception?.type !== "cancelled" && (
+                    <button
+                      type="button"
+                      onClick={() => handleMark(cls, "unmarked")}
+                      disabled={state.pending || !isOnline}
+                      className="text-xs text-muted-foreground hover:text-foreground underline font-medium"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleMark(cls, "present")}
+                    disabled={state.pending || !isOnline}
+                    className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      state.status === "present"
+                        ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
+                        : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100"
+                    }`}
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Present</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleMark(cls, "absent")}
-                  disabled={state.pending || !isOnline}
-                  className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    state.status === "absent"
-                      ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
-                      : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
-                  }`}
-                >
-                  <X className="h-4 w-4" />
-                  <span>Absent</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMark(cls, "absent")}
+                    disabled={state.pending || !isOnline}
+                    className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      state.status === "absent"
+                        ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30"
+                        : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100"
+                    }`}
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Absent</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleMark(cls, "cancelled")}
-                  disabled={state.pending || !isOnline}
-                  className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
-                    state.status === "cancelled"
-                      ? "bg-slate-700 text-white shadow-sm ring-2 ring-slate-700/30 dark:bg-slate-600"
-                      : "bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
-                  }`}
-                >
-                  <Ban className="h-3.5 w-3.5" />
-                  <span>Cancelled</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => handleMark(cls, "cancelled")}
+                    disabled={state.pending || !isOnline}
+                    className="min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all bg-muted/70 text-muted-foreground border border-border hover:bg-muted"
+                  >
+                    <Ban className="h-3.5 w-3.5" />
+                    <span>Cancelled</span>
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

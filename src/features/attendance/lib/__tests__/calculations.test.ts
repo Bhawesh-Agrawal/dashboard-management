@@ -169,4 +169,58 @@ describe("Attendance Calculations & Forecasting", () => {
       expect(counts.unmarked).toBe(1);
     });
   });
+
+  describe("Cancellation Rule & Exception Precedence", () => {
+    it("strictly excludes cancelled classes from attendance percentage calculation", () => {
+      // 10 present, 0 absent, 15 cancelled: percent must be 100%, not 40%
+      const metrics = computeAttendanceMetrics({
+        present: 10,
+        absent: 0,
+        cancelled: 15,
+        targetPercent: DEFAULT_ATTENDANCE_TARGET_PERCENT,
+      });
+
+      expect(metrics.percent).toBe(100);
+      expect(metrics.totalCounted).toBe(10);
+      expect(metrics.totalRecorded).toBe(25);
+    });
+
+    it("does not inflate or penalize canMissCount with cancelled classes", () => {
+      // 20 present, 0 absent -> can miss 6 (75% target)
+      const baseMetrics = computeAttendanceMetrics({
+        present: 20,
+        absent: 0,
+        cancelled: 0,
+      });
+
+      // Same attendance with 50 cancelled classes added
+      const withCancelled = computeAttendanceMetrics({
+        present: 20,
+        absent: 0,
+        cancelled: 50,
+      });
+
+      expect(withCancelled.canMissCount).toBe(baseMetrics.canMissCount);
+      expect(withCancelled.canMissCount).toBe(6);
+    });
+
+    it("does not alter mustAttendCount recovery deficit with cancelled classes", () => {
+      // 5 present, 5 absent (50%) -> must attend 10
+      const baseMetrics = computeAttendanceMetrics({
+        present: 5,
+        absent: 5,
+        cancelled: 0,
+      });
+
+      // Same attendance with 20 cancelled classes
+      const withCancelled = computeAttendanceMetrics({
+        present: 5,
+        absent: 5,
+        cancelled: 20,
+      });
+
+      expect(withCancelled.mustAttendCount).toBe(baseMetrics.mustAttendCount);
+      expect(withCancelled.mustAttendCount).toBe(10);
+    });
+  });
 });

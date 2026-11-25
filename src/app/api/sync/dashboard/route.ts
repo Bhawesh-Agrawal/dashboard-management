@@ -43,7 +43,7 @@ export async function GET() {
       dashboardPref,
     ] = await Promise.all([
       prisma.semester.findFirst({
-        where: { isActive: true },
+        where: { userId, isActive: true },
         include: { courses: true },
       }),
       prisma.event.findMany({
@@ -55,15 +55,17 @@ export async function GET() {
       }),
       prisma.routine.findMany({
         where: {
+          userId,
           activeDays: { has: tomorrowDayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN" },
         },
         select: { id: true, name: true, specificTime: true },
       }),
-      // Activity streak — compute from routine completions in DB
+      // Activity streak — compute from routine completions in DB scoped to user
       (async () => {
         try {
           const completions = await prisma.routineCompletion.findMany({
             where: {
+              routine: { userId },
               date: { gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
             },
             select: { date: true },
@@ -112,7 +114,7 @@ export async function GET() {
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
 
-    const [todayClasses, attendanceData, semesterCoursesForGrades, allSemesters, googleConnected] =
+    const [todayClasses, attendanceData, allSemesters, googleConnected] =
       await Promise.all([
         activeSemester
           ? prisma.classSchedule.findMany({
@@ -134,10 +136,7 @@ export async function GET() {
               include: { attendanceRecords: { select: { status: true } } },
             })
           : Promise.resolve([]),
-        activeSemester
-          ? prisma.course.findMany({ where: { semesterId: activeSemester.id } })
-          : Promise.resolve([]),
-        prisma.semester.findMany({ orderBy: { startDate: "asc" } }),
+        prisma.semester.findMany({ where: { userId }, orderBy: { startDate: "asc" } }),
         isGoogleCalendarConnected(userId),
       ]);
 
@@ -206,31 +205,52 @@ export async function GET() {
       }
     }
 
-    // Grades
+    // Grades (batched prefetch: eliminates N+1 query loop across semesters and courses)
     let sgpa: number | null = null;
     let cgpa: number | null = null;
 
-    if (semesterCoursesForGrades.length > 0) {
-      try {
-        const grades = await Promise.all(
-          semesterCoursesForGrades.map((course) => computeCourseGrade(course))
-        );
-        sgpa = computeSGPA(grades.filter(Boolean) as any);
-      } catch {}
-    }
-
     if (allSemesters.length > 0) {
       try {
-        const allGrades: any[] = [];
-        for (const sem of allSemesters) {
-          const semCourses = await prisma.course.findMany({ where: { semesterId: sem.id } });
-          for (const course of semCourses) {
-            const grade = await computeCourseGrade(course);
-            if (grade) allGrades.push(grade);
-          }
+        const semesterIds = allSemesters.map((s) => s.id);
+        const allCourses = await prisma.course.findMany({
+          where: { semesterId: { in: semesterIds } },
+        });
+
+        const courseIds = allCourses.map((c) => c.id);
+        const [allAssessments, allAttendance] = await Promise.all([
+          prisma.assessment.findMany({ where: { courseId: { in: courseIds } } }),
+          prisma.attendanceRecord.findMany({ where: { courseId: { in: courseIds } } }),
+        ]);
+
+        const semData = await Promise.all(
+          allSemesters.map(async (sem) => {
+            const semCourses = allCourses.filter((c) => c.semesterId === sem.id);
+            const totalCredits = semCourses.reduce((sum, c) => sum + c.credits, 0);
+            const grades = await Promise.all(
+              semCourses.map((course) =>
+                computeCourseGrade(course, {
+                  assessments: allAssessments.filter((a) => a.courseId === course.id),
+                  attendanceRecords: allAttendance.filter((a) => a.courseId === course.id),
+                })
+              )
+            );
+            return { sgpa: computeSGPA(grades), totalCredits };
+          })
+        );
+
+        const completedSems = semData.filter((s) => s.sgpa !== null && s.totalCredits > 0);
+        cgpa = computeCGPA(completedSems);
+
+        if (activeSemester) {
+          const activeIdx = allSemesters.findIndex((s) => s.id === activeSemester.id);
+          sgpa = activeIdx !== -1 && semData[activeIdx] ? semData[activeIdx].sgpa : null;
         }
-        cgpa = computeCGPA(allGrades);
-      } catch {}
+        if (sgpa === null && completedSems.length > 0) {
+          sgpa = completedSems[completedSems.length - 1].sgpa;
+        }
+      } catch (err) {
+        console.error("[Sync Dashboard] Failed to compute grades:", err);
+      }
     }
 
     // Active projects with progress

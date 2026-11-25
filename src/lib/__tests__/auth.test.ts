@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getCurrentUserId, UnauthorizedError } from "@/lib/auth";
 import { createClient } from "@/features/auth/lib/supabase-server";
 
+const mockHeadersGet = vi.fn();
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({
+    get: mockHeadersGet,
+  })),
+}));
+
 vi.mock("@/features/auth/lib/supabase-server", () => ({
   createClient: vi.fn(),
 }));
@@ -9,6 +16,14 @@ vi.mock("@/features/auth/lib/supabase-server", () => ({
 describe("Auth Helper (getCurrentUserId)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHeadersGet.mockReturnValue(null);
+  });
+
+  it("fast-paths directly from verified x-user-id header without calling Supabase", async () => {
+    mockHeadersGet.mockReturnValue("fast-path-user-999");
+    const userId = await getCurrentUserId();
+    expect(userId).toBe("fast-path-user-999");
+    expect(createClient).not.toHaveBeenCalled();
   });
 
   it("throws UnauthorizedError when no active session exists", async () => {

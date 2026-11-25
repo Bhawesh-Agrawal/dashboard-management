@@ -86,4 +86,20 @@ describe("Proxy Session Verification (src/proxy.ts)", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/today");
   });
+
+  it("attaches verified x-user-id header to downstream request and overrides spoofed values", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "verified-user-456" } },
+      error: null,
+    });
+
+    const request = new NextRequest("http://localhost:3000/today", {
+      headers: {
+        "x-user-id": "attacker-spoofed-id",
+      },
+    });
+    const response = await proxy(request);
+
+    expect(response.headers.get("x-middleware-request-x-user-id")).toBe("verified-user-456");
+  });
 });

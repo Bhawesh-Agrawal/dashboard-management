@@ -45,26 +45,27 @@ export async function markAttendance(input: MarkAttendanceInput): Promise<MarkAt
   const validated = MarkAttendanceSchema.parse(input);
   const userId = await getCurrentUserId();
 
-  // Verify ownership of the course through semester
-  const course = await prisma.course.findFirst({
-    where: {
-      id: validated.courseId,
-      semester: ownerWhere(userId),
-    },
-    select: {
-      id: true,
-      attendanceMode: true,
-      manualPresent: true,
-      manualTotalClasses: true,
-    },
-  });
+  // Run course ownership verification and user timezone lookup in parallel
+  const [course, timezone] = await Promise.all([
+    prisma.course.findFirst({
+      where: {
+        id: validated.courseId,
+        semester: ownerWhere(userId),
+      },
+      select: {
+        id: true,
+        attendanceMode: true,
+        manualPresent: true,
+        manualTotalClasses: true,
+      },
+    }),
+    getUserTimezone(userId),
+  ]);
 
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
   }
 
-  // Resolve user timezone and date
-  const timezone = await getUserTimezone(userId);
   const dateStr = validated.date ? formatDateOnly(validated.date) : getTodayInTimezone(timezone, getNow());
   const dateObj = parseDateOnly(dateStr);
 
@@ -195,21 +196,22 @@ export async function bulkMarkAttendance(
   }>
 ): Promise<{ success: boolean; updatedCount: number; summary: AttendanceMetrics }> {
   const userId = await getCurrentUserId();
-  const course = await prisma.course.findFirst({
-    where: { id: courseId, semester: ownerWhere(userId) },
-    select: {
-      id: true,
-      attendanceMode: true,
-      manualPresent: true,
-      manualTotalClasses: true,
-    },
-  });
+  const [course, timezone] = await Promise.all([
+    prisma.course.findFirst({
+      where: { id: courseId, semester: ownerWhere(userId) },
+      select: {
+        id: true,
+        attendanceMode: true,
+        manualPresent: true,
+        manualTotalClasses: true,
+      },
+    }),
+    getUserTimezone(userId),
+  ]);
 
   if (!course) {
     throw new UnauthorizedError("Course not found or unauthorized");
   }
-
-  const timezone = await getUserTimezone(userId);
 
   for (const occ of occurrences) {
     const dateStr = occ.date ? formatDateOnly(occ.date) : getTodayInTimezone(timezone, getNow());

@@ -20,6 +20,10 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // Strip any client-supplied x-user-id header for spoofing protection
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-user-id");
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -32,7 +36,11 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({
+            request: {
+              headers: requestHeaders,
+            },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -76,7 +84,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  // Propagate verified user ID header downstream so Server Actions and Route Handlers
+  // avoid a redundant second round-trip to Supabase Auth.
+  requestHeaders.set("x-user-id", user.id);
+
+  const finalResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  // Preserve any cookies set by Supabase SSR
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    finalResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+
+  return finalResponse;
 }
 
 export const config = {

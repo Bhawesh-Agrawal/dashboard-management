@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { getActiveSubscriptions } from "./subscription";
 import {
   computeAttendancePercent,
@@ -215,8 +216,7 @@ const TIME_OF_DAY_DEFAULTS: Record<string, string> = {
  * Falls back to server local time if no timezone is configured.
  */
 function getUserLocalTime(timezone: string | null | undefined): Date {
-  // If no timezone set, try to detect from server's local timezone
-  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tz = timezone || DEFAULT_TIMEZONE;
 
   try {
     const now = getNow();

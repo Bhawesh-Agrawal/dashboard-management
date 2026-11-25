@@ -10,7 +10,9 @@ import { NotificationTypeToggles } from "@/features/notifications/components/not
 import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
 import { NotificationWeeklyStats } from "@/features/notifications/components/notification-weekly-stats";
 import { ThemeCustomizer } from "@/features/settings/components/theme-customizer";
+import { TimezoneSettings } from "@/features/settings/components/timezone-settings";
 import { getDashboardLayout } from "@/features/dashboard/lib/actions";
+import { getUserTimezone } from "@/lib/timezone-server";
 export const revalidate = 0;
 
 import {
@@ -29,8 +31,10 @@ export default async function SettingsPage() {
     themeMode: "light",
   };
 
+  let userTimezone = "Asia/Kathmandu";
+
   try {
-    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout] = await Promise.all([
+    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone] = await Promise.all([
       getAllCourses().catch(() => []),
       getNotificationPreferences().catch(() => []),
       getDailySummaryPreferences().catch(() => null),
@@ -40,6 +44,7 @@ export default async function SettingsPage() {
         accentColor: null,
         themeMode: "light",
       })),
+      getUserTimezone().catch(() => "Asia/Kathmandu"),
     ]);
   } catch {
     // All fallbacks are already set above
@@ -60,6 +65,12 @@ export default async function SettingsPage() {
             initialAccentColor={dashboardLayout.accentColor}
             initialThemeMode={dashboardLayout.themeMode}
           />
+        </section>
+
+        {/* Timezone */}
+        <section className="border-t border-border pt-10">
+          <h2 className="page-heading text-lg mb-6">Timezone</h2>
+          <TimezoneSettings initialTimezone={userTimezone} />
         </section>
 
         {/* Grading & Attendance */}

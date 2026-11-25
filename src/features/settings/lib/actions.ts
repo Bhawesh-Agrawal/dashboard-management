@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_GRADING_CONFIG, DEFAULT_ATTENDANCE_MARKS_CONFIG } from "@/lib/constants";
+import { getCurrentUserId } from "@/lib/auth";
+import { setUserTimezone } from "@/lib/timezone-server";
 
 export async function updateGradingConfig(courseId: string, config: { minPercent: number; gradePoint: number }[]) {
   // Delete existing course-specific config
@@ -64,4 +66,13 @@ export async function resetAttendanceToDefaults(courseId: string) {
 
   revalidatePath(`/courses/${courseId}`);
   revalidatePath("/settings");
+}
+
+export async function updateUserTimezoneAction(timezone: string) {
+  const userId = await getCurrentUserId();
+  await setUserTimezone(timezone, userId);
+  revalidatePath("/settings");
+  revalidatePath("/today");
+  revalidatePath("/courses");
+  return { success: true };
 }

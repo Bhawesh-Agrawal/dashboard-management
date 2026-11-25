@@ -3,19 +3,17 @@ import { getCurrentUserId } from "@/lib/auth";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 /**
- * Returns the configured timezone for a user, falling back to "Asia/Kolkata".
+ * Returns the configured timezone for a user, falling back to "Asia/Kathmandu".
  */
 export async function getUserTimezone(userId?: string): Promise<string> {
   try {
     const targetUserId = userId || (await getCurrentUserId());
     if (!targetUserId) return DEFAULT_TIMEZONE;
 
-    const pref = await prisma.notificationPreference.findUnique({
+    const pref = await prisma.notificationPreference.findFirst({
       where: {
-        userId_type: {
-          userId: targetUserId,
-          type: "daily_summary",
-        },
+        userId: targetUserId,
+        timezone: { not: null },
       },
       select: { timezone: true },
     });

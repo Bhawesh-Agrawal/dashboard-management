@@ -10,8 +10,8 @@ import {
 } from "../timezone";
 
 describe("Timezone and Date Utilities", () => {
-  it("defaults to Asia/Kolkata", () => {
-    expect(DEFAULT_TIMEZONE).toBe("Asia/Kolkata");
+  it("defaults to Asia/Kathmandu", () => {
+    expect(DEFAULT_TIMEZONE).toBe("Asia/Kathmandu");
   });
 
   describe("formatDateOnly and parseDateOnly", () => {
@@ -180,6 +180,56 @@ describe("Timezone and Date Utilities", () => {
           now: at2345,
         })
       ).toBe("in_progress");
+    });
+
+    it("evaluates class status in Asia/Kathmandu accurately across local schedule windows", () => {
+      // 09:15 in Kathmandu is 03:30 UTC
+      const at0915Kathmandu = new Date("2026-11-24T03:30:00.000Z");
+
+      expect(
+        getClassTimingStatus({
+          date: "2026-11-24",
+          startTime: "09:00",
+          endTime: "10:00",
+          timezone: "Asia/Kathmandu",
+          now: at0915Kathmandu,
+        })
+      ).toBe("in_progress");
+
+      expect(
+        getClassTimingStatus({
+          date: "2026-11-24",
+          startTime: "10:30",
+          endTime: "11:30",
+          timezone: "Asia/Kathmandu",
+          now: at0915Kathmandu,
+        })
+      ).toBe("upcoming");
+    });
+
+    it("evaluates class status in Asia/Kolkata accurately across local schedule windows", () => {
+      // 09:15 in Kolkata is 03:45 UTC
+      const at0915Kolkata = new Date("2026-11-24T03:45:00.000Z");
+
+      expect(
+        getClassTimingStatus({
+          date: "2026-11-24",
+          startTime: "09:00",
+          endTime: "10:00",
+          timezone: "Asia/Kolkata",
+          now: at0915Kolkata,
+        })
+      ).toBe("in_progress");
+
+      expect(
+        getClassTimingStatus({
+          date: "2026-11-24",
+          startTime: "08:00",
+          endTime: "09:00",
+          timezone: "Asia/Kolkata",
+          now: at0915Kolkata,
+        })
+      ).toBe("ended");
     });
   });
 });

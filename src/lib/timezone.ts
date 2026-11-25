@@ -1,4 +1,4 @@
-export const DEFAULT_TIMEZONE = "Asia/Kolkata";
+export const DEFAULT_TIMEZONE = "Asia/Kathmandu";
 
 export type DayOfWeekCode = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 

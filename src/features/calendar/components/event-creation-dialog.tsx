@@ -4,6 +4,11 @@ import { useState, useEffect } from "react";
 import { useCreateEvent } from "@/lib/sync/hooks";
 import { X, CalendarDays, Clock, MapPin, Repeat, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  attachTravelMetadataToEventAction,
+  getDocumentLibraryChoicesAction,
+  type DocumentLibraryChoice,
+} from "@/features/briefs/lib/travel";
 
 interface EventFormData {
   title: string;
@@ -39,6 +44,9 @@ export function EventCreationDialog({
 }: EventCreationDialogProps) {
   const createEvent = useCreateEvent();
   const [loading, setLoading] = useState(false);
+  const [isTravel, setIsTravel] = useState(false);
+  const [docChoices, setDocChoices] = useState<DocumentLibraryChoice[]>([]);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
     dateTime: "",
@@ -98,9 +106,10 @@ export function EventCreationDialog({
         ? new Date(formData.recurrenceEnd).toISOString()
         : null;
 
+      const isoDateTime = new Date(formData.dateTime).toISOString();
       await createEvent({
         title: formData.title.trim(),
-        dateTime: new Date(formData.dateTime).toISOString(),
+        dateTime: isoDateTime,
         endTime: formData.endTime ? new Date(formData.endTime).toISOString() : undefined,
         location: formData.location.trim() || undefined,
         notes: formData.notes.trim() || undefined,
@@ -108,7 +117,18 @@ export function EventCreationDialog({
         recurrenceEnd: recurrenceEnd || undefined,
       });
 
+      if (isTravel || selectedNoteIds.length > 0) {
+        await attachTravelMetadataToEventAction({
+          title: formData.title.trim(),
+          dateTime: isoDateTime,
+          isTravel,
+          noteIds: selectedNoteIds,
+        });
+      }
+
       onOpenChange(false);
+      setIsTravel(false);
+      setSelectedNoteIds([]);
       setFormData({
         title: "",
         dateTime: "",
@@ -267,6 +287,58 @@ export function EventCreationDialog({
                   onChange={(e) => setFormData(prev => ({ ...prev, recurrenceEnd: e.target.value }))}
                   className="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm"
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Travel & Tickets */}
+          <div className="space-y-2 border-t border-border pt-3">
+            <label className="flex items-center justify-between text-xs font-medium text-foreground min-h-[44px]">
+              <span>Travel event (include in Brief &amp; pin tickets offline)</span>
+              <input
+                type="checkbox"
+                checked={isTravel}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setIsTravel(next);
+                  if (next && docChoices.length === 0) {
+                    void getDocumentLibraryChoicesAction().then(setDocChoices);
+                  }
+                }}
+                className="h-4 w-4"
+              />
+            </label>
+
+            {isTravel && docChoices.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">
+                  Attach tickets/documents from Document Library:
+                </p>
+                <div className="max-h-32 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                  {docChoices.map((doc) => {
+                    const checked = selectedNoteIds.includes(doc.id);
+                    return (
+                      <label
+                        key={doc.id}
+                        className="flex items-center gap-2 px-3 py-2 text-xs text-foreground cursor-pointer hover:bg-muted/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setSelectedNoteIds((prev) =>
+                              e.target.checked
+                                ? [...prev, doc.id]
+                                : prev.filter((id) => id !== doc.id)
+                            )
+                          }
+                          className="h-4 w-4"
+                        />
+                        <span className="truncate">{doc.title}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

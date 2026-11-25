@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { regenerateBriefAction } from "@/features/briefs/lib/actions";
+import { pinTravelDocuments } from "@/features/briefs/lib/pin-tickets";
 import type { BriefPayload } from "@/features/briefs/lib/build";
 import { toast } from "sonner";
 
@@ -162,6 +163,10 @@ export function BriefView({
 }) {
   const [morning, setMorning] = useState<StoredBriefItem | null>(initialMorning);
   const [evening, setEvening] = useState<StoredBriefItem | null>(initialEvening);
+
+  useEffect(() => {
+    void pinTravelDocuments([morning?.payload, evening?.payload]);
+  }, [morning, evening]);
 
   return (
     <div className="space-y-6">

@@ -23,6 +23,7 @@ import {
 } from "./build";
 import { saveDailyBrief } from "./storage";
 import { fetchWeatherLine, type FetchLike } from "./weather";
+import { selectTravelEventsWithin48Hours } from "./pin-tickets";
 
 function getDayOfWeekEnum(day: number): "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" {
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
@@ -149,6 +150,15 @@ export async function generateAndPersistBrief(input: {
           lte: new Date(now.getTime() + 72 * 60 * 60 * 1000),
         },
       },
+      include: {
+        eventDocuments: {
+          include: {
+            note: {
+              select: { id: true, title: true, fileName: true, s3Url: true },
+            },
+          },
+        },
+      },
       orderBy: { dateTime: "asc" },
     }),
     prisma.assessment.findMany({
@@ -220,9 +230,28 @@ export async function generateAndPersistBrief(input: {
     assessmentsWithin7Days.push(item);
   }
 
-  // Travel items placeholder (populated with EventDocument in Step 10)
-  const travel48h: BriefTravelItem[] = [];
-  const travelTomorrow: BriefTravelItem[] = [];
+  const formatTravelLabel = (d: Date) => {
+    const p = getLocalTimeParts(d, timezone);
+    return `${p.dateOnly} ${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
+  };
+  const travel48h: BriefTravelItem[] = selectTravelEventsWithin48Hours(
+    rawEvents,
+    now,
+    formatTravelLabel
+  );
+  const travelTomorrow: BriefTravelItem[] = rawEvents
+    .filter((e) => e.isTravel && getLocalTimeParts(e.dateTime, timezone).dateOnly === tomorrowStr)
+    .map((e) => ({
+      eventId: e.id,
+      title: e.title,
+      dateTimeLabel: formatTravelLabel(e.dateTime),
+      location: e.location,
+      documents: e.eventDocuments.map((ed) => ({
+        noteId: ed.note.id,
+        title: ed.note.fileName || ed.note.title || "Ticket",
+        offlineUrl: ed.note.s3Url || `/notes/${ed.note.id}`,
+      })),
+    }));
 
   let payload: BriefPayload;
   if (input.kind === "morning") {

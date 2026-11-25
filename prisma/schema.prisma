@@ -284,6 +284,7 @@ model Note {
   incomingLinks    NoteLink[]        @relation("NoteBacklinks")
   noteAttachments  NoteAttachment[]
   annotations      NoteAnnotation[]
+  eventDocuments   EventDocument[]
 
   @@index([userId])
   @@index([folderId])
@@ -445,6 +446,7 @@ model Event {
   location        String?
   notes           String?
   eventType       EventType? @default(general) @map("event_type")
+  isTravel        Boolean?   @map("is_travel")
   // Recurring event support (iCal RRULE format)
   recurrenceRule  String?    @map("recurrence_rule") // e.g., "FREQ=WEEKLY;BYDAY=MO" for weekly on Monday
   recurrenceEnd   DateTime?  @map("recurrence_end") // When recurrence stops (null = forever)
@@ -452,9 +454,26 @@ model Event {
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
+  eventDocuments  EventDocument[]
+
   @@index([userId])
   @@index([parentEventId])
   @@map("events")
+}
+
+model EventDocument {
+  id        String   @id @default(uuid())
+  eventId   String   @map("event_id")
+  noteId    String   @map("note_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  note  Note  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, noteId])
+  @@index([eventId])
+  @@index([noteId])
+  @@map("event_documents")
 }
 
 // ─── Quote ─────────────────────────────────────────────────

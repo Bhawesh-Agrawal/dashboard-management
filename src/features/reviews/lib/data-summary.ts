@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { getTodayInTimezone } from "@/lib/timezone";
+import { currentSemesterWhere } from "@/features/semesters/lib/current";
 import type { ReviewType } from "@prisma/client";
 import { getNow } from "@/lib/clock";
 import {
@@ -109,6 +111,10 @@ export async function fetchReviewData(
           ? 30
           : 90;
   const lookbackStart = subDays(periodStart, lookbackDays);
+  const semesterWhere = currentSemesterWhere(
+    userId,
+    getTodayInTimezone(timezone, date)
+  );
 
   const [
     tasks,
@@ -155,7 +161,7 @@ export async function fetchReviewData(
 
     prisma.attendanceRecord.findMany({
       where: {
-        course: { semester: { isActive: true } },
+        course: { semester: semesterWhere },
         date: { gte: periodStart, lte: periodEnd },
       },
       select: {
@@ -175,7 +181,7 @@ export async function fetchReviewData(
 
     prisma.assessment.findMany({
       where: {
-        course: { semester: { isActive: true } },
+        course: { semester: semesterWhere },
       },
       select: {
         componentType: true,
@@ -198,7 +204,7 @@ export async function fetchReviewData(
 
     prisma.classSchedule.findMany({
       where: {
-        course: { semester: { isActive: true, userId } },
+        course: { semester: semesterWhere },
       },
       select: {
         dayOfWeek: true,

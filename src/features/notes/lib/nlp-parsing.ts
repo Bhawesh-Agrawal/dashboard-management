@@ -150,16 +150,21 @@ export async function parseQuickCapture(
   }
 }
 
+import { getCurrentSemester } from "@/features/semesters/lib/current";
+
 /**
- * Get available courses for the active semester.
+ * Get available courses for the current semester.
  * Used to provide context to the NLP parser.
  */
 export async function getActiveCourses(): Promise<
   { id: string; name: string; code: string | null }[]
 > {
-  const activeSemester = await prisma.semester.findFirst({
-    where: { isActive: true },
-  });
+  let activeSemester = null;
+  try {
+    activeSemester = await getCurrentSemester();
+  } catch {
+    return [];
+  }
 
   if (!activeSemester) return [];
 

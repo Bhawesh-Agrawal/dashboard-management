@@ -5,6 +5,7 @@ import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
+import { getCurrentSemester } from "@/features/semesters/lib/current";
 import type { CalendarEvent } from "@/types";
 
 interface CalendarRequest {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch server-only data in parallel
     const [activeSemester, assessments, googleConnected] = await Promise.all([
-      prisma.semester.findFirst({ where: { isActive: true } }),
+      getCurrentSemester(userId),
       prisma.assessment.findMany({
         where: { date: { gte: startDate, lte: endDate } },
         include: { course: { select: { id: true, name: true, color: true } } },

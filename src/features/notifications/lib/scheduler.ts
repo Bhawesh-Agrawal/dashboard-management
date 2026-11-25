@@ -5,6 +5,14 @@ import { getActiveSubscriptions } from "./subscription";
 import {
   computeAttendancePercent,
 } from "@/features/assessments/lib/calculations";
+import { currentSemesterWhere } from "@/features/semesters/lib/current";
+
+function localDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 /**
  * Notification types that can be scheduled.
@@ -436,10 +444,7 @@ async function generateClassNotifications(
   const schedules = await prisma.classSchedule.findMany({
     where: {
       course: {
-        semester: {
-          OR: [{ userId }, { userId: null }],
-          isActive: true,
-        },
+        semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)),
       },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       OR: [
@@ -532,10 +537,7 @@ async function generateClassEndNotifications(
   const schedules = await prisma.classSchedule.findMany({
     where: {
       course: {
-        semester: {
-          OR: [{ userId }, { userId: null }],
-          isActive: true,
-        },
+        semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)),
       },
       dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       OR: [
@@ -643,10 +645,7 @@ async function generateClassCancellationNotifications(
       date: today,
       classSchedule: {
         course: {
-          semester: {
-            OR: [{ userId }, { userId: null }],
-            isActive: true,
-          },
+          semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)),
         },
       },
     },
@@ -707,10 +706,7 @@ async function generateClassRescheduleNotifications(
       date: today,
       classSchedule: {
         course: {
-          semester: {
-            OR: [{ userId }, { userId: null }],
-            isActive: true,
-          },
+          semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)),
         },
       },
     },
@@ -778,7 +774,7 @@ async function generateAssessmentNotifications(
 
   const assessments = await prisma.assessment.findMany({
     where: {
-      course: { semester: { userId, isActive: true } },
+      course: { semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)) },
       date: { gte: now, lte: tomorrow },
       obtainedMarks: null,
     },
@@ -1053,7 +1049,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   if (sections.includes("classes")) {
     const classes = await prisma.classSchedule.findMany({
       where: {
-        course: { semester: { userId, isActive: true } },
+        course: { semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)) },
         dayOfWeek: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       },
       include: { course: { select: { name: true } } },
@@ -1166,7 +1162,8 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   // ─── Attendance Alerts ───────────────────────────────────
   if (sections.includes("attendance")) {
     const activeSemester = await prisma.semester.findFirst({
-      where: { userId, isActive: true },
+      where: currentSemesterWhere(userId, localDateOnly(userLocalTime)),
+      orderBy: [{ isActive: "desc" }, { startDate: "desc" }],
     });
 
     if (activeSemester) {
@@ -1231,7 +1228,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
 
     const tomorrowClasses = await prisma.classSchedule.findMany({
       where: {
-        course: { semester: { userId, isActive: true } },
+        course: { semester: currentSemesterWhere(userId, localDateOnly(userLocalTime)) },
         dayOfWeek: tomorrowDay as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
       },
       include: { course: { select: { name: true } } },

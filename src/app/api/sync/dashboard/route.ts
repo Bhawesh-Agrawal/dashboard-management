@@ -11,6 +11,7 @@ import {
   fetchGoogleCalendarEvents,
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
+import { getCurrentSemester } from "@/features/semesters/lib/current";
 
 /**
  * Returns server-only dashboard data that isn't in the sync scope.
@@ -42,10 +43,7 @@ export async function GET() {
       unviewedReviewCount,
       dashboardPref,
     ] = await Promise.all([
-      prisma.semester.findFirst({
-        where: { userId, isActive: true },
-        include: { courses: true },
-      }),
+      getCurrentSemester(userId),
       prisma.event.findMany({
         where: {
           dateTime: { gte: today, lte: windowEnd },

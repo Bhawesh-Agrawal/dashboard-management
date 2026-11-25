@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 import { getCurrentUserId } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
+import { currentSemesterWhere, getCurrentSemester as getCurrentSemesterUncached } from "./current";
+
+export { currentSemesterWhere };
+
+export const getCurrentSemester = cache(async () => getCurrentSemesterUncached());
 
 export const getSemesters = cache(async () => {
   const userId = await getCurrentUserId();
@@ -33,18 +38,6 @@ export const getSemesterById = cache(async (id: string) => {
         include: {
           _count: { select: { tasks: true, notes: true, attendanceRecords: true } },
         },
-      },
-    },
-  });
-});
-
-export const getActiveSemester = cache(async () => {
-  const userId = await getCurrentUserId();
-  return prisma.semester.findFirst({
-    where: { isActive: true, ...ownerWhere(userId) },
-    include: {
-      courses: {
-        orderBy: { name: "asc" },
       },
     },
   });

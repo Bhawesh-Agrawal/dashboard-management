@@ -16,6 +16,7 @@ import {
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
 import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentSemester } from "@/features/semesters/lib/current";
 
 /**
  * Aggregate all data needed for the /today dashboard.
@@ -67,11 +68,8 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     latestReview,
     unviewedReviewCount,
   ] = await Promise.all([
-    // Active semester + courses in one query
-    prisma.semester.findFirst({
-      where: { isActive: true },
-      include: { courses: true },
-    }),
+    // Current semester + courses in one query (date-range based)
+    getCurrentSemester(userId),
     // Top 3 starred tasks
     prisma.task.findMany({
       where: { starred: true, status: "open", OR: [{ userId }, { userId: null }] },

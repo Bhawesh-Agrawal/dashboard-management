@@ -15,6 +15,10 @@ import { FocusCarousel } from "@/features/dashboard/components/focus-carousel";
 import { TodayClassesCard } from "@/features/attendance/components/today-classes-card";
 import { DsaTodayCard } from "@/features/dsa/components/dsa-today-card";
 import type { DsaDueSummary } from "@/features/dsa/lib/summary";
+import {
+  BriefTodayCard,
+  type BriefTodaySummary,
+} from "@/features/briefs/components/brief-today-card";
 import dynamic from "next/dynamic";
 import { resolveLayout, type WidgetId } from "../lib/widget-registry";
 import type { DashboardData } from "@/types";
@@ -36,12 +40,14 @@ export function TodayDashboard({
   hiddenWidgets,
   userId,
   dsaSummary,
+  briefSummary,
 }: {
   data: DashboardData;
   widgetOrder: string[];
   hiddenWidgets: string[];
   userId: string;
   dsaSummary?: DsaDueSummary | null;
+  briefSummary?: BriefTodaySummary | null;
 }) {
   const [layout, setLayout] = useState(() => resolveLayout(widgetOrder));
   const today = new Date();
@@ -135,6 +141,7 @@ export function TodayDashboard({
 
   return (
     <div className="space-y-6">
+      <BriefTodayCard summary={briefSummary} />
       {data.hasCurrentSemester === false && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <span className="text-muted-foreground">No active semester</span>

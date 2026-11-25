@@ -18,6 +18,7 @@ const PINNED_DOCUMENTS_CACHE = "pinned-documents-v1";
 const APP_SHELL_FILES = [
   "/",
   "/today",
+  "/brief",
   "/tasks",
   "/calendar",
   "/semesters",

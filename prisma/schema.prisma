@@ -576,12 +576,14 @@ model SentNotification {
   id           String    @id @default(uuid())
   userId       String    @map("user_id")
   tag          String
+  dedupKey     String?   @map("dedup_key")
   type         String    // NotificationType — e.g. 'class_start', 'task_due'
   sentAt       DateTime  @default(now()) @map("sent_at")
   openedAt     DateTime? @map("opened_at") // Set when user clicks the notification
   snoozedUntil DateTime? @map("snoozed_until") // Snooze until this time (stops repeated notifications)
 
   @@unique([userId, tag])
+  @@unique([userId, dedupKey])
   @@index([userId])
   @@index([sentAt])
   @@index([type])

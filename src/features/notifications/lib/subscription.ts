@@ -17,22 +17,31 @@ export async function subscribeToPush(subscription: {
   try {
     const userId = await getCurrentUserId();
 
-    await prisma.pushSubscription.upsert({
+    const existing = await prisma.pushSubscription.findFirst({
       where: {
-        // Use endpoint as unique identifier
-        id: subscription.endpoint.slice(-36), // Use last 36 chars as ID
-      },
-      create: {
         userId,
         endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-      },
-      update: {
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
       },
     });
+
+    if (existing) {
+      await prisma.pushSubscription.update({
+        where: { id: existing.id },
+        data: {
+          p256dh: subscription.keys.p256dh,
+          auth: subscription.keys.auth,
+        },
+      });
+    } else {
+      await prisma.pushSubscription.create({
+        data: {
+          userId,
+          endpoint: subscription.endpoint,
+          p256dh: subscription.keys.p256dh,
+          auth: subscription.keys.auth,
+        },
+      });
+    }
 
     return { success: true };
   } catch (error) {

@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
-import { getActiveSubscriptions } from "./subscription";
+import {
+  buildDedupKey,
+  dispatchNotifications,
+  type NotificationCandidate,
+} from "./engine";
 import {
   computeAttendancePercent,
 } from "@/features/assessments/lib/calculations";
@@ -84,119 +88,7 @@ export type NotificationPayload = {
   requireInteraction?: boolean;
 };
 
-/**
- * Get notification preferences for a user.
- * Returns empty array if table doesn't exist.
- */
-async function getPreferences(userId: string) {
-  try {
-    return await prisma.notificationPreference.findMany({
-      where: { userId },
-    });
-  } catch {
-    // Table may not exist yet
-    return [];
-  }
-}
-
-/**
- * Check if a notification type is enabled.
- * Defaults to the lean starter set (opt-in rather than opt-out).
- */
-async function isTypeEnabled(
-  userId: string,
-  type: NotificationType
-): Promise<boolean> {
-  const prefs = await getPreferences(userId);
-  const pref = prefs.find((p) => p.type === type);
-  if (pref) return pref.enabled;
-  return DEFAULT_ENABLED_TYPES.includes(type);
-}
-
-/**
- * Check if current time falls within the user's quiet hours window.
- * Quiet hours wrap around midnight (e.g. 22:00–07:00).
- * Returns false if no quiet hours are configured or if the type is critical.
- */
-function isWithinQuietHours(
-  localHour: number,
-  localMinute: number,
-  start: string | null | undefined,
-  end: string | null | undefined
-): boolean {
-  if (!start || !end) return false;
-
-  const [startH, startM] = start.split(":").map(Number);
-  const [endH, endM] = end.split(":").map(Number);
-  const current = localHour * 60 + localMinute;
-  const startMin = startH * 60 + startM;
-  const endMin = endH * 60 + endM;
-
-  if (startMin <= endMin) {
-    // Same-day window (e.g. 09:00–17:00)
-    return current >= startMin && current < endMin;
-  }
-  // Wraps midnight (e.g. 22:00–07:00)
-  return current >= startMin || current < endMin;
-}
-
-/**
- * Get the effective priority for a notification type.
- * Uses user override from pref, falling back to DEFAULT_PRIORITY.
- */
-function getEffectivePriority(
-  prefs: { type: string; priority?: string | null }[],
-  type: NotificationType
-): NotificationPriority {
-  const pref = prefs.find((p) => p.type === type);
-  return (pref?.priority as NotificationPriority) || DEFAULT_PRIORITY[type];
-}
-
-// ─── Notification Dedup ──────────────────────────────────
-// Prevents sending the same notification multiple times.
-
-async function wasNotificationSent(userId: string, tag: string): Promise<boolean> {
-  try {
-    const existing = await prisma.sentNotification.findUnique({
-      where: { userId_tag: { userId, tag } },
-    });
-    if (!existing) return false;
-    // Check if snoozed until a future time
-    if (existing.snoozedUntil && existing.snoozedUntil > getNow()) {
-      return true; // Treat snoozed as "sent" to prevent re-triggering
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Check if a notification is snoozed (user tapped snooze to suppress until class starts).
- */
-async function isNotificationSnoozed(userId: string, tag: string): Promise<boolean> {
-  try {
-    const existing = await prisma.sentNotification.findUnique({
-      where: { userId_tag: { userId, tag } },
-    });
-    if (!existing || !existing.snoozedUntil) return false;
-    return existing.snoozedUntil > getNow();
-  } catch {
-    return false;
-  }
-}
-
-async function markNotificationSent(userId: string, tag: string, type: string): Promise<void> {
-  try {
-    await prisma.sentNotification.upsert({
-      where: { userId_tag: { userId, tag } },
-      create: { userId, tag, type },
-      update: { sentAt: getNow() },
-    });
-  } catch {
-    // Non-critical — don't break scheduler
-  }
-}
+// Dedup, preference, and quiet-hours checks are centralized in engine.ts (dispatchNotifications).
 
 async function cleanupOldSentNotifications(): Promise<void> {
   try {
@@ -479,15 +371,8 @@ async function generateClassNotifications(
     const diffFromStart = targetTotal - currentTotal;
 
     if (diffFromStart >= 0 && diffFromStart <= 20) {
-      const tag = `class-${schedule.id}`;
-      const todayStr = userLocalTime.toISOString().split("T")[0];
-      const fullTag = `${tag}-${todayStr}`;
-
-      // Skip if already sent today for this class
-      if (await wasNotificationSent(userId, fullTag)) continue;
-
-      // Skip if snoozed (user tapped snooze)
-      if (await isNotificationSnoozed(userId, fullTag)) continue;
+      const todayStr = localDateOnly(userLocalTime);
+      const fullTag = buildDedupKey("class_start", schedule.id, todayStr);
 
       const locationPart = exception?.type === "rescheduled" && exception.newLocation
         ? ` | ${exception.newLocation}`
@@ -571,13 +456,8 @@ async function generateClassEndNotifications(
 
     // Trigger if current time is within 20 minutes AFTER the class end time (or up to 2 mins before).
     if (diffFromEnd >= -2 && diffFromEnd <= 20) {
-      const tag = `attendance-${schedule.id}-${todayStr}`;
-
-      // Skip if already sent (includes snoozed check)
-      if (await wasNotificationSent(userId, tag)) continue;
-
-      // Skip if snoozed (user tapped snooze)
-      if (await isNotificationSnoozed(userId, tag)) continue;
+      const todayDateStr = localDateOnly(userLocalTime);
+      const tag = buildDedupKey("class_end", schedule.id, todayDateStr);
 
       // Skip if attendance already recorded for this schedule+date
       const existing = await prisma.attendanceRecord.findFirst({
@@ -661,12 +541,6 @@ async function generateClassCancellationNotifications(
   for (const exception of cancelledExceptions) {
     const tag = `cancelled-${exception.classScheduleId}-${todayStr}`;
 
-    // Skip if already sent
-    if (await wasNotificationSent(userId, tag)) continue;
-
-    // Skip if snoozed
-    if (await isNotificationSnoozed(userId, tag)) continue;
-
     notifications.push({
       userId,
       title: "Class Cancelled",
@@ -721,12 +595,6 @@ async function generateClassRescheduleNotifications(
 
   for (const exception of rescheduledExceptions) {
     const tag = `rescheduled-${exception.classScheduleId}-${todayStr}`;
-
-    // Skip if already sent
-    if (await wasNotificationSent(userId, tag)) continue;
-
-    // Skip if snoozed
-    if (await isNotificationSnoozed(userId, tag)) continue;
 
     const timeChange = exception.newStartTime
       ? ` from ${exception.classSchedule.startTime} to ${exception.newStartTime}`
@@ -1268,77 +1136,7 @@ async function generateDailySummary(userId: string): Promise<NotificationPayload
   ];
 }
 
-/**
- * Send push notifications to all active subscriptions.
- */
-async function sendPushNotifications(
-  notifications: NotificationPayload[]
-): Promise<void> {
-  const subscriptions = await getActiveSubscriptions();
-
-  if (subscriptions.length === 0) return;
-
-  // Configure web-push with VAPID keys
-  const webPush = await import("web-push");
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.warn("VAPID keys not configured — skipping push delivery");
-    return;
-  }
-
-  const vapidEmail = process.env.VAPID_EMAIL || "mailto:admin@example.com";
-  webPush.default.setVapidDetails(
-    vapidEmail,
-    vapidPublicKey,
-    vapidPrivateKey
-  );
-
-  // Deduplicate subscriptions per user — only send to the most recent subscription per user.
-  // This prevents duplicate notifications when a user has multiple subscriptions
-  // (e.g., from multiple browser tabs or devices).
-  const latestSubByUser = new Map<string, typeof subscriptions[0]>();
-  for (const sub of subscriptions) {
-    const existing = latestSubByUser.get(sub.userId);
-    if (!existing || sub.createdAt > existing.createdAt) {
-      latestSubByUser.set(sub.userId, sub);
-    }
-  }
-
-  for (const [, sub] of latestSubByUser) {
-    const pushSubscription = {
-      endpoint: sub.endpoint,
-      keys: {
-        p256dh: sub.p256dh,
-        auth: sub.auth,
-      },
-    };
-
-    const userNotifications = notifications.filter((n) => n.userId === sub.userId);
-
-    for (const notification of userNotifications) {
-      try {
-        await webPush.default.sendNotification(
-          pushSubscription,
-          JSON.stringify(notification)
-        );
-      } catch (error) {
-        console.error("Failed to send push notification:", error);
-        // If subscription is invalid, remove it
-        if (
-          error instanceof Error &&
-          "statusCode" in error &&
-          (error.statusCode === 404 || error.statusCode === 410)
-        ) {
-          await prisma.pushSubscription.deleteMany({
-            where: { endpoint: sub.endpoint },
-          });
-        }
-      }
-    }
-  }
-}
+// Push delivery is handled exclusively by dispatchNotifications in ./engine.ts.
 
 // ─── Review Notifications ────────────────────────────────
 
@@ -1452,219 +1250,82 @@ async function generateMonthlyReviewAlert(
 export async function runNotificationScheduler(force: boolean = false): Promise<void> {
   forceNotifications = force;
   try {
-  // Find all distinct users that have push subscriptions
-  const subscriptions = await prisma.pushSubscription.findMany({
-    distinct: ["userId"],
-    select: { userId: true },
-  });
+    const subscriptions = await prisma.pushSubscription.findMany({
+      distinct: ["userId"],
+      select: { userId: true },
+    });
 
-  const activeUserIds = subscriptions.map((sub) => sub.userId);
-  if (activeUserIds.length === 0) return;
+    const activeUserIds = subscriptions.map((sub) => sub.userId);
+    if (activeUserIds.length === 0) return;
 
-  const allNotifications: NotificationPayload[] = [];
+    const now = getNow();
+    const candidates: NotificationCandidate[] = [];
 
-  for (const userId of activeUserIds) {
-    // Get user's timezone for time-aware scheduling
-    let timezone: string | null = null;
-    try {
-      const pref = await prisma.notificationPreference.findFirst({
-        where: { userId, timezone: { not: null } },
-        select: { timezone: true },
-      });
-      timezone = pref?.timezone || null;
-    } catch {
-      // No timezone set — use server time
-    }
-
-    const userLocalTime = getUserLocalTime(timezone);
-
-    // Fetch all preferences once for priority + quiet hours checks
-    const prefs = await getPreferences(userId);
-
-    // Helper: should this type be sent right now?
-    async function shouldSend(type: NotificationType): Promise<boolean> {
-      if (!isTypeEnabled(userId, type)) return false;
-
-      const priority = getEffectivePriority(prefs, type);
-      // Critical always sends
-      if (priority === "critical") return true;
-
-      // Normal/low respect quiet hours
-      const pref = prefs.find((p) => p.type === type);
-      const quietStart = pref?.quietHoursStart ?? "22:00";
-      const quietEnd = pref?.quietHoursEnd ?? "07:00";
-      if (isWithinQuietHours(userLocalTime.getHours(), userLocalTime.getMinutes(), quietStart, quietEnd)) {
-        return false;
+    for (const userId of activeUserIds) {
+      let timezone: string | null = null;
+      try {
+        const pref = await prisma.notificationPreference.findFirst({
+          where: { userId, timezone: { not: null } },
+          select: { timezone: true },
+        });
+        timezone = pref?.timezone || null;
+      } catch {
+        // Fallback to DEFAULT_TIMEZONE
       }
-      return true;
+
+      const userLocalTime = getUserLocalTime(timezone);
+      const occurrenceDate = localDateOnly(userLocalTime);
+
+      const generated: NotificationPayload[] = [
+        ...(await generateRoutineReminders(userId, userLocalTime)),
+        ...(await generateTaskNotifications(userId, userLocalTime)),
+        ...(await generateClassNotifications(userId, userLocalTime)),
+        ...(await generateClassEndNotifications(userId, userLocalTime)),
+        ...(await generateClassCancellationNotifications(userId, userLocalTime)),
+        ...(await generateClassRescheduleNotifications(userId, userLocalTime)),
+        ...(await generateAssessmentNotifications(userId, userLocalTime)),
+        ...(await generateDailySummary(userId)),
+        ...(await generateMissedRoutineNotifications(userId, userLocalTime)),
+        ...(await generateOverdueTaskNotifications(userId, userLocalTime)),
+        ...(await generateDailyReviewAlert(userId, userLocalTime)),
+        ...(await generateWeeklyReviewAlert(userId, userLocalTime)),
+        ...(await generateMonthlyReviewAlert(userId, userLocalTime)),
+      ];
+
+      for (const payload of generated) {
+        const type = payload.data.type;
+        const dedupKey = payload.tag.startsWith(`${type}:`)
+          ? payload.tag
+          : buildDedupKey(type, payload.tag, occurrenceDate);
+        const extraData: Record<string, string | number | boolean | undefined> = {};
+        for (const [k, v] of Object.entries(payload.data)) {
+          if (k === "url" || k === "type") continue;
+          if (typeof v === "string" || typeof v === "number" || typeof v === "boolean" || v === undefined) {
+            extraData[k] = v;
+          }
+        }
+        candidates.push({
+          userId: payload.userId,
+          type,
+          entityId: payload.tag,
+          occurrenceDate,
+          scheduledFor: now,
+          dedupKey,
+          title: payload.title,
+          body: payload.body,
+          url: payload.data.url,
+          actions: payload.actions,
+          data: extraData,
+          requireInteraction: payload.requireInteraction,
+        });
+      }
     }
 
-    // Check each notification type
-    if (await shouldSend("routine_reminder")) {
-      allNotifications.push(...(await generateRoutineReminders(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("task_due")) {
-      allNotifications.push(...(await generateTaskNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("class_start")) {
-      allNotifications.push(...(await generateClassNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("class_end")) {
-      allNotifications.push(...(await generateClassEndNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("class_cancelled")) {
-      allNotifications.push(...(await generateClassCancellationNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("class_rescheduled")) {
-      allNotifications.push(...(await generateClassRescheduleNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("assessment")) {
-      allNotifications.push(...(await generateAssessmentNotifications(userId, userLocalTime)));
-    }
-
-    if (await shouldSend("daily_summary")) {
-      allNotifications.push(...(await generateDailySummary(userId)));
-    }
-
-    if (await shouldSend("missed_routine")) {
-      allNotifications.push(
-        ...(await generateMissedRoutineNotifications(userId, userLocalTime))
-      );
-    }
-
-    if (await shouldSend("overdue_task")) {
-      allNotifications.push(
-        ...(await generateOverdueTaskNotifications(userId, userLocalTime))
-      );
-    }
-
-    if (await shouldSend("review_daily")) {
-      allNotifications.push(
-        ...(await generateDailyReviewAlert(userId, userLocalTime))
-      );
-    }
-
-    if (await shouldSend("review_weekly")) {
-      allNotifications.push(
-        ...(await generateWeeklyReviewAlert(userId, userLocalTime))
-      );
-    }
-
-    if (await shouldSend("review_monthly")) {
-      allNotifications.push(
-        ...(await generateMonthlyReviewAlert(userId, userLocalTime))
-      );
-    }
-  }
-
-  // ─── Digest Window ──────────────────────────────────────
-  // Batch notifications for the same user within a 15-minute window.
-  const digested = buildDigestWindows(allNotifications);
-
-  // Send all notifications and track what was sent
-  if (digested.length > 0) {
-    await sendPushNotifications(digested);
-    // Record what was sent for dedup (with type for analytics)
-    for (const n of digested) {
-      await markNotificationSent(n.userId, n.tag, n.data.type);
-    }
-  }
-
-  // Cleanup old sent notifications (runs once per scheduler invocation)
-  await cleanupOldSentNotifications();
-
+    await dispatchNotifications(candidates, { now });
+    await cleanupOldSentNotifications();
   } finally {
     forceNotifications = false;
   }
-}
-
-// ─── Digest Window Batching ───────────────────────────────
-// Groups notifications for the same user within a 15-minute window
-// into a single push with a summary and "View all" deep link.
-
-function buildDigestWindows(
-  notifications: NotificationPayload[]
-): NotificationPayload[] {
-  if (notifications.length === 0) return [];
-
-  // Group by userId
-  const byUser = new Map<string, NotificationPayload[]>();
-  for (const n of notifications) {
-    const list = byUser.get(n.userId) || [];
-    list.push(n);
-    byUser.set(n.userId, list);
-  }
-
-  const result: NotificationPayload[] = [];
-
-  for (const [userId, userNotifs] of byUser) {
-    // Sort by tag order (approximate scheduled time)
-    userNotifs.sort((a, b) => a.tag.localeCompare(b.tag));
-
-    const windows: NotificationPayload[][] = [];
-    let currentWindow: NotificationPayload[] = [userNotifs[0]];
-
-    for (let i = 1; i < userNotifs.length; i++) {
-      const prev = currentWindow[currentWindow.length - 1];
-      const curr = userNotifs[i];
-      // If current notification is a different type from the previous, start a new window
-      // unless there are multiple types already in the window (batch mixed types too)
-      if (curr.data.type !== prev.data.type) {
-        windows.push(currentWindow);
-        currentWindow = [curr];
-      } else {
-        currentWindow.push(curr);
-      }
-    }
-    windows.push(currentWindow);
-
-    for (const window of windows) {
-      if (window.length === 1) {
-        // Single notification — send as-is
-        result.push(window[0]);
-      } else {
-        // Multiple notifications — build a digest
-        const types = [...new Set(window.map((n) => n.data.type))];
-        const summaryLines = window.map((n) => {
-          const typeLabel = n.data.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-          return `${typeLabel}: ${n.body.split("\n")[0]}`;
-        });
-        const body = summaryLines.join(" · ");
-
-        // Build individual URLs map
-        const individualUrls: Record<string, string> = {};
-        for (const n of window) {
-          individualUrls[n.data.type] = n.data.url;
-        }
-
-        const tag = `digest-${userId}-${window[0].tag}`;
-        const typesParam = types.join(",");
-
-        result.push({
-          userId,
-          title: `${window.length} notifications`,
-          body,
-          tag,
-          data: {
-            url: `/notifications/digest?types=${typesParam}`,
-            type: types[0],
-            types,
-            individualUrls,
-          },
-          actions: [{ action: "view", title: "View all" }],
-          requireInteraction: true,
-        });
-      }
-    }
-  }
-
-  return result;
 }
 
 /**

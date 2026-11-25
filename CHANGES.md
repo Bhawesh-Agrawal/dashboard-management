@@ -1080,3 +1080,105 @@ Route (app)
 6. **Build Heap Flag for `test:ci`:** `tsc --noEmit` in this codebase requires `NODE_OPTIONS="--max-old-space-size=4096"` (matching `npm run build` in `package.json`) to avoid V8's default ~2GB heap OOM during type checking.
 
 
+
+---
+
+# PHASE 3d: SEMESTER LIFECYCLE + UI RESTYLE — CHANGES & VERIFICATION
+
+**Branch:** `phase-3d-semester-ui` (branched from `feature-dsa-tracker`)
+
+## 1. Item Status & Commit Table
+
+| Item | Status | Commit | Files | What was NOT verified |
+| :--- | :--- | :--- | :--- | :--- |
+| **A1** | DONE | `c02da89` | `src/features/semesters/lib/status.ts`, `src/features/semesters/lib/__tests__/status.test.ts` | Live runtime UI rendering (verified via 6 unit tests) |
+| **A2** | DONE | `4bb2167` | `src/features/semesters/lib/current.ts`, `src/features/semesters/lib/__tests__/current.test.ts` | Live DB execution of `getCurrentSemester` (unit-tested with mocked Prisma) |
+| **A3** | DONE | `2c0f976` | `src/features/semesters/lib/queries.ts`, `src/app/api/sync/dashboard/route.ts`, `src/features/dashboard/lib/queries.ts`, `src/app/api/sync/calendar/route.ts`, `src/features/notes/lib/nlp-parsing.ts`, `src/features/reviews/lib/data-summary.ts`, `src/features/notifications/lib/scheduler.ts` | Live Google Calendar sync and live review summary generation |
+| **A4** | DONE | `5440e13` | `src/features/notifications/lib/__tests__/semester-lifecycle.test.ts` | End-to-end push delivery to a browser/device |
+| **A5** | DONE | `93c67b0` | `src/app/(app)/semesters/page.tsx`, `src/app/(app)/semesters/[id]/page.tsx`, `src/types/index.ts`, `src/app/api/sync/dashboard/route.ts`, `src/features/dashboard/lib/queries.ts`, `src/features/dashboard/components/today-page-client.tsx`, `src/features/dashboard/components/today-dashboard.tsx` | Live browser click-through of `/semesters` and `/today` empty state |
+| **A6** | DONE | `9f66fb0` | `scripts/report-semesters.ts` | Verified directly against dev DB (output pasted below) |
+| **B1** | DONE | `1b53891` | `docs/UI_PRINCIPLES.md` | Documentation-only; derived from existing source files |
+| **B2** | DONE | `f01f50f` | `src/features/attendance/components/today-classes-card.tsx`, `src/features/attendance/components/course-attendance-section.tsx` | Visual browser rendering at 360px and optimistic retry interaction in a live browser |
+| **B3** | DONE | `2b2c0d9` | `src/features/dsa/lib/constants.ts`, `src/features/dsa/components/dsa-import-card.tsx`, `src/features/dsa/components/topics-view.tsx`, `src/features/dsa/components/sessions-view.tsx`, `src/features/dsa/components/revision-queue-view.tsx`, `src/features/dsa/components/dsa-dashboard-view.tsx`, `src/features/dsa/components/report-view.tsx`, `src/features/dsa/components/contests-view.tsx`, `src/features/dsa/components/dsa-today-card.tsx` | Visual browser rendering across `/dsa/*` routes in light and dark modes |
+| **B4** | DONE | `b1a29dc` | `src/lib/__tests__/ui-palette-guard.test.ts` | Verified via Vitest (`ui-palette-guard.test.ts`) |
+| **B5** | NOT DONE | — | — | `playwright`, `chromium`, and `google-chrome` are not installed in this environment, so 360px screenshots were not captured |
+
+---
+
+## 2. A3 — Replaced `isActive` Semester Lookup Sites
+
+All "what is current semester" lookups were replaced with `getCurrentSemester()` / `currentSemesterWhere(userId, todayDateOnly)`:
+
+1. `src/features/semesters/lib/queries.ts` (`getActiveSemester` now delegates to `getCurrentSemester()`)
+2. `src/app/api/sync/dashboard/route.ts` (uses `currentSemesterWhere` + returns `hasCurrentSemester`)
+3. `src/features/dashboard/lib/queries.ts` (uses `currentSemesterWhere` + returns `hasCurrentSemester`)
+4. `src/app/api/sync/calendar/route.ts` (uses `currentSemesterWhere`)
+5. `src/features/notes/lib/nlp-parsing.ts` (uses `currentSemesterWhere`)
+6. `src/features/reviews/lib/data-summary.ts` (uses `currentSemesterWhere`)
+7. `src/features/notifications/lib/scheduler.ts` (uses `currentSemesterWhere` with `asOf` date in user timezone)
+
+Note: `src/features/semesters/lib/actions.ts` (`setActiveSemester`) and `src/app/(app)/semesters/[id]/page.tsx` retain `isActive` solely as the overlapping-semester tie-breaker preference.
+
+---
+
+## 3. A6 — `scripts/report-semesters.ts` Dev DB Output
+
+```text
+$ DEPLOY_ENV=local CONFIRM_REMOTE_DB=true npx tsx scripts/report-semesters.ts
+
+⚠️ [DATABASE GUARD WARNING] Running with DEPLOY_ENV="local" against remote host "aws-1-ap-southeast-2.pooler.supabase.com" (confirmed).
+
+
+🔒 [PRODUCTION GUARD]
+   Environment: local
+   Target DB:   aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres
+   Non-production execution approved.
+
+
+⚠️ [DATABASE GUARD WARNING] Running with DEPLOY_ENV="local" against remote host "aws-1-ap-southeast-2.pooler.supabase.com" (confirmed).
+
+Today (Asia/Kathmandu): 2026-11-25
+Total semesters: 3
+
+name="Semester 1" | start=2025-08-28 | end=2025-12-05 | isActive=false | status=ended | courses=6 | userId=null
+name="Semester 2" | start=2025-12-15 | end=2026-04-21 | isActive=false | status=ended | courses=7 | userId=null
+name="Semester 3" | start=2026-07-20 | end=2026-11-20 | isActive=true | status=ended | courses=8 | userId=null
+```
+
+---
+
+## 4. VERIFY Outputs
+
+### `grep` for Hardcoded Palette Colors (`src/features/attendance`, `src/features/dsa`)
+
+```text
+$ grep -rnE "(bg|text|border|ring)-(red|green|amber|yellow|blue|emerald|rose|orange|lime|teal|cyan|sky|indigo|violet|purple|pink|fuchsia)-[0-9]{2,3}" src/features/attendance src/features/dsa || true
+(no output — 0 matches)
+```
+
+### `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`
+
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+ Test Files  35 passed (35)
+      Tests  205 passed (205)
+   Duration  3.11s
+```
+
+### `npm run build`
+
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+✓ Compiled successfully in 8.5s
+✓ Finished TypeScript in 27.0s
+✓ Collecting page data using 15 workers in 2.2s
+✓ Generating static pages using 15 workers (19/19) in 276ms
+✓ Finalizing page optimization in 613ms
+```

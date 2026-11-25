@@ -6,11 +6,18 @@ import { AlertTriangle, ArrowRight, ExternalLink, PlusCircle, ShieldAlert } from
 import { Button } from "@/components/ui/button";
 import { CLASSIFICATION_META, DIFFICULTY_BADGE_CLASS } from "../lib/constants";
 import type { DsaDashboardData } from "../lib/dashboard";
+import type { WeeklyTopicTrendData } from "../lib/analytics";
 import { AttemptLogSheet, type AttemptSheetTarget } from "./attempt-log-sheet";
 import { DsaProgrammeSettingsCard } from "./dsa-programme-settings-card";
 import { DsaImportCard } from "./dsa-import-card";
 
-export function DsaDashboardView({ data }: { data: DsaDashboardData }) {
+export function DsaDashboardView({
+  data,
+  weeklyTrend,
+}: {
+  data: DsaDashboardData;
+  weeklyTrend?: WeeklyTopicTrendData;
+}) {
   const [sheetTarget, setSheetTarget] = useState<AttemptSheetTarget | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -401,6 +408,53 @@ export function DsaDashboardView({ data }: { data: DsaDashboardData }) {
           </div>
         )}
       </div>
+
+      {/* Weekly Per-Topic Trend (plain numbers/table, no charts) */}
+      {weeklyTrend && weeklyTrend.rows.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">
+              Weekly Progress Trend (Independent / Attempted)
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Mon–Sun weeks in owner timezone
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left py-2 pr-3 font-medium">Topic</th>
+                  {weeklyTrend.weekStarts.map((ws) => (
+                    <th key={ws} className="text-right py-2 px-2 font-mono font-medium">
+                      {ws.slice(5)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {weeklyTrend.rows.map((row) => (
+                  <tr key={row.topicId}>
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">
+                      {row.topicName}
+                    </td>
+                    {row.cells.map((cell) => (
+                      <td
+                        key={cell.weekStart}
+                        className="py-2 px-2 text-right font-mono text-muted-foreground"
+                      >
+                        {cell.attempted === 0
+                          ? "—"
+                          : `${cell.independent}/${cell.attempted}`}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <AttemptLogSheet
         target={sheetTarget}

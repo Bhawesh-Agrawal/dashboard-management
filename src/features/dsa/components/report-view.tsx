@@ -187,7 +187,7 @@ export function TutorReportView({ source }: { source: TutorReportSourceInput }) 
         </div>
 
         {overThreshold && (
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-center gap-2 text-xs text-amber-800 dark:text-amber-300">
+          <div className="rounded-lg border border-border bg-muted/40 p-3 flex items-center gap-2 text-xs text-muted-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>
               Markdown report exceeds {TUTOR_REPORT_CHAR_WARN_THRESHOLD.toLocaleString()} characters ({markdown.length.toLocaleString()}). Consider a 7-day window or &ldquo;Latest only&rdquo; mode for smaller prompt context.

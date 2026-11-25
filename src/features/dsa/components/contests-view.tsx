@@ -249,7 +249,7 @@ export function ContestsView({
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Trophy className="h-4 w-4 text-amber-500 shrink-0" />
+                      <Trophy className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-sm font-semibold">{c.name}</span>
                       <span className="rounded bg-muted px-2 py-0.5 text-[11px] capitalize">
                         {c.platform}

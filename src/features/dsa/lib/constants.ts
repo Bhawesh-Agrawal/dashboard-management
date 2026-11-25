@@ -30,7 +30,7 @@ export const CLASSIFICATION_META: Record<
     description: "No hints, solved on your own.",
     intervalLabel: "7d → 14d → 30d",
     severityRank: 1,
-    badgeClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    badgeClass: "bg-primary/10 text-primary",
   },
   effortful: {
     label: "Solved with considerable effort",
@@ -38,7 +38,7 @@ export const CLASSIFICATION_META: Record<
     description: "Got there yourself, but struggled or took long.",
     intervalLabel: "3d",
     severityRank: 2,
-    badgeClass: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
+    badgeClass: "bg-muted text-foreground",
   },
   hinted: {
     label: "Solved with hints",
@@ -46,7 +46,7 @@ export const CLASSIFICATION_META: Record<
     description: "Needed a nudge or partial hint to finish.",
     intervalLabel: "2d",
     severityRank: 3,
-    badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    badgeClass: "bg-muted text-muted-foreground",
   },
   editorial: {
     label: "Understood after editorial",
@@ -54,7 +54,7 @@ export const CLASSIFICATION_META: Record<
     description: "Read editorial/solution, now understand the idea.",
     intervalLabel: "1d",
     severityRank: 4,
-    badgeClass: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
+    badgeClass: "bg-muted text-muted-foreground",
   },
   not_understood: {
     label: "Still not understood",
@@ -62,14 +62,14 @@ export const CLASSIFICATION_META: Record<
     description: "Could not follow or still unclear.",
     intervalLabel: "1d",
     severityRank: 5,
-    badgeClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+    badgeClass: "bg-destructive/10 text-destructive",
   },
 };
 
 export const DIFFICULTY_BADGE_CLASS: Record<DsaDifficultyValue, string> = {
-  easy: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  medium: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  hard: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  easy: "bg-muted text-foreground",
+  medium: "bg-muted text-muted-foreground",
+  hard: "bg-destructive/10 text-destructive",
 };
 
 export const HELP_TYPE_LABELS: Record<DsaHelpTypeValue, string> = {

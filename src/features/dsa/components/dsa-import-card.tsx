@@ -171,13 +171,13 @@ export function DsaImportCard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
             <div className="rounded-md border border-border bg-card p-2">
-              <div className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+              <div className="text-base font-semibold text-foreground">
                 {preview.newRows.length}
               </div>
               <div className="text-[11px] text-muted-foreground">New</div>
             </div>
             <div className="rounded-md border border-border bg-card p-2">
-              <div className="text-base font-semibold text-amber-600 dark:text-amber-400">
+              <div className="text-base font-semibold text-muted-foreground">
                 {preview.updatedRows.length}
               </div>
               <div className="text-[11px] text-muted-foreground">Updated</div>

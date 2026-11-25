@@ -47,9 +47,9 @@ export function DsaDashboardView({
     <div className="space-y-6">
       {/* Backup Banner (> 7 days) */}
       {data.needsBackupBanner && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-300">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
+        <div className="rounded-xl border border-border bg-muted/40 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-foreground">
+            <ShieldAlert className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span>
               {data.lastBackupAt
                 ? `Last backup was over 7 days ago (${data.lastBackupAt.slice(0, 10)}).`
@@ -58,7 +58,7 @@ export function DsaDashboardView({
           </div>
           <Link
             href="/dsa/settings#backup"
-            className="inline-flex items-center justify-center rounded-lg border border-amber-500/40 px-3 min-h-[44px] text-xs font-medium hover:bg-amber-500/10 whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-lg border border-border px-3 min-h-[44px] text-xs font-medium hover:bg-muted whitespace-nowrap"
           >
             Export Backup
           </Link>
@@ -92,7 +92,7 @@ export function DsaDashboardView({
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="section-label">Independent (Latest)</div>
-          <div className="text-lg font-semibold mt-1 text-emerald-600 dark:text-emerald-400">
+          <div className="text-lg font-semibold mt-1 text-foreground">
             {data.totals.independent}
           </div>
         </div>
@@ -209,7 +209,7 @@ export function DsaDashboardView({
                 <div className="text-[11px] text-muted-foreground">Overdue</div>
               </div>
               <div className="rounded-lg border border-border p-3">
-                <div className="text-2xl font-semibold text-amber-600 dark:text-amber-400">
+                <div className="text-2xl font-semibold text-foreground">
                   {data.studyToday.dueTodayCount}
                 </div>
                 <div className="text-[11px] text-muted-foreground">Due today</div>

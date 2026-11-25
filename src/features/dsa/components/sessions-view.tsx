@@ -277,13 +277,13 @@ export function SessionsView({
                 <span className="rounded-md border border-border px-2 py-0.5">
                   Attempted: <strong>{s.derived.attempted}</strong>
                 </span>
-                <span className="rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5">
+                <span className="rounded-md bg-primary/10 text-primary px-2 py-0.5">
                   Independent: <strong>{s.derived.solvedIndependently}</strong>
                 </span>
-                <span className="rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5">
+                <span className="rounded-md bg-muted text-muted-foreground px-2 py-0.5">
                   Needing help: <strong>{s.derived.needingHelp}</strong>
                 </span>
-                <span className="rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 px-2 py-0.5">
+                <span className="rounded-md bg-destructive/10 text-destructive px-2 py-0.5">
                   Not understood: <strong>{s.derived.notUnderstood}</strong>
                 </span>
               </div>

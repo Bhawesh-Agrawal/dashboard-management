@@ -103,13 +103,13 @@ export function TopicsView({ initialTopics, initialSummary }: TopicsViewProps) {
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="section-label">Covered</div>
-          <div className="text-xl font-semibold mt-1 text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl font-semibold mt-1 text-foreground">
             {summary.covered}
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="section-label">In Progress</div>
-          <div className="text-xl font-semibold mt-1 text-amber-600 dark:text-amber-400">
+          <div className="text-xl font-semibold mt-1 text-muted-foreground">
             {summary.inProgress}
           </div>
         </div>

@@ -26,7 +26,7 @@ export function DsaTodayCard({ summary }: { summary?: DsaDueSummary | null }) {
 
       <div className="grid grid-cols-2 gap-2 text-center">
         <div className="rounded-lg border border-border p-2.5">
-          <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">
+          <div className="text-lg font-semibold text-foreground">
             {summary.dueToday}
           </div>
           <div className="text-[11px] text-muted-foreground">Due today</div>

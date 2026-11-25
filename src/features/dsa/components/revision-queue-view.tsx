@@ -99,7 +99,7 @@ export function RevisionQueueView({ todayStr, queue }: RevisionQueueViewProps) {
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="section-label">Due Today</div>
-          <div className="text-xl font-semibold mt-1 text-amber-600 dark:text-amber-400">
+          <div className="text-xl font-semibold mt-1 text-foreground">
             {queue.dueToday.length}
           </div>
         </div>
@@ -109,7 +109,7 @@ export function RevisionQueueView({ todayStr, queue }: RevisionQueueViewProps) {
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="section-label">Revised (7d)</div>
-          <div className="text-xl font-semibold mt-1 text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl font-semibold mt-1 text-foreground">
             {queue.recentlyRevised.length}
           </div>
         </div>

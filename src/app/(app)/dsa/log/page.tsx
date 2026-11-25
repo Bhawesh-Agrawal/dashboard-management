@@ -1,12 +1,19 @@
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
-import { EmptyState } from "@/components/shared/empty-state";
+import { SessionsView } from "@/features/dsa/components/sessions-view";
+import { getDsaSessionsPageData } from "@/features/dsa/lib/sessions";
 
 export const revalidate = 0;
 
-export default function DsaLogPage() {
+export default async function DsaLogPage() {
+  const data = await getDsaSessionsPageData();
+
   return (
     <DsaShell title="Daily Log" subtitle="Study Sessions">
-      <EmptyState title="Daily Sessions" description="Sessions and logged attempts will appear here." />
+      <SessionsView
+        todayStr={data.todayStr}
+        sessions={data.sessions}
+        problemOptions={data.problemOptions}
+      />
     </DsaShell>
   );
 }

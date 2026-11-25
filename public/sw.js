@@ -20,7 +20,7 @@ const APP_SHELL_FILES = [
   "/today",
   "/tasks",
   "/calendar",
-  "/courses",
+  "/semesters",
   "/notes",
   "/projects",
   "/search",
@@ -29,7 +29,7 @@ const APP_SHELL_FILES = [
   "/routines",
 ];
 
-// Install event — cache app shell robustly
+// Install event — cache app shell robustly (individual try/catch so one bad URL never aborts installation)
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -39,7 +39,7 @@ self.addEventListener("install", (event) => {
         try {
           await cache.add(file);
         } catch (error) {
-          console.warn(`[SW] Failed to cache ${file}:`, error);
+          console.warn(`[SW] Failed to cache app shell URL "${file}":`, error);
         }
       }
     })

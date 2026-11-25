@@ -2,6 +2,33 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
+function getValidAppRoutes(appDir: string): Set<string> {
+  const routes = new Set<string>();
+
+  function scan(dir: string, currentRoute: string) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const seg = entry.name;
+        // Ignore private folders (_components, etc.) and API routes
+        if (seg.startsWith("_") || seg === "api") continue;
+
+        // Route groups (e.g. `(app)`, `(auth)`) do not add to the URL path
+        const nextRoute = seg.startsWith("(") && seg.endsWith(")")
+          ? currentRoute
+          : `${currentRoute}/${seg}`;
+
+        scan(path.join(dir, seg), nextRoute);
+      } else if (entry.isFile() && /^page\.(tsx|jsx|js)$/.test(entry.name)) {
+        routes.add(currentRoute === "" ? "/" : currentRoute);
+      }
+    }
+  }
+
+  scan(appDir, "");
+  return routes;
+}
+
 describe("Service Worker Route Validation & Push Attendance", () => {
   const swPath = path.resolve(process.cwd(), "public/sw.js");
   const swContent = fs.readFileSync(swPath, "utf-8");
@@ -44,7 +71,7 @@ describe("Service Worker Route Validation & Push Attendance", () => {
     expect(swContent).not.toContain("/api/notifications/subscribe");
   });
 
-  it("verifies all APP_SHELL_FILES in public/sw.js exist and do not contain dead removed routes", () => {
+  it("verifies all APP_SHELL_FILES in public/sw.js correspond to real static page routes", () => {
     expect(swContent).not.toContain('"/budget"');
     expect(swContent).not.toContain('"/library"');
     expect(swContent).not.toContain('"/people"');
@@ -57,8 +84,25 @@ describe("Service Worker Route Validation & Push Attendance", () => {
       .filter((line) => line.startsWith("/"));
 
     expect(files.length).toBeGreaterThan(0);
-    expect(files).toContain("/today");
-    expect(files).toContain("/tasks");
-    expect(files).toContain("/settings");
+
+    const validRoutes = getValidAppRoutes(path.resolve(process.cwd(), "src/app"));
+
+    for (const file of files) {
+      expect(
+        validRoutes.has(file),
+        `Service Worker APP_SHELL_FILES URL "${file}" has no matching page in src/app (must match an existing page route)`
+      ).toBe(true);
+    }
+  });
+
+  it("proves the route validator fails on fake or removed shell URLs", () => {
+    const validRoutes = getValidAppRoutes(path.resolve(process.cwd(), "src/app"));
+    const fakeUrls = ["/courses", "/fake-route-nonexistent", "/budget", "/library", "/people"];
+    for (const fakeUrl of fakeUrls) {
+      expect(
+        validRoutes.has(fakeUrl),
+        `Expected validator to reject "${fakeUrl}" because it does not exist in src/app`
+      ).toBe(false);
+    }
   });
 });

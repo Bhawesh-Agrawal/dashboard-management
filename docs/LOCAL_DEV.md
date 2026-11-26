@@ -24,3 +24,7 @@ npm run dev:tick
 ```bash
 npm run dev:tick -- --asOf=2026-11-25T01:20:00.000Z --only=morning_brief
 ```
+
+## Account Signup (`ALLOW_SIGNUP`)
+
+`/signup` and the `signup` server action are disabled by default (`ALLOW_SIGNUP` unset or not `"true"`). To allow creating a local account during development, set `ALLOW_SIGNUP=true` in `.env.local`.

@@ -124,7 +124,8 @@ docker push "${IMAGE_TAG}"
 ```
 
 ### Step 2: Deploy Tagged No-Traffic Revision
-Deploy the revision with `--no-traffic` and tag it as `staging`:
+Deploy the revision with `--no-traffic` and tag it as `staging`.
+*(Note: `ALLOW_SIGNUP` defaults to disabled in production; leave it unset so `/signup` stays closed unless intentionally opened.)*
 
 ```bash
 gcloud run deploy dashboard \

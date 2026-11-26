@@ -52,12 +52,14 @@ export default function LoginPage({
           </button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <a href="/signup" className="underline underline-offset-4 hover:text-foreground">
-            Sign up
-          </a>
-        </p>
+        {process.env.ALLOW_SIGNUP === "true" && (
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="underline underline-offset-4 hover:text-foreground">
+              Sign up
+            </a>
+          </p>
+        )}
       </div>
     </div>
   );

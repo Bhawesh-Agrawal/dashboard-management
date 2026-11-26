@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/features/auth/lib/supabase-server";
+import { isSignupAllowed } from "@/features/auth/lib/signup-guard";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -21,6 +22,11 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(formData: FormData) {
+  if (!isSignupAllowed()) {
+    redirect("/signup?error=" + encodeURIComponent("Registration is closed."));
+    return;
+  }
+
   const supabase = await createClient();
 
   const data = {

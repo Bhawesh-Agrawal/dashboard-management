@@ -1,10 +1,31 @@
 import { signup } from "@/features/auth/lib/actions";
+import { isSignupAllowed } from "@/features/auth/lib/signup-guard";
+
+export const dynamic = "force-dynamic";
 
 export default function SignupPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  if (!isSignupAllowed()) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <h1 className="page-heading text-3xl">Registration closed</h1>
+          <p className="text-sm text-muted-foreground">
+            New account signups are currently disabled.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <a href="/login" className="underline underline-offset-4 hover:text-foreground">
+              Return to sign in
+            </a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">

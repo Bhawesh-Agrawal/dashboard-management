@@ -34,7 +34,7 @@ steps:
       - --memory=512Mi
       - --cpu=1
       - --set-secrets=DATABASE_URL=DATABASE_URL:latest,DIRECT_URL=DIRECT_URL:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,OPENROUTER_MODEL=OPENROUTER_MODEL:latest,GOOGLE_CALENDAR_CLIENT_ID=GOOGLE_CALENDAR_CLIENT_ID:latest,GOOGLE_CALENDAR_CLIENT_SECRET=GOOGLE_CALENDAR_CLIENT_SECRET:latest,GOOGLE_CALENDAR_REDIRECT_URI=GOOGLE_CALENDAR_REDIRECT_URI:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,VAPID_EMAIL=VAPID_EMAIL:latest,CRON_BEARER_TOKEN=CRON_BEARER_TOKEN:latest,NEXT_PUBLIC_SUPABASE_URL=NEXT_PUBLIC_SUPABASE_URL:latest,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:latest,NEXT_PUBLIC_VAPID_PUBLIC_KEY=NEXT_PUBLIC_VAPID_PUBLIC_KEY:latest,S3_ENDPOINT=S3_ENDPOINT:latest,S3_PUBLIC_ENDPOINT=S3_PUBLIC_ENDPOINT:latest,S3_REGION=S3_REGION:latest,S3_FORCE_PATH_STYLE=S3_FORCE_PATH_STYLE:latest,S3_ACCESS_KEY_ID=S3_ACCESS_KEY_ID:latest,S3_SECRET_ACCESS_KEY=S3_SECRET_ACCESS_KEY:latest,S3_BUCKET=S3_BUCKET:latest
-      - --set-env-vars=NODE_ENV=production,DEPLOY_ENV=production,CRON_OIDC_SERVICE_ACCOUNT=$_SCHEDULER_SA
+      - --set-env-vars=NODE_ENV=production,DEPLOY_ENV=production,CRON_OIDC_AUDIENCE=$_CRON_AUDIENCE,CRON_OIDC_SERVICE_ACCOUNT_EMAIL=$_SCHEDULER_SA
       - --allow-unauthenticated
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -52,14 +52,14 @@ steps:
           --time-zone="Asia/Kathmandu" \
           --uri="$$SERVICE_URL/api/notifications/trigger" \
           --oidc-service-account-email=$_SCHEDULER_SA \
-          --oidc-token-audience="$$SERVICE_URL" || \
+          --oidc-token-audience="$_CRON_AUDIENCE" || \
         gcloud scheduler jobs create http notifications \
           --location=$_REGION \
           --schedule="*/5 6-23 * * *" \
           --time-zone="Asia/Kathmandu" \
           --uri="$$SERVICE_URL/api/notifications/trigger" \
           --oidc-service-account-email=$_SCHEDULER_SA \
-          --oidc-token-audience="$$SERVICE_URL"
+          --oidc-token-audience="$_CRON_AUDIENCE"
 
         # Job 2: Daily maintenance job (02:00 Asia/Kathmandu)
         # Aggregates insights, knowledge gap analysis, and review generation
@@ -69,14 +69,14 @@ steps:
           --time-zone="Asia/Kathmandu" \
           --uri="$$SERVICE_URL/api/cron/daily-diagnostics" \
           --oidc-service-account-email=$_SCHEDULER_SA \
-          --oidc-token-audience="$$SERVICE_URL" || \
+          --oidc-token-audience="$_CRON_AUDIENCE" || \
         gcloud scheduler jobs create http daily-maintenance \
           --location=$_REGION \
           --schedule="0 2 * * *" \
           --time-zone="Asia/Kathmandu" \
           --uri="$$SERVICE_URL/api/cron/daily-diagnostics" \
           --oidc-service-account-email=$_SCHEDULER_SA \
-          --oidc-token-audience="$$SERVICE_URL"
+          --oidc-token-audience="$_CRON_AUDIENCE"
 
         # Job 3: Spare slot reserved (at most 3 jobs total)
         echo "Successfully consolidated and updated Cloud Scheduler jobs with OIDC to $$SERVICE_URL"
@@ -87,6 +87,7 @@ substitutions:
   _AR_REPO: dashboard-management
   _SERVICE_NAME: dashboard-management
   _SCHEDULER_SA: scheduler-invoker@dashboard-management-prod.iam.gserviceaccount.com
+  _CRON_AUDIENCE: dashboard-management-cron
 
 availableSecrets:
   secretManager:

@@ -138,7 +138,7 @@ gcloud run deploy dashboard \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 2 \
-  --set-env-vars "DEPLOY_ENV=production,NODE_ENV=production,S3_BUCKET_NAME=dashboard,S3_REGION=us-east-1" \
+  --set-env-vars "DEPLOY_ENV=production,NODE_ENV=production,CRON_OIDC_AUDIENCE=dashboard-management-cron,CRON_OIDC_SERVICE_ACCOUNT_EMAIL=scheduler-invoker@dashboard-management-prod.iam.gserviceaccount.com,S3_BUCKET_NAME=dashboard,S3_REGION=us-east-1" \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest,CRON_BEARER_TOKEN=CRON_BEARER_TOKEN:latest,S3_ACCESS_KEY_ID=S3_ACCESS_KEY_ID:latest,S3_SECRET_ACCESS_KEY=S3_SECRET_ACCESS_KEY:latest,S3_ENDPOINT=S3_ENDPOINT:latest,S3_PUBLIC_ENDPOINT=S3_PUBLIC_ENDPOINT:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest"
 ```
 

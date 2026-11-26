@@ -1270,3 +1270,119 @@ $ npx vitest run src/features/notifications/lib/__tests__/engine-clock.test.ts
 - [ ] **Morning Brief Push:** Trigger `morning_brief` via `/api/notifications/trigger?asOf=...&only=morning_brief`, confirm 1 push arrives on phone, tap it, and confirm `/brief` opens.
 - [ ] **Offline Ticket Pinning:** Attach a Document Library PDF to a Travel event within 48 hours, open `/brief` once while online, switch phone to Airplane Mode, and tap **Open ticket** to confirm it opens offline.
 - [ ] **Class Reminder Dedup:** Trigger `class_start` twice with the same `?asOf=` timestamp using `docs/TEST_PLAN.md` curl commands and confirm the second call returns `"sent": 0, "skippedDedup": 1`.
+
+---
+
+# PHASE 4b (CONSOLIDATED CLOSEOUT) — CHANGES & VERIFICATION
+
+**Branch:** `phase-4b-closeout` (branched from `master`)
+
+## 1. Item Status & Commit Table
+
+| Item | Status | Commit | Files | What was NOT verified |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Dedup Race** | DONE | `2a58713` | `src/features/notifications/lib/engine.ts`, `src/features/notifications/lib/__tests__/engine.test.ts`, `src/features/notifications/lib/__tests__/engine-clock.test.ts`, `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | Live concurrent Postgres unique-constraint collision (tested via mocked `P2002` + `Promise.all`) |
+| **2. Dev Ticker** | DONE | `873cc4e` | `scripts/dev-tick.ts`, `docs/LOCAL_DEV.md`, `package.json` | Live 5-minute interval execution against a running dev server |
+| **3. Quiet Hours & Briefs** | DONE | `f574076` | `src/features/notifications/lib/engine.ts`, `src/features/notifications/lib/scheduler.ts`, `src/features/notifications/lib/actions.ts`, `src/features/notifications/components/brief-schedule-settings.tsx`, `src/app/(app)/settings/page.tsx`, `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | Live browser rendering of the quiet-hours warning in Settings |
+| **4. DSA Timezone** | DONE | `00cd60a` | `src/features/dsa/lib/{analytics,contests,dashboard,problems,report-queries,revision-queries,sessions,summary,topics,topic-actions,backup-actions,import-actions,attempt-actions}.ts`, `src/app/(app)/dsa/settings/page.tsx`, `src/features/dsa/components/attempt-log-sheet.tsx`, `src/features/dsa/lib/__tests__/revision.test.ts` | Live runtime rendering of DSA pages with a non-`Asia/Kathmandu` DB user timezone |
+| **5. Test Coverage Map** | DONE | `922db7f` | `docs/NOTIFICATIONS_AUDIT.md`, `src/features/notifications/lib/__tests__/engine-clock.test.ts` | Live Web Push delivery to physical devices |
+| **6. One Brief System** | DONE | `95745b4` | `src/app/(app)/settings/page.tsx`, `src/features/notifications/components/notification-type-toggles.tsx`, `src/features/notifications/components/daily-summary-settings.tsx` (deleted) | `timezone-server.ts` & `saveWeatherLocationAction` still read/write `timezone` / `location` on `NotificationPreference(type="daily_summary")` to preserve existing user settings |
+| **7. Task & Event Triggers** | DONE | `a8ebac1` | `docs/NOTIFICATIONS_AUDIT.md`, `src/features/notifications/lib/__tests__/task-event-triggers.test.ts` | Live push delivery for timed tasks and calendar events |
+| **8. Travel UI** | DONE | `f66f4bb` | `src/features/briefs/lib/travel.ts`, `src/features/calendar/components/event-creation-dialog.tsx`, `src/features/calendar/components/calendar-view.tsx` | Live browser interaction with `EventDetailModal` document attach/detach |
+| **9. Palette Guard** | DONE | `126a126` | `src/lib/__tests__/ui-palette-guard.test.ts`, `src/features/notifications/components/notification-type-toggles.tsx`, `src/features/calendar/components/calendar-view.tsx`, `src/features/settings/components/{ai-provider-settings,google-calendar-settings,widget-access-settings,timezone-settings}.tsx` | Visual inspection of restyled calendar chips and settings badges |
+| **10. AGENTS & CLAUDE** | DONE | `7d9ba19` | `AGENTS.md`, `CLAUDE.md` | Documentation-only |
+| **11. Cleanup** | DONE | `cad7770` | `ARCHITECTURE.md`, `docs/archive/{AUDIT_REPORT,CONSISTENCY}.md`, removed `vercel.json`, `temp_migration.sql`, `reference_screenshot/` | Documentation/repo cleanup only |
+
+---
+
+## 2. Event Edit / Creation Surfaces (Item 8)
+
+1. `src/features/calendar/components/event-creation-dialog.tsx` — carries the `"Travel"` checkbox and Document Library attachment picker on event creation.
+2. `src/features/calendar/components/calendar-view.tsx` (`EventDetailModal`) — the app's sole event detail/edit modal; now carries the `"Travel"` toggle and Document Library attach/detach picker for `event.type === "event"`.
+
+---
+
+## 3. VERIFY Outputs
+
+### `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`
+
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+ Test Files  42 passed (42)
+      Tests  235 passed (235)
+   Duration  3.98s
+```
+
+### `npm run build`
+
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+✓ Compiled successfully in 19.1s
+✓ Finished TypeScript in 25.8s
+✓ Collecting page data using 15 workers in 1713ms
+✓ Generating static pages using 15 workers (19/19) in 222ms
+✓ Finalizing page optimization in 16ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/attendance/mark-from-push
+├ ƒ /api/auth/google/callback
+├ ƒ /api/cron/daily-diagnostics
+├ ƒ /api/notes/[id]/backlinks
+├ ƒ /api/notes/[id]/related
+├ ƒ /api/notes/graph
+├ ƒ /api/notes/link-metadata
+├ ƒ /api/notifications/mark-opened
+├ ƒ /api/notifications/snooze
+├ ƒ /api/notifications/trigger
+├ ƒ /api/sync/calendar
+├ ƒ /api/sync/dashboard
+├ ƒ /api/sync/google-calendar
+├ ƒ /api/sync/seed
+├ ƒ /api/sync/write
+├ ƒ /api/widget/quick-add
+├ ƒ /api/widget/routines/[id]/complete
+├ ƒ /api/widget/summary
+├ ƒ /api/widget/tasks/[id]/toggle
+├ ƒ /ask
+├ ƒ /brief
+├ ƒ /calendar
+├ ƒ /courses/[id]
+├ ƒ /dsa
+├ ƒ /dsa/contests
+├ ƒ /dsa/log
+├ ƒ /dsa/problems
+├ ƒ /dsa/problems/[id]
+├ ƒ /dsa/report
+├ ƒ /dsa/revision
+├ ƒ /dsa/settings
+├ ƒ /dsa/topics
+├ ƒ /login
+├ ƒ /more
+├ ƒ /notes
+├ ƒ /notes/[id]
+├ ƒ /notes/graph
+├ ƒ /notifications/digest
+├ ƒ /projects
+├ ƒ /projects/[id]
+├ ƒ /reviews
+├ ƒ /reviews/[id]
+├ ƒ /routines
+├ ƒ /search
+├ ƒ /semesters
+├ ƒ /semesters/[id]
+├ ƒ /settings
+├ ƒ /signup
+├ ƒ /tasks
+└ ƒ /today
+
+ƒ Proxy (Middleware)
+```

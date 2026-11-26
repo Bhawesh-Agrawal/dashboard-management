@@ -20,28 +20,33 @@ steps:
       - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: 'sh'
     args:
-      - run
-      - deploy
-      - $_SERVICE_NAME
-      - --image=$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:$BUILD_ID
-      - --region=$_REGION
-      - --platform=managed
-      - --min-instances=0
-      - --max-instances=2
-      - --cpu-boost
-      - --memory=512Mi
-      - --cpu=1
-      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,DIRECT_URL=DIRECT_URL:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,OPENROUTER_MODEL=OPENROUTER_MODEL:latest,GOOGLE_CALENDAR_CLIENT_ID=GOOGLE_CALENDAR_CLIENT_ID:latest,GOOGLE_CALENDAR_CLIENT_SECRET=GOOGLE_CALENDAR_CLIENT_SECRET:latest,GOOGLE_CALENDAR_REDIRECT_URI=GOOGLE_CALENDAR_REDIRECT_URI:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,VAPID_EMAIL=VAPID_EMAIL:latest,CRON_BEARER_TOKEN=CRON_BEARER_TOKEN:latest,NEXT_PUBLIC_SUPABASE_URL=NEXT_PUBLIC_SUPABASE_URL:latest,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:latest,NEXT_PUBLIC_VAPID_PUBLIC_KEY=NEXT_PUBLIC_VAPID_PUBLIC_KEY:latest,S3_ENDPOINT=S3_ENDPOINT:latest,S3_PUBLIC_ENDPOINT=S3_PUBLIC_ENDPOINT:latest,S3_REGION=S3_REGION:latest,S3_FORCE_PATH_STYLE=S3_FORCE_PATH_STYLE:latest,S3_ACCESS_KEY_ID=S3_ACCESS_KEY_ID:latest,S3_SECRET_ACCESS_KEY=S3_SECRET_ACCESS_KEY:latest,S3_BUCKET=S3_BUCKET:latest
-      - --set-env-vars=NODE_ENV=production,DEPLOY_ENV=production,CRON_OIDC_AUDIENCE=$_CRON_AUDIENCE,CRON_OIDC_SERVICE_ACCOUNT_EMAIL=$_SCHEDULER_SA
-      - --allow-unauthenticated
+      - '-c'
+      - |
+        gcloud run deploy $_SERVICE_NAME \
+          --image=$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO/$_SERVICE_NAME:$BUILD_ID \
+          --region=$_REGION \
+          --platform=managed \
+          --min-instances=0 \
+          --max-instances=2 \
+          --cpu-boost \
+          --memory=512Mi \
+          --cpu=1 \
+          --set-secrets=DATABASE_URL=DATABASE_URL:latest,DIRECT_URL=DIRECT_URL:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,OPENROUTER_MODEL=OPENROUTER_MODEL:latest,GOOGLE_CALENDAR_CLIENT_ID=GOOGLE_CALENDAR_CLIENT_ID:latest,GOOGLE_CALENDAR_CLIENT_SECRET=GOOGLE_CALENDAR_CLIENT_SECRET:latest,GOOGLE_CALENDAR_REDIRECT_URI=GOOGLE_CALENDAR_REDIRECT_URI:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,VAPID_EMAIL=VAPID_EMAIL:latest,CRON_BEARER_TOKEN=CRON_BEARER_TOKEN:latest,NEXT_PUBLIC_SUPABASE_URL=NEXT_PUBLIC_SUPABASE_URL:latest,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:latest,NEXT_PUBLIC_VAPID_PUBLIC_KEY=NEXT_PUBLIC_VAPID_PUBLIC_KEY:latest,S3_ENDPOINT=S3_ENDPOINT:latest,S3_PUBLIC_ENDPOINT=S3_PUBLIC_ENDPOINT:latest,S3_REGION=S3_REGION:latest,S3_FORCE_PATH_STYLE=S3_FORCE_PATH_STYLE:latest,S3_ACCESS_KEY_ID=S3_ACCESS_KEY_ID:latest,S3_SECRET_ACCESS_KEY=S3_SECRET_ACCESS_KEY:latest,S3_BUCKET=S3_BUCKET:latest \
+          --set-env-vars=NODE_ENV=production,DEPLOY_ENV=production,CRON_OIDC_AUDIENCE=$_CRON_AUDIENCE,CRON_OIDC_SERVICE_ACCOUNT_EMAIL=$_SCHEDULER_SA \
+          --allow-unauthenticated \
+          $_DEPLOY_FLAGS
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
+        if [ "$_UPDATE_SCHEDULER" != "true" ]; then
+          echo "Skipping Cloud Scheduler update (_UPDATE_SCHEDULER=$_UPDATE_SCHEDULER)"
+          exit 0
+        fi
         SERVICE_URL=$$(gcloud run services describe $_SERVICE_NAME --region=$_REGION --format="value(status.url)")
         
         # Job 1: 5-minute notification tick (06:00 to 23:00 Asia/Kathmandu)
@@ -88,6 +93,8 @@ substitutions:
   _SERVICE_NAME: dashboard-management
   _SCHEDULER_SA: scheduler-invoker@dashboard-management-prod.iam.gserviceaccount.com
   _CRON_AUDIENCE: dashboard-management-cron
+  _DEPLOY_FLAGS: ""
+  _UPDATE_SCHEDULER: "true"
 
 availableSecrets:
   secretManager:

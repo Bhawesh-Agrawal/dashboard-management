@@ -10,7 +10,11 @@ export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    if (process.env.NODE_ENV !== "production") {
+    const swEnabled =
+      process.env.NODE_ENV === "production" ||
+      process.env.NEXT_PUBLIC_ENABLE_SW === "true";
+
+    if (!swEnabled) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const registration of registrations) {
           registration.unregister();

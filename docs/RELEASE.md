@@ -50,7 +50,7 @@ npm run test:ci
 ```bash
 npm run build
 ```
-*(Verifies Next.js 16 standalone bundling and ensures memory usage remains within the 4096MB node heap).*
+*(Verifies Next.js 16 standalone bundling and ensures memory usage remains within the 4096MB node heap. Note: `cloudbuild.yaml` uses the free-tier default build machine; if a Cloud Build Docker build hits an OOM error, `machineType: E2_HIGHCPU_8` can be temporarily added back under `options:` in `cloudbuild.yaml`.)*
 
 ### Gate 3: Resource-Constrained Container Smoke Test
 ```bash

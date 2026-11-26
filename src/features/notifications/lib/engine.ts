@@ -286,7 +286,7 @@ export async function dispatchNotifications(
       const quietEnd =
         typePref?.quietHoursEnd ??
         prefs.find((p) => p.quietHoursEnd)?.quietHoursEnd ??
-        "07:00";
+        "06:30";
       const { hour, minute } = getLocalHourMinute(now, tzPref);
       if (isWithinQuietHours(hour, minute, quietStart, quietEnd)) {
         result.skippedQuietHours += 1;

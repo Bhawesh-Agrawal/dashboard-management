@@ -193,4 +193,40 @@ describe("Brief Scheduling Across Ticks, Timezones, and Missed Ticks (Step 8)", 
     );
     expect(inNy.sent).toBe(1);
   });
+
+  it("defers a brief configured inside quiet hours until quietHoursEnd and delivers once", async () => {
+    const sendPush = vi.fn().mockResolvedValue(undefined);
+    state.prefs = [
+      {
+        userId: state.userId,
+        type: "morning_brief",
+        enabled: true,
+        priority: "normal",
+        dailySummaryTime: "06:00", // inside 22:00–07:00
+        quietHoursStart: "22:00",
+        quietHoursEnd: "07:00",
+        timezone: "Asia/Kathmandu",
+        reminderMinutes: null,
+      },
+    ];
+
+    // 06:05 NPT = 00:20 UTC -> deferred because 06:00 is inside quiet hours
+    const atSix = await withSimulatedTime("2026-11-25T00:20:00.000Z", () =>
+      runNotificationScheduler(false, { only: "morning_brief", sendPush })
+    );
+    expect(atSix.sent).toBe(0);
+
+    // 07:00 NPT = 01:15 UTC -> quiet hours end -> delivers once
+    const atQuietEnd = await withSimulatedTime("2026-11-25T01:15:00.000Z", () =>
+      runNotificationScheduler(false, { only: "morning_brief", sendPush })
+    );
+    expect(atQuietEnd.sent).toBe(1);
+
+    // 07:05 NPT -> never fires twice
+    const repeat = await withSimulatedTime("2026-11-25T01:20:00.000Z", () =>
+      runNotificationScheduler(false, { only: "morning_brief", sendPush })
+    );
+    expect(repeat.sent).toBe(0);
+    expect(sendPush).toHaveBeenCalledTimes(1);
+  });
 });

@@ -6,6 +6,7 @@ import { generateAndPersistBrief } from "@/features/briefs/lib/generate";
 import {
   buildDedupKey,
   dispatchNotifications,
+  isWithinQuietHours,
   type DispatchResult,
   type NotificationCandidate,
   type PushSender,
@@ -402,10 +403,28 @@ export async function generateMorningBriefCandidates(
   userId: string,
   now: Date,
   timezone: string,
-  options?: { targetTime?: string; force?: boolean }
+  options?: {
+    targetTime?: string;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    force?: boolean;
+  }
 ): Promise<NotificationCandidate[]> {
   const local = getLocalTimeParts(now, timezone);
-  const targetMinutes = parseHmToMinutes(options?.targetTime ?? DEFAULT_MORNING_BRIEF_TIME);
+  const configuredTime = options?.targetTime ?? DEFAULT_MORNING_BRIEF_TIME;
+  const configuredMinutes = parseHmToMinutes(configuredTime);
+  if (configuredMinutes === null) return [];
+
+  const quietStart = options?.quietHoursStart ?? "22:00";
+  const quietEnd = options?.quietHoursEnd ?? "06:30";
+  const configuredInQuiet = isWithinQuietHours(
+    Math.floor(configuredMinutes / 60),
+    configuredMinutes % 60,
+    quietStart,
+    quietEnd
+  );
+  const effectiveTime = configuredInQuiet ? quietEnd : configuredTime;
+  const targetMinutes = parseHmToMinutes(effectiveTime);
   if (targetMinutes === null) return [];
 
   const diff = local.totalMinutes - targetMinutes;
@@ -450,10 +469,28 @@ export async function generateEveningBriefCandidates(
   userId: string,
   now: Date,
   timezone: string,
-  options?: { targetTime?: string; force?: boolean }
+  options?: {
+    targetTime?: string;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    force?: boolean;
+  }
 ): Promise<NotificationCandidate[]> {
   const local = getLocalTimeParts(now, timezone);
-  const targetMinutes = parseHmToMinutes(options?.targetTime ?? DEFAULT_EVENING_BRIEF_TIME);
+  const configuredTime = options?.targetTime ?? DEFAULT_EVENING_BRIEF_TIME;
+  const configuredMinutes = parseHmToMinutes(configuredTime);
+  if (configuredMinutes === null) return [];
+
+  const quietStart = options?.quietHoursStart ?? "22:00";
+  const quietEnd = options?.quietHoursEnd ?? "06:30";
+  const configuredInQuiet = isWithinQuietHours(
+    Math.floor(configuredMinutes / 60),
+    configuredMinutes % 60,
+    quietStart,
+    quietEnd
+  );
+  const effectiveTime = configuredInQuiet ? quietEnd : configuredTime;
+  const targetMinutes = parseHmToMinutes(effectiveTime);
   if (targetMinutes === null) return [];
 
   const diff = local.totalMinutes - targetMinutes;
@@ -541,6 +578,8 @@ export async function runNotificationScheduler(
     let eveningTime = DEFAULT_EVENING_BRIEF_TIME;
     let classMinutes = DEFAULT_CLASS_REMINDER_MINUTES;
     let eventMinutes = DEFAULT_EVENT_REMINDER_MINUTES;
+    let quietHoursStart = "22:00";
+    let quietHoursEnd = "06:30";
 
     try {
       const prefs = await prisma.notificationPreference.findMany({
@@ -560,6 +599,10 @@ export async function runNotificationScheduler(
 
       const eventPref = prefs.find((p) => p.type === "calendar_event");
       if (eventPref?.reminderMinutes != null) eventMinutes = eventPref.reminderMinutes;
+
+      const quietPref = prefs.find((p) => p.quietHoursStart && p.quietHoursEnd);
+      if (quietPref?.quietHoursStart) quietHoursStart = quietPref.quietHoursStart;
+      if (quietPref?.quietHoursEnd) quietHoursEnd = quietPref.quietHoursEnd;
     } catch {
       // Fallback to defaults
     }
@@ -590,6 +633,8 @@ export async function runNotificationScheduler(
       candidates.push(
         ...(await generateMorningBriefCandidates(userId, now, timezone, {
           targetTime: morningTime,
+          quietHoursStart,
+          quietHoursEnd,
           force,
         }))
       );
@@ -598,6 +643,8 @@ export async function runNotificationScheduler(
       candidates.push(
         ...(await generateEveningBriefCandidates(userId, now, timezone, {
           targetTime: eveningTime,
+          quietHoursStart,
+          quietHoursEnd,
           force,
         }))
       );

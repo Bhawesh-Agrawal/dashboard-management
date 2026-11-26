@@ -8,6 +8,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+function isTimeInQuietWindow(timeHm: string, startHm: string, endHm: string): boolean {
+  const [th, tm] = timeHm.split(":").map(Number);
+  const [sh, sm] = startHm.split(":").map(Number);
+  const [eh, em] = endHm.split(":").map(Number);
+  if ([th, tm, sh, sm, eh, em].some(Number.isNaN)) return false;
+  const t = th * 60 + tm;
+  const s = sh * 60 + sm;
+  const e = eh * 60 + em;
+  if (s <= e) return t >= s && t < e;
+  return t >= s || t < e;
+}
+
 export function BriefScheduleSettings({
   initial,
 }: {
@@ -27,6 +39,13 @@ export function BriefScheduleSettings({
       }
     });
   }
+
+  const morningInQuiet =
+    form.morningEnabled &&
+    isTimeInQuietWindow(form.morningTime, form.quietHoursStart, form.quietHoursEnd);
+  const eveningInQuiet =
+    form.eveningEnabled &&
+    isTimeInQuietWindow(form.eveningTime, form.quietHoursStart, form.quietHoursEnd);
 
   return (
     <form
@@ -149,6 +168,17 @@ export function BriefScheduleSettings({
           />
         </label>
       </div>
+
+      {(morningInQuiet || eveningInQuiet) && (
+        <p className="text-xs text-destructive">
+          {morningInQuiet && eveningInQuiet
+            ? "Morning and evening brief times fall inside quiet hours"
+            : morningInQuiet
+            ? "Morning brief time falls inside quiet hours"
+            : "Evening brief time falls inside quiet hours"}{" "}
+          — delivery will wait until quiet hours end ({form.quietHoursEnd}).
+        </p>
+      )}
 
       <Button type="submit" disabled={isPending} className="min-h-[44px]">
         {isPending ? "Saving..." : "Save Schedule"}

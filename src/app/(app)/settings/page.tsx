@@ -51,7 +51,7 @@ export default async function SettingsPage() {
     classReminderMinutes: 10,
     eventReminderMinutes: 15,
     quietHoursStart: "22:00",
-    quietHoursEnd: "07:00",
+    quietHoursEnd: "06:30",
   };
 
   try {

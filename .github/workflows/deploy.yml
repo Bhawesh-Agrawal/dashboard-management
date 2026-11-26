@@ -1,10 +1,9 @@
 name: Deploy to GCP
 
+# Manual dispatch only while GCP_SA_KEY is disabled; re-enable push triggers
+# once Workload Identity Federation (WIF) is configured (see infra/deploy-comparison.md).
 on:
-  push:
-    branches:
-      - master
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:

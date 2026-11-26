@@ -1386,3 +1386,44 @@ Route (app)
 
 ƒ Proxy (Middleware)
 ```
+
+
+---
+
+## Phase 5: Deploy-Prep Fixes (Part A)
+
+Branch: `phase-5-deploy` (branched from `phase-4b-closeout`)
+
+### Part A Verification Table
+
+| Item | Status | Commit | Files Changed | What Was NOT Verified |
+| :--- | :--- | :--- | :--- | :--- |
+| A1. Cloud Scheduler OIDC audience & env vars | DONE | `6137b3d` | `cloudbuild.yaml`, `docs/RELEASE.md`, `src/lib/__tests__/cloudbuild-cron.test.ts` | Live Cloud Scheduler OIDC token exchange against Cloud Run (verified in Part F). |
+| A2. GitHub Actions `workflow_dispatch` only | DONE | `baa23c8` | `.github/workflows/deploy.yml` | GitHub Actions runner execution (workflow is manual-only while `GCP_SA_KEY` is disabled). |
+| A3. Remove `E2_HIGHCPU_8` machineType override | DONE | `d7154ec` | `cloudbuild.yaml`, `docs/RELEASE.md` | Default Cloud Build worker memory headroom under remote Docker build (verified in Part E). |
+| A4. `ALLOW_SIGNUP` guard on `/signup` & action | DONE | `59c2335` | `src/features/auth/lib/signup-guard.ts`, `src/features/auth/lib/actions.ts`, `src/app/(auth)/signup/page.tsx`, `src/app/(auth)/login/page.tsx`, `src/features/auth/lib/__tests__/signup-guard.test.ts`, `docs/LOCAL_DEV.md`, `docs/RELEASE.md` | Live browser rendering of `/signup` in production (verified via unit test & `next build`). |
+| A5. Auth & owner scoping on remaining server actions/queries | DONE | `f07dff0` | `src/features/domains/lib/actions.ts`, `src/features/projects/lib/actions.ts`, `src/features/routines/lib/actions.ts`, `src/features/routines/lib/actions-completions.ts`, `src/features/notes/lib/actions-convert.ts`, `src/features/notes/lib/actions-nlp.ts`, `src/features/search/lib/actions.ts`, `src/features/search/lib/queries.ts`, `src/features/ask/lib/actions.ts`, `src/features/knowledge-graph/lib/traversal.ts`, `src/lib/__tests__/a5-ownership.test.ts` | Live multi-user Postgres RLS/queries against real Supabase DB (unit tests mock Prisma). |
+| A6. PWA manifest, maskable icons, `/sw.js` headers, `NEXT_PUBLIC_ENABLE_SW` | DONE | `8188d2f` | `public/manifest.json`, `public/icon-192x192-maskable.png`, `public/icon-512x512-maskable.png`, `next.config.ts`, `src/components/shared/service-worker-registration.tsx`, `src/features/notifications/lib/push-client.ts`, `src/lib/__tests__/pwa-manifest.test.ts`, `docs/PWA.md` | Physical phone install & Airplane Mode offline reload (verified manifest/icons on disk & build). |
+| A7. `/api/health` endpoint & proxy exclusion | DONE | `99993ab` | `src/app/api/health/route.ts`, `src/app/api/health/__tests__/route.test.ts`, `src/proxy.ts` | Live Cloud Run HTTP check (verified in Part F). |
+| A8. Structured JSON cron logging | DONE | `7f49b50` | `src/app/api/notifications/trigger/route.ts`, `src/app/api/cron/daily-diagnostics/route.ts` | Live Cloud Logging ingestion format (verified in Part F). |
+| A9. Env audit script (`scripts/check-env.ts` + `npm run check:env`) | DONE | `6e5c76c` | `scripts/check-env.ts`, `package.json` | `--gcp` comparison against live GCP Secret Manager / Cloud Run (run in Part B/C). |
+| A10. Full `test:ci`, `build`, and `CHANGES.md` | DONE | `(this commit)` | `CHANGES.md` | Cloud Run deployment and live verification (Parts B–F pending gate approvals). |
+
+### A5 Models Without Direct `userId` Column
+These models have no `userId` column in `prisma/schema.prisma` and are scoped via their parent ownership chain using `ownerWhere(userId)`:
+- `Project` -> scoped via `domain: ownerWhere(userId)`
+- `Milestone` -> scoped via `project: { domain: ownerWhere(userId) }`
+- `RoutineCompletion` -> scoped via `Routine` ownership check (`routine: { id, ...ownerWhere(userId) }`) before upsert/delete
+- `Course` -> scoped via `semester: ownerWhere(userId)`
+- `Assessment`, `ClassSchedule`, `AttendanceRecord` -> scoped via `course: { semester: ownerWhere(userId) }`
+
+### Raw Verification Output (Part A)
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: exited 0
+  - `eslint`: exited 0 (warnings only, 0 errors)
+  - `vitest run`: `Test Files  47 passed (47)`, `Tests  244 passed (244)`
+- `npm run build` (`NODE_OPTIONS='--max-old-space-size=4096' next build`):
+  - `✓ Compiled successfully in 8.3s`
+  - `✓ Finished TypeScript in 27.1s`
+  - `✓ Generating static pages using 15 workers (19/19) in 300ms`
+  - All routes including `/api/health` and `/signup` built cleanly.

@@ -448,7 +448,7 @@ describe("Notification Engine Simulated-Clock Tests (Step 4)", () => {
     expect(sendPush).not.toHaveBeenCalled();
   });
 
-  it("removes a dead subscription on 410 and delivers to remaining subscription", async () => {
+  it("removes a dead subscription on 404 or 410 and delivers to remaining subscription", async () => {
     const sendPush = vi
       .fn()
       .mockRejectedValueOnce(Object.assign(new Error("Gone"), { statusCode: 410 }))
@@ -460,5 +460,83 @@ describe("Notification Engine Simulated-Clock Tests (Step 4)", () => {
     expect(res.removedSubscriptions).toBe(1);
     expect(res.deliveredPushes).toBe(1);
     expect(dbState.subs).toHaveLength(1);
+
+    // 404 also removes remaining dead subscription
+    dbState.sent = [];
+    const send404 = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("Not Found"), { statusCode: 404 }));
+    const res404 = await withSimulatedTime("2026-11-25T04:05:00.000Z", () =>
+      runNotificationScheduler(false, { only: "class_start", sendPush: send404 })
+    );
+    expect(res404.removedSubscriptions).toBe(1);
+    expect(dbState.subs).toHaveLength(0);
+  });
+
+  it("fires each of the 6 types once and never twice across 12 consecutive 5-minute ticks, and skips disabled types", async () => {
+    const sendPush = vi.fn().mockResolvedValue(undefined);
+    dbState.tasks = [
+      {
+        id: "task-12",
+        userId: dbState.userId,
+        title: "Timed Task",
+        status: "open",
+        dueDate: new Date("2026-11-25T08:15:00.000Z"), // 14:00 NPT
+        course: null,
+      },
+    ];
+    dbState.events = [
+      {
+        id: "event-12",
+        userId: dbState.userId,
+        title: "Timed Event",
+        dateTime: new Date("2026-11-25T10:15:00.000Z"), // 16:00 NPT
+        location: null,
+      },
+    ];
+
+    const windows: Array<{
+      only: "class_start" | "class_end" | "task_due" | "calendar_event" | "morning_brief" | "evening_brief";
+      startIso: string;
+    }> = [
+      { only: "morning_brief", startIso: "2026-11-25T01:15:00.000Z" }, // 07:00 NPT
+      { only: "class_start", startIso: "2026-11-25T04:05:00.000Z" }, // 09:50 NPT
+      { only: "class_end", startIso: "2026-11-25T05:15:00.000Z" }, // 11:00 NPT
+      { only: "task_due", startIso: "2026-11-25T08:00:00.000Z" }, // 13:45 NPT
+      { only: "calendar_event", startIso: "2026-11-25T10:00:00.000Z" }, // 15:45 NPT
+      { only: "evening_brief", startIso: "2026-11-25T14:45:00.000Z" }, // 20:30 NPT
+    ];
+
+    for (const w of windows) {
+      let sentForType = 0;
+      const startMs = new Date(w.startIso).getTime();
+      for (let tick = 0; tick < 12; tick++) {
+        const tickIso = new Date(startMs + tick * 5 * 60 * 1000).toISOString();
+        const res = await withSimulatedTime(tickIso, () =>
+          runNotificationScheduler(false, { only: w.only, sendPush })
+        );
+        sentForType += res.sent;
+      }
+      expect(sentForType).toBe(1);
+    }
+
+    // Disabled type never sends
+    dbState.sent = [];
+    dbState.prefs = [
+      {
+        userId: dbState.userId,
+        type: "class_start",
+        enabled: false,
+        priority: "critical",
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        timezone: "Asia/Kathmandu",
+      },
+    ];
+    const disabledRes = await withSimulatedTime("2026-11-25T04:05:00.000Z", () =>
+      runNotificationScheduler(false, { only: "class_start", sendPush })
+    );
+    expect(disabledRes.sent).toBe(0);
+    expect(disabledRes.skippedDisabled).toBe(1);
   });
 });

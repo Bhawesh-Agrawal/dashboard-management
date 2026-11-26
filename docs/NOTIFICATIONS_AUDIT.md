@@ -66,3 +66,21 @@ Generated from the codebase prior to Phase 4 refactoring. Every finding cites ex
 - **404/410 cleanup**: `sendPushNotifications` (`scheduler.ts:1329-1337`) deletes `pushSubscription` rows matching `sub.endpoint` when `web-push` throws `statusCode === 404 || 410`.
 - **VAPID setup**: Uses `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_EMAIL` (`scheduler.ts:1283-1296`).
 - **Tick behaviour**: Cloud Scheduler hits `GET /api/notifications/trigger` periodically (every 5 minutes); `runNotificationScheduler` evaluates all 13 generators for every user with a push subscription, batches via `buildDigestWindows`, dispatches via `web-push`, records `SentNotification`, and deletes `SentNotification` rows older than 7 days.
+
+## 5. Test Coverage Map
+
+| Scenario | Test File | Test Name |
+| :--- | :--- | :--- |
+| Each of the 6 types fires once at right local time & never twice across 12 consecutive 5-min ticks | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `fires each of the 6 types once and never twice across 12 consecutive 5-minute ticks, and skips disabled types` |
+| Quiet hours suppression for non-critical notifications | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `respects quiet hours for non-critical notifications` |
+| Brief configured inside quiet hours deferred to `quietHoursEnd` | `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | `defers a brief configured inside quiet hours until quietHoursEnd and delivers once` |
+| Subscription removed on 404/410 | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `removes a dead subscription on 404 or 410 and delivers to remaining subscription` |
+| Two devices (phone + laptop) each get one push | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `fires class_start once across 12 consecutive 5-minute ticks and delivers to both phone and laptop` |
+| Ended semester sends no class reminders or attendance prompts | `src/features/notifications/lib/__tests__/semester-lifecycle.test.ts` & `engine-clock.test.ts` | `ended semester produces NO class reminders and NO attendance prompts under simulated asOf clock` / `stays silent for ended semesters, skips cancelled classes, and skips already-marked attendance` |
+| Cancelled class sends nothing | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `stays silent for ended semesters, skips cancelled classes, and skips already-marked attendance` |
+| Attendance prompt skipped when already marked | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `stays silent for ended semesters, skips cancelled classes, and skips already-marked attendance` |
+| Brief generated late within 3h grace window and not after | `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | `recovers from a missed first tick within the 3-hour grace window, and skips after 3 hours` |
+| Brief after timezone change fires once per local day | `src/features/notifications/lib/__tests__/brief-scheduling.test.ts` | `respects timezone changes` |
+| Disabled type never sends | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `fires each of the 6 types once and never twice across 12 consecutive 5-minute ticks, and skips disabled types` |
+| Semester gap day produces briefs without class sections | `src/features/briefs/lib/__tests__/build.test.ts` | `skips empty sections and omits classes when semester is ended` |
+| Concurrent dispatch dedup race, all-fail claim release, partial-success claim keep | `src/features/notifications/lib/__tests__/engine.test.ts` | `handles two concurrent dispatches...`, `releases the claim when every subscription send fails...`, `keeps the claim on partial success...` |

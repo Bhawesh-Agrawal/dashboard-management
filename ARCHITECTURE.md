@@ -15,7 +15,7 @@ The following features were audited, uninstalled, and deleted from the codebase 
 | **Life Metrics** | Daily metric tracking (mood, sleep, energy), review prompt inputs | Deleted without replacement. |
 | **Identities** | Identity-based routine grouping and identity creation | Deleted without replacement. Plain habits/routines are preserved and decoupled from identities. |
 | **Client-side OCR** | In-browser OCR via `tesseract.js` for photo note capture | Deleted without replacement. `tesseract.js` uninstalled. Note attachments accept standard PDF/file uploads. |
-| **Daily Review Framing** | Full daily review questionnaires, forms, and review page filters | Replaced by lightweight Morning and Evening Briefs (kept as type `daily` DB records and push alerts). Weekly, monthly, and quarterly reviews are preserved. |
+| **Daily Review Framing** | Full daily review questionnaires, forms, and review page filters | Replaced by deterministic Morning and Evening Briefs (`DailyBrief` table, `/brief`). Weekly, monthly, and quarterly reviews are preserved. |
 | **Knowledge-gap Detection** | Periodic gap analysis, gap cron job, and Knowledge Health Widget | Deleted without replacement. The core knowledge graph and note-linking traversal are preserved. |
 | **People / Academic CRM** | Contact tracking, interaction logging, relationship importance, birthdays | Deleted without replacement. Clean calendar integration is preserved for scheduling. |
 | **Budget** | Income/expense tracking, budget summaries, category analytics | Deleted without replacement. |
@@ -73,10 +73,8 @@ The following features were audited, uninstalled, and deleted from the codebase 
 | Icons | Lucide React | ^1.23.0 |
 | Date Handling | date-fns | ^4.4.0 |
 | AI | OpenRouter API | `openai/gpt-oss-120b` |
-| OCR | Tesseract.js | ^7.0.0 |
 | Google APIs | googleapis | ^173.0.0 |
 | Push Notifications | web-push | ^3.6.7 (VAPID) |
-| Date Picker | react-day-picker | ^10.0.1 |
 | PDF Rendering | react-pdf | ^10.4.1 |
 | PDF Annotation | react-pdf-highlighter-extended | ^8.1.0 |
 | Markdown | react-markdown | ^10.1.0 |
@@ -89,7 +87,7 @@ The following features were audited, uninstalled, and deleted from the codebase 
 | Data Visualization | d3 | ^7.9.0 |
 | Testing | Vitest | ^4.1.10 |
 | Linting | ESLint | ^9 (core-web-vitals + TypeScript) |
-| Deployment | Vercel | — |
+| Deployment | Google Cloud Run (`Dockerfile` / `cloudbuild.yaml`) | — |
 | Package Manager | npm | — |
 | Fonts | Geist Sans/Mono + Playfair Display | Via `next/font/google` |
 
@@ -615,11 +613,9 @@ Custom visual language defined in `globals.css`:
 - **Lib:** `supabase-server.ts`, `supabase-browser.ts`, `actions.ts`
 - **Pages:** `/login` (email + password), `/signup` (email + password, min 6 chars)
 
-### 7.5 Budget
-- **Path:** `src/features/budget/`
-- **Components:** `BudgetList`, `BudgetForm`, `BudgetSummary`, `EditBudgetDialog`
-- **Actions:** CRUD for income/expense entries with category, amount, date, notes
-- **Navigation:** Month/year via URL search params (`?month=7&year=2026`), prev/next month links
+### 7.5 Briefs (`/brief`)
+- **Path:** `src/features/briefs/`
+- **Purpose:** Deterministic Morning & Evening Briefs (`DailyBrief` table), Open-Meteo city weather & 3h DB cache, and Travel ticket offline pinning (`EventDocument` + `pinned-documents-v1`).
 
 ### 7.6 Calendar
 - **Path:** `src/features/calendar/`
@@ -665,50 +661,13 @@ Custom visual language defined in `globals.css`:
 - **Components:** `FileManager` (category/tag filtering: syllabus, routine, calendar, other), `FileList` (display with delete), `FileUploadDialog` (progress tracking)
 - **Storage:** S3/MinIO via presigned URLs
 
-### 7.11 Identities (Identity-First Habit Design)
-- **Path:** `src/features/identities/`
-- **Philosophy:** Habits reinforce identity, not just outcomes. "I am a disciplined researcher" > "Read 30 pages daily"
-- **Components:**
-  - `IdentityCard` — Progress ring + status badge (aspirational/developing/integrated/neglected)
-  - `IdentityGrid` — 2-column grid of identity cards
-  - `IdentityForm` — Create/edit dialog with color + icon pickers
-  - `IdentityDetail` — Drill-down with linked routines, 30-day activity bar chart, progress ring (0-100), suggested actions
-  - `IdentityHealthWidget` — Today page sidebar: top 3 identities + neglected ones
-- **Progress Scoring:** Strength 0-100 from routine adherence (50%), task completion (30%), note activity (20%); trend via 14-day comparison
-- **Schema:** `Identity` model (statement, status enum, color, icon), `IdentityStatus` enum, `Routine.identityId` FK
-- **Routes:** `/routines` (grid + form), `/routines/identities/[id]` (detail page)
-
-### 7.12 Insights (Behavioral Intelligence Engine)
-- **Path:** `src/features/insights/`
-- **Components:** `InsightCard`, `InsightFeed`, `InsightSeverityBadge`, `RefreshButton`, `UnifiedInsights`
-
-#### Rule-Based Detectors (10 total, `detection.ts` — 1,458 lines)
-
-| Detector | Trigger Condition | Severity Logic |
-|----------|-------------------|----------------|
-| **Declining Skills** | Routine completion rate drops >50% over 90 days | Warning/Critical based on drop magnitude |
-| **Burnout Risk** | 3+ of 5 indicators: task completion drop, routine breakage, convenience spending, social isolation, sleep disruption | Warning/Critical based on indicator count |
-| **Missed Opportunities** | Urgent tasks not started, assessments without study notes, overdue mentor contacts | Info/Warning |
-| **Energy Mismatch** | >30% of high-priority tasks completed on "draining" energy days | Warning |
-| **Budget Anomalies** | Category spending spikes >50% above 3-month average, subscription bleed detection | Warning/Critical |
-| **Knowledge Gaps** | Courses with ≤1 note in 30 days | Warning |
-| **Focus Fragmentation** | Low completion rate + high creation rate + context switching (5+ contexts/day) + stale tasks (>7 days open) | Warning |
-| **Achievements** | Task milestones (10/25/50/100/200/500), all-course-tasks-done | Positive |
-| **Positive Trends** | Improving routine adherence, decreasing spending | Positive |
-| **Streak Milestones** | 7/14/21/30/60/90/180/365-day activity streaks | Positive |
-
-#### AI Insights (`ai-insights.ts` — 505 lines)
-- `buildDataSummary()` — Aggregates tasks, routines, budget, notes, attendance, people, assessments, projects, sleep into text summary
-- `generateAIInsights()` — Sends summary to OpenRouter with behavioral intelligence system prompt, parses JSON, validates, persists
-- `combineInsights()` — Merges rule-based and AI insights with deduplication
-
-#### Smart Cooldowns
-Different insight types have cooldown periods (1-30 days) to prevent notification fatigue. Results cached for 1 hour (rule-based) or 24 hours (AI).
+### 7.11 DSA Progress Tracker (`/dsa`)
+- **Path:** `src/features/dsa/`
+- **Purpose:** Online-only 90-day DSA tracker (topics, imported problems, append-only attempt history, spaced revision queue, sessions, contests, Tutor Report export, and full JSON backup/restore).
 
 ### 7.13 Knowledge Graph
 - **Path:** `src/features/knowledge-graph/`
 - **Lib:** `traversal.ts` (714 lines) — BFS traversal of Prisma relations up to N hops
-- **Supported Entity Types (16):** semester, course, task, note, assessment, routine, event, quote, classSchedule, attendanceRecord, domain, project, milestone, budgetEntry, resource, person
 - **Functions:**
   - `traverseGraph({ sourceType, sourceId, maxHops?, nodeTypes? })` — Generic N-hop traversal
   - `getCourseGraphContext(courseId)` — 1-hop traversal from a course (direct children)
@@ -716,12 +675,6 @@ Different insight types have cooldown periods (1-30 days) to prevent notificatio
   - `formatGraphContext(graph)` — Converts graph to human-readable markdown for LLM prompts
 - **Key Design:** No extra database table — reads from real foreign key relationships
 - **Tests:** `__tests__/traversal.test.ts` — Integration tests with real DB
-
-### 7.14 Library
-- **Path:** `src/features/library/`
-- **Components:** `ResourceList`, `ResourceForm`, `EditResourceDialog`, `QuoteList`, `QuoteForm`, `EditQuoteDialog`
-- **Actions:** CRUD for saved readings/links and quotes
-- **Seed Data:** 30 motivational quotes across 6 categories (Productivity, Perseverance, Learning, Discipline, Mindset, Time)
 
 ### 7.15 Notes (Second Brain)
 
@@ -825,24 +778,6 @@ SM-2-like review scheduling system.
 | `getReviewStats(userId)` | Returns totalNotes, notesDueToday, notesReviewedThisWeek, averageReviewCount |
 | `resetNoteReview(noteId)` | Resets review history (for content changes) |
 
-#### 7.15.5 Knowledge Gaps Detection (`knowledge-gaps.ts`)
-
-Analyzes the note graph structure to find weak areas.
-
-**Gap Types:**
-| Type | Detection Logic | Severity |
-|------|----------------|----------|
-| `orphan_topic` | Notes with 0 or 1 connections | High/Medium |
-| `sparse_area` | Small disconnected clusters of 2–3 notes | Medium |
-| `missing_connection` | Notes sharing same tags but not linked | Low |
-
-**Functions:**
-| Function | Description |
-|----------|-------------|
-| `detectKnowledgeGaps(userId)` | Full graph analysis, returns up to 20 gaps |
-| `getKnowledgeStats(userId)` | noteCount, connectionCount, gapCount, reviewsDue, topClusters |
-| `precomputeKnowledgeGaps(userId)` | Wraps getKnowledgeStats with timestamp for cron |
-
 #### 7.15.6 Annotations (`actions-annotations.ts` + `annotation-utils.ts`)
 
 Page-level markups on notes and documents.
@@ -874,19 +809,6 @@ File and link attachments for notes.
 | `removeNoteAttachment(id)` | Ownership check → deletes |
 | `updateNoteAttachment(id, data)` | Updates title and/or sortOrder |
 | `addNoteLinkAttachment(noteId, data)` | Creates LINK-type with URL, favicon as thumbnail, description as extractedText |
-
-#### 7.15.8 OCR (`ocr.ts` + `actions-ocr.ts`)
-
-Image-to-text extraction using Tesseract.js.
-
-**Supported Types:** JPEG, JPG, PNG, GIF, BMP, TIFF, WebP (max 10MB)
-
-**Functions:**
-| Function | Description |
-|----------|-------------|
-| `processOcr(imageBuffer)` | Runs Tesseract.js, returns `{ success, text?, error?, confidence? }` |
-| `processOcrAction(formData)` | End-to-end pipeline: validates → converts to Buffer → OCR → creates note with `sourceType: "ocr_photo"`, tagged `["ocr"]` |
-| `getConfidenceDescription(confidence)` | Maps 0-100 to "High"/"Moderate"/"Low"/"Very low" |
 
 #### 7.15.9 NLP Parsing (`nlp-parsing.ts` + `actions-nlp.ts`)
 
@@ -965,12 +887,6 @@ Converts Word documents to Markdown.
   - `subscription.ts` — Active subscription queries
 - **Actions:** `actions.ts` (preferences CRUD), `subscription.ts` (push subscription management)
 - See Section 12 for full notification types.
-
-### 7.17 People
-- **Path:** `src/features/people/`
-- **Components:** `PersonList`, `PersonForm`, `EditPersonDialog`
-- **Detail Page:** Name, birthday (formatted as "Wednesday, January 1, 2025"), notes section with prose-styled text
-- **Actions:** CRUD for light CRM entries (name, relationship type, contact frequency, birthday, notes, energy impact, importance score)
 
 ### 7.18 Projects
 - **Path:** `src/features/projects/`
@@ -1420,14 +1336,13 @@ npm run test:watch # vitest (watch mode)
 ## 16. Deployment
 
 ### Platform
-Vercel (evidenced by `vercel.json`, README)
+Google Cloud Run (`Dockerfile` and `cloudbuild.yaml`)
 
 ### Configuration
-- `vercel.json`: Empty `{}` — uses all Vercel defaults
-- **Build:** `next build`
+- **Build:** `next build` (standalone output)
 - **Post-install:** `prisma generate` (auto-generates Prisma client)
 - **Runtime:** Node.js (explicitly set for cron routes)
-- **Server External Packages:** `googleapis`, `pg`, `@prisma/client`, `@prisma/adapter-pg`, `prisma`, `tesseract.js`, `web-push`
+- **Server External Packages:** `googleapis`, `pg`, `@prisma/client`, `@prisma/adapter-pg`, `prisma`, `web-push`
 
 ### Seed
 ```bash
@@ -1784,7 +1699,6 @@ npx tsx prisma/seed.ts  # Seeds 30 motivational quotes (idempotent)
 | `components.json` | shadcn/ui — base-nova style, lucide icons, CSS variables, RSC enabled |
 | `prisma.config.ts` | Prisma — schema path, migrations, datasource URL (DATABASE_URL + DIRECT_URL) |
 | `.env` / `.env.local` / `.env.production` | Environment variables (Supabase, OpenRouter, Google, VAPID, S3) |
-| `vercel.json` | Vercel deployment (empty, uses defaults) |
 | `public/manifest.json` | PWA manifest — "Academic Command Center", standalone, portrait |
 | `.gitignore` | Ignores node_modules, .next, .env*, build artifacts |
 | `package.json` | Scripts: dev, build, start, lint, test, test:watch, postinstall (prisma generate) |

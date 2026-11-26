@@ -161,6 +161,28 @@ vi.mock("@/lib/prisma", () => ({
           return exists ?? create;
         }
       ),
+      create: vi.fn(
+        async ({
+          data,
+        }: {
+          data: {
+            userId: string;
+            tag: string;
+            dedupKey: string;
+            type: string;
+            sentAt: Date;
+          };
+        }) => {
+          const exists = dbState.sent.find(
+            (s) => s.userId === data.userId && s.dedupKey === data.dedupKey
+          );
+          if (exists) {
+            throw Object.assign(new Error("Unique"), { code: "P2002" });
+          }
+          dbState.sent.push(data);
+          return data;
+        }
+      ),
       deleteMany: vi.fn(async () => ({ count: 0 })),
     },
     classSchedule: {

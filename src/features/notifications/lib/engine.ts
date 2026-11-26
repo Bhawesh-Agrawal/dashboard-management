@@ -132,14 +132,83 @@ function getHttpStatusCode(error: unknown): number | null {
   return null;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  if (error && typeof error === "object" && "code" in error) {
+    if ((error as { code?: unknown }).code === "P2002") return true;
+  }
+  if (error instanceof Error && /unique/i.test(error.message)) return true;
+  return false;
+}
+
+async function claimNotificationKeys(
+  userId: string,
+  items: Array<{ dedupKey: string; type: NotificationType }>,
+  now: Date
+): Promise<boolean> {
+  const keysToCheck = items.map((i) => i.dedupKey);
+
+  const runClaim = async (tx: typeof prisma) => {
+    const existing = await tx.sentNotification.findFirst({
+      where: {
+        userId,
+        OR: [{ dedupKey: { in: keysToCheck } }, { tag: { in: keysToCheck } }],
+      },
+    });
+    if (existing) return false;
+
+    for (const item of items) {
+      await tx.sentNotification.create({
+        data: {
+          userId,
+          tag: item.dedupKey,
+          dedupKey: item.dedupKey,
+          type: item.type,
+          sentAt: now,
+        },
+      });
+    }
+    return true;
+  };
+
+  try {
+    if (typeof prisma.$transaction === "function") {
+      return await prisma.$transaction(async (tx) =>
+        runClaim(tx as unknown as typeof prisma)
+      );
+    }
+    return await runClaim(prisma);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function releaseNotificationClaim(
+  userId: string,
+  keysToRelease: string[]
+): Promise<void> {
+  try {
+    await prisma.sentNotification.deleteMany({
+      where: {
+        userId,
+        dedupKey: { in: keysToRelease },
+      },
+    });
+  } catch (error) {
+    console.error("[NotificationEngine] Failed to release claim:", error);
+  }
+}
+
 /**
  * Single notification dispatcher:
- * 1. Dedup against SentNotification (userId + dedupKey, plus tag fallback)
- * 2. Per-type preference check
- * 3. Quiet-hours check (non-critical types)
- * 4. Fan-out to all active subscriptions for userId
- * 5. Dead subscription cleanup on 404/410
- * 6. Record SentNotification rows (including any digest-covered items)
+ * 1. Per-type preference check
+ * 2. Quiet-hours check (non-critical types)
+ * 3. Fetch active subscriptions for userId
+ * 4. Atomic claim in SentNotification BEFORE sending (dedupKey + covered digest items)
+ * 5. Fan-out to all active subscriptions + dead subscription cleanup on 404/410
+ * 6. Release claim if every subscription send failed; keep claim on partial/full success
  */
 export async function dispatchNotifications(
   candidates: NotificationCandidate[],
@@ -193,28 +262,7 @@ export async function dispatchNotifications(
   }
 
   for (const candidate of candidates) {
-    const keysToCheck = [
-      candidate.dedupKey,
-      ...(candidate.coveredItems?.map((c) => c.dedupKey) ?? []),
-    ];
-
-    // 1. Dedup check (checks dedupKey and legacy tag)
-    const existingSent = await prisma.sentNotification.findFirst({
-      where: {
-        userId: candidate.userId,
-        OR: [
-          { dedupKey: { in: keysToCheck } },
-          { tag: { in: keysToCheck } },
-        ],
-      },
-    });
-
-    if (existingSent) {
-      result.skippedDedup += 1;
-      continue;
-    }
-
-    // 2. Per-type preference check
+    // 1. Per-type preference check
     const prefs = await getUserPrefs(candidate.userId);
     const typePref = prefs.find((p) => p.type === candidate.type);
     const isEnabled = typePref
@@ -226,7 +274,7 @@ export async function dispatchNotifications(
       continue;
     }
 
-    // 3. Quiet-hours check
+    // 2. Quiet-hours check
     const priority: NotificationPriority =
       (typePref?.priority as NotificationPriority) || DEFAULT_PRIORITY[candidate.type];
     if (priority !== "critical") {
@@ -246,7 +294,7 @@ export async function dispatchNotifications(
       }
     }
 
-    // 4. Fetch all active subscriptions for this user
+    // 3. Fetch all active subscriptions for this user
     const subs = await getUserSubs(candidate.userId);
     if (subs.length === 0) {
       result.skippedNoSubscription += 1;
@@ -259,6 +307,18 @@ export async function dispatchNotifications(
     }
     if (!sender) {
       result.failed += 1;
+      continue;
+    }
+
+    // 4. Claim dedupKey (and covered digest items) BEFORE sending
+    const itemsToClaim = [
+      { dedupKey: candidate.dedupKey, type: candidate.type },
+      ...(candidate.coveredItems ?? []),
+    ];
+    const keysToClaim = itemsToClaim.map((i) => i.dedupKey);
+    const claimed = await claimNotificationKeys(candidate.userId, itemsToClaim, now);
+    if (!claimed) {
+      result.skippedDedup += 1;
       continue;
     }
 
@@ -315,35 +375,11 @@ export async function dispatchNotifications(
       );
     }
 
-    // 5. Record SentNotification only if at least one subscription received the push
+    // 5. Keep claim on partial/full success; release claim if every send failed
     if (deliveredForCandidate > 0) {
       result.sent += 1;
-      const itemsToRecord = [
-        { dedupKey: candidate.dedupKey, type: candidate.type },
-        ...(candidate.coveredItems ?? []),
-      ];
-
-      for (const item of itemsToRecord) {
-        await prisma.sentNotification.upsert({
-          where: {
-            userId_dedupKey: {
-              userId: candidate.userId,
-              dedupKey: item.dedupKey,
-            },
-          },
-          create: {
-            userId: candidate.userId,
-            tag: item.dedupKey,
-            dedupKey: item.dedupKey,
-            type: item.type,
-            sentAt: now,
-          },
-          update: {
-            tag: item.dedupKey,
-            sentAt: now,
-          },
-        });
-      }
+    } else {
+      await releaseNotificationClaim(candidate.userId, keysToClaim);
     }
   }
 

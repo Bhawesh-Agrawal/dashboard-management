@@ -87,6 +87,50 @@ vi.mock("@/lib/prisma", () => ({
           return existing ?? create;
         }
       ),
+      create: vi.fn(
+        async ({
+          data,
+        }: {
+          data: {
+            userId: string;
+            tag: string;
+            dedupKey: string;
+            type: string;
+            sentAt: Date;
+          };
+        }) => {
+          const dup = state.sent.find(
+            (s) => s.userId === data.userId && s.dedupKey === data.dedupKey
+          );
+          if (dup) {
+            throw Object.assign(new Error("Unique constraint failed"), {
+              code: "P2002",
+            });
+          }
+          const row = { ...data, snoozedUntil: null };
+          state.sent.push(row);
+          return row;
+        }
+      ),
+      deleteMany: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { userId: string; dedupKey?: { in: string[] } };
+        }) => {
+          const keys = new Set(where.dedupKey?.in ?? []);
+          const before = state.sent.length;
+          state.sent = state.sent.filter(
+            (s) =>
+              !(
+                s.userId === where.userId &&
+                s.dedupKey !== null &&
+                keys.has(s.dedupKey)
+              )
+          );
+          return { count: before - state.sent.length };
+        }
+      ),
     },
     notificationPreference: {
       findMany: vi.fn(async ({ where }: { where: { userId: string } }) =>
@@ -237,5 +281,94 @@ describe("Notification Engine (dispatchNotifications)", () => {
     expect(res.sent).toBe(1);
     expect(state.subs).toHaveLength(1);
     expect(state.subs[0].endpoint).toBe("https://push.example/laptop");
+  });
+
+  it("handles two concurrent dispatches of the same candidate by sending only once", async () => {
+    const sendPush = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    const now = new Date("2026-11-25T04:00:00Z");
+    const candidate: NotificationCandidate = {
+      userId: "u1",
+      type: "class_start",
+      entityId: "sched-race",
+      occurrenceDate: "2026-11-25",
+      scheduledFor: now,
+      dedupKey: buildDedupKey("class_start", "sched-race", "2026-11-25"),
+      title: "Class Starting Soon",
+      body: "Networks at 10:00",
+      url: "/courses/c3",
+    };
+
+    const [r1, r2] = await Promise.all([
+      dispatchNotifications([candidate], { now, sendPush }),
+      dispatchNotifications([candidate], { now, sendPush }),
+    ]);
+
+    expect(r1.sent + r2.sent).toBe(1);
+    expect(r1.skippedDedup + r2.skippedDedup).toBe(1);
+    expect(sendPush).toHaveBeenCalledTimes(2); // 1 event * 2 devices
+  });
+
+  it("releases the claim when every subscription send fails so a later tick can retry", async () => {
+    const sendPush = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Transient 500"))
+      .mockRejectedValueOnce(new Error("Transient 500"))
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    const now = new Date("2026-11-25T04:00:00Z");
+    const candidate: NotificationCandidate = {
+      userId: "u1",
+      type: "class_start",
+      entityId: "sched-retry",
+      occurrenceDate: "2026-11-25",
+      scheduledFor: now,
+      dedupKey: buildDedupKey("class_start", "sched-retry", "2026-11-25"),
+      title: "Class Starting Soon",
+      body: "DB at 10:00",
+      url: "/courses/c4",
+    };
+
+    const first = await dispatchNotifications([candidate], { now, sendPush });
+    expect(first.sent).toBe(0);
+    expect(first.failed).toBe(2);
+    expect(state.sent).toHaveLength(0);
+
+    const retry = await dispatchNotifications([candidate], { now, sendPush });
+    expect(retry.sent).toBe(1);
+    expect(retry.deliveredPushes).toBe(2);
+    expect(state.sent).toHaveLength(1);
+  });
+
+  it("keeps the claim on partial success (one device succeeds, one fails)", async () => {
+    const sendPush = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Transient 500"))
+      .mockResolvedValueOnce(undefined);
+
+    const now = new Date("2026-11-25T04:00:00Z");
+    const candidate: NotificationCandidate = {
+      userId: "u1",
+      type: "class_start",
+      entityId: "sched-partial",
+      occurrenceDate: "2026-11-25",
+      scheduledFor: now,
+      dedupKey: buildDedupKey("class_start", "sched-partial", "2026-11-25"),
+      title: "Class Starting Soon",
+      body: "AI at 10:00",
+      url: "/courses/c5",
+    };
+
+    const first = await dispatchNotifications([candidate], { now, sendPush });
+    expect(first.sent).toBe(1);
+    expect(first.deliveredPushes).toBe(1);
+    expect(first.failed).toBe(1);
+    expect(state.sent).toHaveLength(1);
+
+    const second = await dispatchNotifications([candidate], { now, sendPush });
+    expect(second.sent).toBe(0);
+    expect(second.skippedDedup).toBe(1);
   });
 });

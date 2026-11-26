@@ -294,7 +294,7 @@ export function EventCreationDialog({
           {/* Travel & Tickets */}
           <div className="space-y-2 border-t border-border pt-3">
             <label className="flex items-center justify-between text-xs font-medium text-foreground min-h-[44px]">
-              <span>Travel event (include in Brief &amp; pin tickets offline)</span>
+              <span>Travel</span>
               <input
                 type="checkbox"
                 checked={isTravel}

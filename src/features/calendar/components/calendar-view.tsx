@@ -21,6 +21,12 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { MobileCalendarView } from "./mobile-calendar-view";
 import { EventCreationDialog } from "./event-creation-dialog";
+import {
+  getDocumentLibraryChoicesAction,
+  getEventTravelMetadataAction,
+  updateEventTravelMetadataAction,
+  type DocumentLibraryChoice,
+} from "@/features/briefs/lib/travel";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -945,12 +951,48 @@ function EventDetailModal({
   onClose: () => void;
 }) {
   const style = getEventStyle(event);
+  const [isTravel, setIsTravel] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+  const [docChoices, setDocChoices] = useState<DocumentLibraryChoice[]>([]);
+  const [travelLoaded, setTravelLoaded] = useState(false);
+  const [savingTravel, setSavingTravel] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  useEffect(() => {
+    if (event.type !== "event") return;
+    let active = true;
+    void Promise.all([
+      getEventTravelMetadataAction(event.id),
+      getDocumentLibraryChoicesAction(),
+    ]).then(([meta, choices]) => {
+      if (!active) return;
+      setIsTravel(meta.isTravel);
+      setSelectedNoteIds(meta.noteIds);
+      setDocChoices(choices);
+      setTravelLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [event.id, event.type]);
+
+  async function persistTravel(nextTravel: boolean, nextNoteIds: string[]) {
+    setSavingTravel(true);
+    try {
+      await updateEventTravelMetadataAction({
+        eventId: event.id,
+        isTravel: nextTravel,
+        noteIds: nextNoteIds,
+      });
+    } finally {
+      setSavingTravel(false);
+    }
+  }
 
   return (
     <div
@@ -1008,6 +1050,58 @@ function EventDetailModal({
             </div>
           )}
         </div>
+
+        {/* Travel & Ticket Attachments (for calendar events) */}
+        {event.type === "event" && travelLoaded && (
+          <div className="mt-4 pt-3 border-t border-border space-y-2">
+            <label className="flex items-center justify-between text-xs font-medium text-foreground min-h-[44px]">
+              <span>Travel</span>
+              <input
+                type="checkbox"
+                checked={isTravel}
+                disabled={savingTravel}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setIsTravel(next);
+                  void persistTravel(next, selectedNoteIds);
+                }}
+                className="h-4 w-4"
+              />
+            </label>
+
+            {isTravel && docChoices.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">Documents</p>
+                <div className="max-h-32 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                  {docChoices.map((doc) => {
+                    const checked = selectedNoteIds.includes(doc.id);
+                    return (
+                      <label
+                        key={doc.id}
+                        className="flex items-center gap-2 px-3 py-2 text-xs text-foreground cursor-pointer hover:bg-muted/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={savingTravel}
+                          onChange={(e) => {
+                            const nextIds = e.target.checked
+                              ? [...selectedNoteIds, doc.id]
+                              : selectedNoteIds.filter((id) => id !== doc.id);
+                            setSelectedNoteIds(nextIds);
+                            void persistTravel(isTravel, nextIds);
+                          }}
+                          className="h-4 w-4"
+                        />
+                        <span className="truncate">{doc.title}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Date */}
         <div className="mt-4 pt-3 border-t border-border">

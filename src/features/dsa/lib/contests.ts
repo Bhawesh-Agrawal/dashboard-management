@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
-import { dsaDateStr, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaDateStr, dsaToday } from "./time";
 import type { DsaContestPlatformValue } from "./schemas";
 
 export interface DsaContestItem {
@@ -18,10 +19,11 @@ export interface DsaContestItem {
 
 export async function getDsaContestsPageData(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<{ todayStr: string; contests: DsaContestItem[] }> {
   const userId = explicitUserId ?? (await requireDsaUserId());
-  const todayStr = dsaToday(getNow(), tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(getNow(), resolvedTz);
 
   const rows = await prisma.dsaContest.findMany({
     where: { userId },

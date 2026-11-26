@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { UnauthorizedError } from "@/lib/auth";
 import { requireDsaUserId } from "./ownership";
-import { dsaDateStr, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaDateStr, dsaToday } from "./time";
 import type { ProblemListItem } from "./problem-filters";
 import type {
   DsaClassificationValue,
@@ -19,10 +20,11 @@ export { filterDsaProblems } from "./problem-filters";
 
 export async function getDsaProblemsPageData(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ) {
   const userId = explicitUserId ?? (await requireDsaUserId());
-  const todayStr = dsaToday(getNow(), tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(getNow(), resolvedTz);
 
   const [settings, topics, rawProblems] = await Promise.all([
     prisma.dsaSettings.findUnique({

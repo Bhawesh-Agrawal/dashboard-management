@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
-import { addDaysToDateStr, dsaParseDate, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { addDaysToDateStr, dsaParseDate, dsaToday } from "./time";
 import {
   computeTopicsOverview,
   type TopicClassificationCounts,
@@ -22,10 +23,11 @@ export type {
 
 export async function getDsaTopicsOverview(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<TopicsOverviewResult> {
   const userId = explicitUserId ?? (await requireDsaUserId());
-  const todayStr = dsaToday(getNow(), tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(getNow(), resolvedTz);
   const fourteenDaysAgo = dsaParseDate(addDaysToDateStr(todayStr, -14));
 
   const [settings, topics, problems, recentFailedAttempts] = await Promise.all([

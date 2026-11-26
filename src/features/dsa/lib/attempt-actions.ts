@@ -14,7 +14,8 @@ import {
   DsaUpdateAttemptSchema,
 } from "./schemas";
 import { recomputeProblemState } from "./revision";
-import { dsaParseDate, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaParseDate, dsaToday } from "./time";
 
 const DeleteAttemptSchema = z.object({
   attemptId: z.string().uuid(),
@@ -54,11 +55,12 @@ export async function createDsaAttempt(
   const problem = await assertDsaProblemOwner(userId, validated.problemId);
 
   const now = getNow();
-  const attemptDateStr = validated.attemptDate ?? dsaToday(now, DSA_DEFAULT_TIMEZONE);
+  const tz = await getUserTimezone();
+  const attemptDateStr = validated.attemptDate ?? dsaToday(now, tz);
   const attemptDateObj = dsaParseDate(attemptDateStr);
 
   // Align attemptedAt with attemptDate if backdated so chronological replay respects backdated dates
-  const todayStr = dsaToday(now, DSA_DEFAULT_TIMEZONE);
+  const todayStr = dsaToday(now, tz);
   const attemptedAt =
     attemptDateStr === todayStr
       ? now

@@ -43,6 +43,7 @@ interface AttemptLogSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: string;
+  timezone?: string;
   onSaved?: () => void;
 }
 
@@ -55,9 +56,10 @@ function makeRequestId(): string {
   return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function defaultTodayFallback(): string {
+function defaultTodayFallback(timezone?: string): string {
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -69,6 +71,7 @@ export function AttemptLogSheet({
   open,
   onOpenChange,
   defaultDate,
+  timezone,
   onSaved,
 }: AttemptLogSheetProps) {
   const formKey = target
@@ -85,7 +88,7 @@ export function AttemptLogSheet({
           <AttemptLogSheetBody
             key={formKey}
             target={target}
-            defaultDate={defaultDate ?? defaultTodayFallback()}
+            defaultDate={defaultDate ?? defaultTodayFallback(timezone)}
             onClose={() => onOpenChange(false)}
             onSaved={onSaved}
           />

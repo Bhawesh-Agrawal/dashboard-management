@@ -2,15 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { normalizeReportDates, type TutorReportSourceInput } from "./report";
-import { dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaToday } from "./time";
 
 export async function getDsaReportSourceData(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<TutorReportSourceInput> {
   const userId = explicitUserId ?? (await requireDsaUserId());
+  const resolvedTz = tz ?? (await getUserTimezone());
   const now = getNow();
-  const todayStr = dsaToday(now, tz);
+  const todayStr = dsaToday(now, resolvedTz);
 
   const [settings, topics, problems, sessions, contests] = await Promise.all([
     prisma.dsaSettings.findUnique({ where: { userId } }),
@@ -49,7 +51,7 @@ export async function getDsaReportSourceData(
   return normalizeReportDates({
     now,
     todayStr,
-    timezone: tz,
+    timezone: resolvedTz,
     settings,
     topics,
     problems,

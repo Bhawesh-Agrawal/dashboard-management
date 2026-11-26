@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { buildRevisionQueue } from "./revision";
-import { dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaToday } from "./time";
 import type { DsaClassificationValue, DsaDifficultyValue } from "./schemas";
 
 export interface DsaDueSummary {
@@ -62,9 +63,10 @@ export function computeDsaDueSummary(input: {
 export async function getDsaDueSummary(
   userId: string,
   now: Date = getNow(),
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<DsaDueSummary> {
-  const todayStr = dsaToday(now, tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(now, resolvedTz);
 
   const [settings, problems] = await Promise.all([
     prisma.dsaSettings.findUnique({

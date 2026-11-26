@@ -312,4 +312,10 @@ describe("DSA Revision Engine (pure)", () => {
     // 2026-11-25 18:15 UTC is 00:00 NPT on Nov 26
     expect(dsaToday(new Date("2026-11-25T18:15:00.000Z"))).toBe("2026-11-26");
   });
+
+  it("computes different local dates for two different user timezones at the same UTC instant", () => {
+    const instant = new Date("2026-11-25T20:00:00.000Z");
+    expect(dsaToday(instant, "Asia/Kathmandu")).toBe("2026-11-26"); // 01:45 NPT Nov 26
+    expect(dsaToday(instant, "America/New_York")).toBe("2026-11-25"); // 15:00 EST Nov 25
+  });
 });

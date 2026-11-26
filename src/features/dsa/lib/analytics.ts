@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
+import { getUserTimezone } from "@/lib/timezone-server";
 import {
   addDaysToDateStr,
   dsaDateStr,
   dsaToday,
   getWeekStartMonday,
-  DSA_DEFAULT_TIMEZONE,
 } from "./time";
 import type { DsaClassificationValue } from "./schemas";
 
@@ -80,10 +80,11 @@ export function computeWeeklyTopicTrend(input: {
 
 export async function getDsaWeeklyTopicTrend(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<WeeklyTopicTrendData> {
   const userId = explicitUserId ?? (await requireDsaUserId());
-  const todayStr = dsaToday(getNow(), tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(getNow(), resolvedTz);
   const currentWeekStart = getWeekStartMonday(todayStr);
   const windowStartStr = addDaysToDateStr(currentWeekStart, -7 * 5);
 

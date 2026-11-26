@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { assertDsaTopicOwner, requireDsaUserId } from "./ownership";
 import { DsaTopicStatusSchema } from "./schemas";
-import { dsaParseDate, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaParseDate, dsaToday } from "./time";
 
 const UpdateTopicStatusSchema = z.object({
   topicId: z.string().uuid(),
@@ -49,7 +50,8 @@ export async function setDsaCurrentTopic(
   const userId = await requireDsaUserId();
   await assertDsaTopicOwner(userId, validated.topicId);
 
-  const todayDate = dsaParseDate(dsaToday(getNow(), DSA_DEFAULT_TIMEZONE));
+  const tz = await getUserTimezone();
+  const todayDate = dsaParseDate(dsaToday(getNow(), tz));
 
   await prisma.dsaSettings.upsert({
     where: { userId },

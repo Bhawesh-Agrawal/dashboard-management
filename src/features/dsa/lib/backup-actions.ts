@@ -10,7 +10,8 @@ import {
   validateBackupPayload,
   type DsaBackupPayload,
 } from "./backup-schema";
-import { dsaDateStr, dsaParseDate, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaDateStr, dsaParseDate, dsaToday } from "./time";
 import type { DsaPhase } from "./schemas";
 
 function revalidateAllDsaPaths() {
@@ -35,7 +36,8 @@ export async function exportDsaBackup(): Promise<{
 }> {
   const userId = await requireDsaUserId();
   const now = getNow();
-  const todayDate = dsaParseDate(dsaToday(now, DSA_DEFAULT_TIMEZONE));
+  const tz = await getUserTimezone();
+  const todayDate = dsaParseDate(dsaToday(now, tz));
 
   const [settingsRow, topics, problems, attempts, sessions, contests] = await Promise.all([
     prisma.dsaSettings.upsert({

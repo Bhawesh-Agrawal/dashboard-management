@@ -7,7 +7,8 @@ import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { parseQuestionBankInput } from "./import-parser";
 import { computeImportDiff, type ImportDryRunPreview } from "./import-diff";
-import { dsaParseDate, dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaParseDate, dsaToday } from "./time";
 
 const ImportPayloadSchema = z.object({
   content: z.string().min(1, "Import content is required").max(2_000_000),
@@ -279,7 +280,7 @@ export async function confirmDsaImport(
         await tx.dsaSettings.create({
           data: {
             userId,
-            programmeStartDate: dsaParseDate(dsaToday(getNow(), DSA_DEFAULT_TIMEZONE)),
+            programmeStartDate: dsaParseDate(dsaToday(getNow(), await getUserTimezone())),
             programmeLengthDays: 90,
             phases: [],
             currentTopicId: firstTopicId,

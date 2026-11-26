@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "@/features/dsa/lib/ownership";
-import { dsaDateStr, dsaToday, DSA_DEFAULT_TIMEZONE } from "@/features/dsa/lib/time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaDateStr, dsaToday } from "@/features/dsa/lib/time";
 import { DsaShell } from "@/features/dsa/components/dsa-shell";
 import { DsaProgrammeSettingsCard } from "@/features/dsa/components/dsa-programme-settings-card";
 import { DsaImportCard } from "@/features/dsa/components/dsa-import-card";
@@ -12,8 +13,11 @@ export const revalidate = 0;
 
 export default async function DsaSettingsPage() {
   const userId = await requireDsaUserId();
-  const settings = await prisma.dsaSettings.findUnique({ where: { userId } });
-  const todayStr = dsaToday(getNow(), DSA_DEFAULT_TIMEZONE);
+  const [settings, tz] = await Promise.all([
+    prisma.dsaSettings.findUnique({ where: { userId } }),
+    getUserTimezone(),
+  ]);
+  const todayStr = dsaToday(getNow(), tz);
 
   const phases = Array.isArray(settings?.phases)
     ? (settings.phases as unknown as DsaPhase[])

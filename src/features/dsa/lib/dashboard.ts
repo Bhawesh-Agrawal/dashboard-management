@@ -3,13 +3,13 @@ import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { computeFailureCount, getEffectiveRevisionDate } from "./revision";
 import { resolveCurrentPhase } from "./metrics-pure";
+import { getUserTimezone } from "@/lib/timezone-server";
 import {
   addDaysToDateStr,
   diffCalendarDays,
   dsaDateStr,
   dsaToday,
   getWeekStartMonday,
-  DSA_DEFAULT_TIMEZONE,
 } from "./time";
 
 export { resolveCurrentPhase };
@@ -358,11 +358,12 @@ export function computeDsaDashboard(input: DashboardInput): DsaDashboardData {
 
 export async function getDsaDashboardData(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<DsaDashboardData> {
   const userId = explicitUserId ?? (await requireDsaUserId());
+  const resolvedTz = tz ?? (await getUserTimezone());
   const now = getNow();
-  const todayStr = dsaToday(now, tz);
+  const todayStr = dsaToday(now, resolvedTz);
 
   const [settingsRow, topics, problems, sessions, recentAttempts] = await Promise.all([
     prisma.dsaSettings.findUnique({ where: { userId } }),

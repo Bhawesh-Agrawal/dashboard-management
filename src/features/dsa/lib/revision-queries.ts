@@ -2,14 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { requireDsaUserId } from "./ownership";
 import { buildRevisionQueue, type RevisionQueueSections } from "./revision";
-import { dsaToday, DSA_DEFAULT_TIMEZONE } from "./time";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { dsaToday } from "./time";
 
 export async function getDsaRevisionQueue(
   explicitUserId?: string,
-  tz: string = DSA_DEFAULT_TIMEZONE
+  tz?: string
 ): Promise<{ todayStr: string; queue: RevisionQueueSections }> {
   const userId = explicitUserId ?? (await requireDsaUserId());
-  const todayStr = dsaToday(getNow(), tz);
+  const resolvedTz = tz ?? (await getUserTimezone());
+  const todayStr = dsaToday(getNow(), resolvedTz);
 
   const problems = await prisma.dsaProblem.findMany({
     where: { userId, archived: false },

@@ -70,3 +70,24 @@ gcloud run services update-traffic dashboard-management --region=asia-south1 --t
 6. **Billing budget created:**
    - `gcloud services enable billingbudgets.googleapis.com`
    - `gcloud billing budgets create --billing-account=012778-5CB487-6DAC45 --display-name="dashboard-management-prod monthly cap" --budget-amount=300INR --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --filter-projects="projects/dashboard-management-prod"` -> Created `a194c76c-287b-423f-ae27-069b6da80e60`.
+
+---
+
+## Part E & F: Live Deploy, Traffic Shift, Scheduler & Verification
+
+- **Tagged No-Traffic Build:** `gcloud builds submit --config=cloudbuild.yaml --substitutions="^@^_DEPLOY_FLAGS=--no-traffic --tag=staging@_UPDATE_SCHEDULER=false" .`
+  - Build ID: `5638e180-84ea-4178-bd9e-0a75207780c6` (`SUCCESS`, `7m17s`)
+  - Deployed Revision: `dashboard-management-00019-qud` (`https://staging---dashboard-management-2g4ikz4qyq-el.a.run.app`)
+- **Traffic Shift (100%):**
+  - `gcloud run services update-traffic dashboard-management --region=asia-south1 --to-revisions=dashboard-management-00019-qud=100`
+  - Main URL: `https://dashboard-management-2g4ikz4qyq-el.a.run.app`
+- **Cloud Scheduler Jobs (2 active, <= 3 limit):**
+  - `notifications` updated in place (`*/5 6-23 * * *`, `Asia/Kathmandu`, OIDC `scheduler-invoker@dashboard-management-prod.iam.gserviceaccount.com`, audience `dashboard-management-cron`) -> verified **HTTP 200** in Cloud Run logs (`2026-11-26T11:46:11Z`).
+  - `daily-maintenance` created (`0 2 * * *`, `Asia/Kathmandu`, `GET`, OIDC `scheduler-invoker@dashboard-management-prod.iam.gserviceaccount.com`, audience `dashboard-management-cron`).
+  - Old `daily-diagnostics` deleted after `notifications` returned 200.
+- **Artifact Registry Cleanup Policy (Dry-Run):**
+  - `gcloud artifacts repositories set-cleanup-policies dashboard-management --location=asia-south1 --policy=infra/artifact-registry-cleanup.json --dry-run`
+  - Keeps 3 most recent digests (including `00019-qud` `sha256:ed912e25...` and `00017-s5m` `sha256:847c166c...`); would delete 17 older digests from `2026-08-08` to `2026-08-13`. Pending owner approval to disable dry-run.
+- **Artifact Registry Cleanup Policy (Applied):**
+  - `gcloud artifacts repositories set-cleanup-policies dashboard-management --location=asia-south1 --policy=infra/artifact-registry-cleanup.json --no-dry-run`
+  - Dry-run disabled; `keep-last-3-versions` active on `dashboard-management` (`asia-south1`).

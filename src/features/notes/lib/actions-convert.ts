@@ -1,13 +1,16 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
 
 export async function convertDocxToMarkdown(noteId: string): Promise<{ ok: boolean; error?: string }> {
+  const userId = await getCurrentUserId();
   try {
-    const note = await prisma.note.findUnique({
-      where: { id: noteId },
+    const note = await prisma.note.findFirst({
+      where: { id: noteId, ...ownerWhere(userId) },
     });
 
     if (!note) {

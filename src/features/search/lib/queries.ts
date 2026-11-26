@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export type SearchResult = {
   id: string;
@@ -28,7 +29,10 @@ export const globalSearch = cache(
     // Search Notes
     const notes = await prisma.note.findMany({
       where: {
-        content: { contains: searchTerm, mode: "insensitive" },
+        AND: [
+          ownerWhere(userId),
+          { content: { contains: searchTerm, mode: "insensitive" } },
+        ],
       },
       take: 10,
       include: {
@@ -86,9 +90,14 @@ export const globalSearch = cache(
     // Search Courses
     const courses = await prisma.course.findMany({
       where: {
-        OR: [
-          { name: { contains: searchTerm, mode: "insensitive" } },
-          { code: { contains: searchTerm, mode: "insensitive" } },
+        AND: [
+          { semester: ownerWhere(userId) },
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: "insensitive" } },
+              { code: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
         ],
       },
       take: 10,
@@ -109,9 +118,14 @@ export const globalSearch = cache(
     // Search Projects
     const projects = await prisma.project.findMany({
       where: {
-        OR: [
-          { name: { contains: searchTerm, mode: "insensitive" } },
-          { description: { contains: searchTerm, mode: "insensitive" } },
+        AND: [
+          { domain: ownerWhere(userId) },
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: "insensitive" } },
+              { description: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
         ],
       },
       take: 10,

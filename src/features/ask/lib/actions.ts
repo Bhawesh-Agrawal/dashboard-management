@@ -1,5 +1,6 @@
 "use server";
 
+import { getCurrentUserId } from "@/lib/auth";
 import { askAI, type AIResult } from "@/lib/ai/openrouter";
 import {
   searchEntitiesForContext,
@@ -24,6 +25,7 @@ Use the context data to provide specific, actionable answers.`;
 export async function askQuestion(
   question: string
 ): Promise<AIResult<AskResponse>> {
+  await getCurrentUserId();
   // Search for relevant entities based on the question
   const graph = await searchEntitiesForContext(question);
 

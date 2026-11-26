@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { GraphNode, GraphEdge, GraphResult, GraphNodeType } from "@/types";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 /**
  * Knowledge Graph traversal function.
@@ -87,29 +88,29 @@ async function fetchEntity(
 ): Promise<Record<string, unknown> | null> {
   switch (type) {
     case "semester":
-      return prisma.semester.findUnique({ where: { id } });
+      return prisma.semester.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "course":
-      return prisma.course.findUnique({ where: { id } });
+      return prisma.course.findUnique({ where: { id, semester: ownerWhere(userId) } });
     case "task":
-      return prisma.task.findUnique({ where: { id, OR: [{ userId }, { userId: null }] } });
+      return prisma.task.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "note":
-      return prisma.note.findUnique({ where: { id } });
+      return prisma.note.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "assessment":
-      return prisma.assessment.findUnique({ where: { id } });
+      return prisma.assessment.findUnique({ where: { id, course: { semester: ownerWhere(userId) } } });
     case "routine":
-      return prisma.routine.findUnique({ where: { id } });
+      return prisma.routine.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "event":
-      return prisma.event.findUnique({ where: { id } });
+      return prisma.event.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "classSchedule":
-      return prisma.classSchedule.findUnique({ where: { id } });
+      return prisma.classSchedule.findUnique({ where: { id, course: { semester: ownerWhere(userId) } } });
     case "attendanceRecord":
-      return prisma.attendanceRecord.findUnique({ where: { id } });
+      return prisma.attendanceRecord.findUnique({ where: { id, course: { semester: ownerWhere(userId) } } });
     case "domain":
-      return prisma.domain.findUnique({ where: { id } });
+      return prisma.domain.findUnique({ where: { id, ...ownerWhere(userId) } });
     case "project":
-      return prisma.project.findUnique({ where: { id } });
+      return prisma.project.findUnique({ where: { id, domain: ownerWhere(userId) } });
     case "milestone":
-      return prisma.milestone.findUnique({ where: { id } });
+      return prisma.milestone.findUnique({ where: { id, project: { domain: ownerWhere(userId) } } });
     default:
       return null;
   }
@@ -376,9 +377,14 @@ export async function searchEntitiesForContext(
   // Search courses by name or code
   const courses = await prisma.course.findMany({
     where: {
-      OR: [
-        { name: { contains: query, mode: "insensitive" } },
-        { code: { contains: query, mode: "insensitive" } },
+      AND: [
+        { semester: ownerWhere(userId) },
+        {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { code: { contains: query, mode: "insensitive" } },
+          ],
+        },
       ],
     },
     take: 3,
@@ -416,7 +422,12 @@ export async function searchEntitiesForContext(
 
   // Search notes by content
   const notes = await prisma.note.findMany({
-    where: { content: { contains: query, mode: "insensitive" } },
+    where: {
+      AND: [
+        ownerWhere(userId),
+        { content: { contains: query, mode: "insensitive" } },
+      ],
+    },
     take: 5,
   });
 
@@ -431,7 +442,12 @@ export async function searchEntitiesForContext(
 
   // Search routines by name
   const routines = await prisma.routine.findMany({
-    where: { name: { contains: query, mode: "insensitive" } },
+    where: {
+      AND: [
+        ownerWhere(userId),
+        { name: { contains: query, mode: "insensitive" } },
+      ],
+    },
     take: 3,
   });
 
@@ -443,7 +459,12 @@ export async function searchEntitiesForContext(
 
   // Search projects by name
   const projects = await prisma.project.findMany({
-    where: { name: { contains: query, mode: "insensitive" } },
+    where: {
+      AND: [
+        { domain: ownerWhere(userId) },
+        { name: { contains: query, mode: "insensitive" } },
+      ],
+    },
     take: 3,
   });
 
@@ -484,7 +505,10 @@ export async function searchEntitiesForContext(
   const dayOfWeek = getDayOfWeekEnum(new Date().getDay());
   const todayRoutines = await prisma.routine.findMany({
     where: {
-      activeDays: { has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN" },
+      AND: [
+        ownerWhere(userId),
+        { activeDays: { has: dayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN" } },
+      ],
     },
     take: 10,
   });

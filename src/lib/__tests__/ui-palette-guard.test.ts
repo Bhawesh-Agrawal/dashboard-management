@@ -20,10 +20,14 @@ function collectSourceFiles(dir: string): string[] {
 }
 
 describe("UI palette guard", () => {
-  it("forbids hardcoded Tailwind palette color classes in attendance and dsa features", () => {
+  it("forbids hardcoded Tailwind palette color classes in guarded UI features", () => {
     const roots = [
       path.resolve(process.cwd(), "src/features/attendance"),
       path.resolve(process.cwd(), "src/features/dsa"),
+      path.resolve(process.cwd(), "src/features/briefs"),
+      path.resolve(process.cwd(), "src/features/notifications/components"),
+      path.resolve(process.cwd(), "src/features/calendar/components"),
+      path.resolve(process.cwd(), "src/features/settings/components"),
     ];
 
     const violations: string[] = [];

@@ -71,7 +71,7 @@ export function GoogleCalendarSettings() {
           {connected !== null && (
             <span
               className={`flex items-center gap-1 text-xs ${
-                connected ? "text-green-600" : "text-muted-foreground"
+                connected ? "text-primary" : "text-muted-foreground"
               }`}
             >
               {connected ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -106,7 +106,7 @@ export function GoogleCalendarSettings() {
           <div className="space-y-1">
             {syncedCalendars.map((cal) => (
               <div key={cal.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Check className="h-3 w-3 text-green-600" />
+                <Check className="h-3 w-3 text-primary" />
                 <span>{cal.summary}</span>
                 {cal.primary && <span className="text-muted-foreground/60">(primary)</span>}
               </div>

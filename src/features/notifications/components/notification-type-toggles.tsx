@@ -64,9 +64,9 @@ const NOTIFICATION_TYPES: {
 ];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; icon: typeof Shield; color: string }> = {
-  critical: { label: "Critical", icon: AlertTriangle, color: "text-orange-500" },
+  critical: { label: "Critical", icon: AlertTriangle, color: "text-destructive" },
   normal: { label: "Normal", icon: Minus, color: "text-muted-foreground" },
-  low: { label: "Low", icon: Shield, color: "text-blue-400" },
+  low: { label: "Low", icon: Shield, color: "text-primary" },
 };
 
 export function NotificationTypeToggles({

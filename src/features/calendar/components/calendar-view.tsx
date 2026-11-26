@@ -46,11 +46,11 @@ export const TIME_COL_WIDTH = 48; // px
 // ─── Event color system (matches warm editorial palette) ─────────────────────
 
 export const EVENT_STYLES: Record<string, { bg: string; text: string; dot: string; border: string }> = {
-  class:      { bg: "bg-blue-50 dark:bg-blue-950/40",   text: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   border: "border-blue-200 dark:border-blue-800" },
-  assessment: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500", border: "border-amber-200 dark:border-amber-800" },
-  task:       { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500", border: "border-emerald-200 dark:border-emerald-800" },
-  event:      { bg: "bg-violet-50 dark:bg-violet-950/40", text: "text-violet-700 dark:text-violet-300", dot: "bg-violet-500", border: "border-violet-200 dark:border-violet-800" },
-  birthday:   { bg: "bg-pink-50 dark:bg-pink-950/40",   text: "text-pink-700 dark:text-pink-300",   dot: "bg-pink-500",   border: "border-pink-200 dark:border-pink-800" },
+  class:      { bg: "bg-primary/10", text: "text-primary",          dot: "bg-primary",          border: "border-primary/30" },
+  assessment: { bg: "bg-destructive/10", text: "text-destructive",  dot: "bg-destructive",      border: "border-destructive/30" },
+  task:       { bg: "bg-muted",      text: "text-foreground",       dot: "bg-foreground",       border: "border-border" },
+  event:      { bg: "bg-accent",     text: "text-accent-foreground",dot: "bg-foreground/70",    border: "border-border" },
+  birthday:   { bg: "bg-secondary",  text: "text-secondary-foreground", dot: "bg-primary/70",   border: "border-border" },
 };
 
 export function getEventStyle(event: CalendarEvent) {
@@ -364,8 +364,8 @@ export function WeekView({
                     style={{ top: (nowMin / 60) * SLOT_HEIGHT }}
                   >
                     <div className="relative flex items-center">
-                      <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shrink-0" />
-                      <div className="flex-1 h-px bg-red-500" />
+                      <div className="w-2 h-2 rounded-full bg-destructive -ml-1 shrink-0" />
+                      <div className="flex-1 h-px bg-destructive" />
                     </div>
                   </div>
                 )}
@@ -473,12 +473,12 @@ export function MobileWeekStrip({
                   className={cn(
                     "w-1.5 h-1.5 rounded-full",
                     dayEvents.some((e) => e.type === "class")
-                      ? "bg-blue-500"
+                      ? "bg-primary"
                       : dayEvents.some((e) => e.type === "assessment")
-                        ? "bg-amber-500"
+                        ? "bg-destructive"
                         : dayEvents.some((e) => e.type === "task")
-                          ? "bg-emerald-500"
-                          : "bg-violet-500"
+                          ? "bg-foreground"
+                          : "bg-muted-foreground"
                   )}
                 />
               )}
@@ -487,12 +487,12 @@ export function MobileWeekStrip({
                   className={cn(
                     "w-1.5 h-1.5 rounded-full",
                     dayEvents[1].type === "class"
-                      ? "bg-blue-500"
+                      ? "bg-primary"
                       : dayEvents[1].type === "assessment"
-                        ? "bg-amber-500"
+                        ? "bg-destructive"
                         : dayEvents[1].type === "task"
-                          ? "bg-emerald-500"
-                          : "bg-violet-500"
+                          ? "bg-foreground"
+                          : "bg-muted-foreground"
                   )}
                 />
               )}
@@ -596,8 +596,8 @@ export function DayView({
             {isToday && (
               <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: (nowMin / 60) * SLOT_HEIGHT }}>
                 <div className="relative flex items-center">
-                  <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shrink-0" />
-                  <div className="flex-1 h-px bg-red-500" />
+                  <div className="w-2 h-2 rounded-full bg-destructive -ml-1 shrink-0" />
+                  <div className="flex-1 h-px bg-destructive" />
                 </div>
               </div>
             )}

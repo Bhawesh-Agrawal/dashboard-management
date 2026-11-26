@@ -79,7 +79,7 @@ export function WidgetAccessSettings() {
             {status !== null && (
               <span
                 className={`flex items-center gap-1 text-xs ${
-                  status.exists ? "text-green-600" : "text-muted-foreground"
+                  status.exists ? "text-primary" : "text-muted-foreground"
                 }`}
               >
                 {status.exists ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -108,20 +108,20 @@ export function WidgetAccessSettings() {
 
         {/* One-time token display */}
         {generatedToken && (
-          <div className="p-4 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+          <div className="p-4 rounded-md border border-border bg-muted/40">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-foreground mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                <p className="text-sm font-medium text-foreground mb-1">
                   Copy this token now — you won&apos;t see it again
                 </p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-white dark:bg-amber-900/40 p-2 rounded border border-amber-200 dark:border-amber-700 break-all font-mono">
+                  <code className="flex-1 text-xs bg-background p-2 rounded border border-border break-all font-mono">
                     {generatedToken}
                   </code>
                   <button
                     onClick={handleCopyToken}
-                    className="h-8 px-3 rounded border border-amber-300 dark:border-amber-600 text-xs hover:bg-amber-100 dark:hover:bg-amber-800 transition-colors inline-flex items-center gap-1 shrink-0"
+                    className="h-8 px-3 rounded border border-border text-xs hover:bg-muted transition-colors inline-flex items-center gap-1 shrink-0"
                   >
                     <Copy className="h-3 w-3" />
                     Copy
@@ -129,7 +129,7 @@ export function WidgetAccessSettings() {
                 </div>
                 <button
                   onClick={handleDismissToken}
-                  className="mt-2 text-xs text-amber-700 dark:text-amber-300 hover:underline"
+                  className="mt-2 text-xs text-muted-foreground hover:text-foreground hover:underline"
                 >
                   Dismiss
                 </button>

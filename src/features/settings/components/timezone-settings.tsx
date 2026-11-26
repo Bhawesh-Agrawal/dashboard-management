@@ -144,7 +144,7 @@ export function TimezoneSettings({ initialTimezone }: TimezoneSettingsProps) {
               <Loader2 className="h-3 w-3 animate-spin" /> Saving...
             </span>
           ) : saved ? (
-            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+            <span className="flex items-center gap-1 text-primary font-medium">
               <Check className="h-3 w-3" /> Saved
             </span>
           ) : null}

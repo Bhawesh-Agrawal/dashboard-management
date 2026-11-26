@@ -47,7 +47,7 @@ export function AIProviderSettings() {
             {status && (
               <span
                 className={`flex items-center gap-1 text-xs ${
-                  status.available ? "text-green-600" : "text-destructive"
+                  status.available ? "text-primary" : "text-destructive"
                 }`}
               >
                 {status.available ? (

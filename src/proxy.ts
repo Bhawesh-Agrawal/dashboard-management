@@ -6,8 +6,9 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Bypasses / exclusions: cron, notification trigger, widget API, service worker, manifest, icons, offline
+  // Bypasses / exclusions: health, cron, notification trigger, widget API, service worker, manifest, icons, offline
   if (
+    pathname === "/api/health" ||
     pathname.startsWith("/api/cron") ||
     pathname === "/api/notifications/trigger" ||
     pathname.startsWith("/api/widget") ||
@@ -114,10 +115,11 @@ export const config = {
      * - manifest.json / manifest.webmanifest
      * - icons/*
      * - offline.html / offline
+     * - /api/health
      * - /api/cron/*
      * - /api/notifications/trigger
      * - /api/widget/*
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|manifest|icons|offline|api/cron|api/notifications/trigger|api/widget|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|manifest|icons|offline|api/health|api/cron|api/notifications/trigger|api/widget|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

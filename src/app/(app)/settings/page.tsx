@@ -7,7 +7,6 @@ import { GoogleCalendarSettings } from "@/features/settings/components/google-ca
 import { WidgetAccessSettings } from "@/features/settings/components/widget-access-settings";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { NotificationTypeToggles } from "@/features/notifications/components/notification-type-toggles";
-import { DailySummarySettings } from "@/features/notifications/components/daily-summary-settings";
 import { NotificationWeeklyStats } from "@/features/notifications/components/notification-weekly-stats";
 import { ThemeCustomizer } from "@/features/settings/components/theme-customizer";
 import { TimezoneSettings } from "@/features/settings/components/timezone-settings";
@@ -17,7 +16,6 @@ export const revalidate = 0;
 
 import {
   getNotificationPreferences,
-  getDailySummaryPreferences,
   getWeatherLocationAction,
   getBriefScheduleSettingsAction,
 } from "@/features/notifications/lib/actions";
@@ -27,7 +25,6 @@ import { BriefScheduleSettings } from "@/features/notifications/components/brief
 export default async function SettingsPage() {
   let courses: Awaited<ReturnType<typeof getAllCourses>> = [];
   let notificationPreferences: Awaited<ReturnType<typeof getNotificationPreferences>> = [];
-  let dailySummaryPrefs: Awaited<ReturnType<typeof getDailySummaryPreferences>> = null;
   let dashboardLayout: Awaited<ReturnType<typeof getDashboardLayout>> = {
     widgetOrder: [],
     hiddenWidgets: [],
@@ -55,10 +52,9 @@ export default async function SettingsPage() {
   };
 
   try {
-    [courses, notificationPreferences, dailySummaryPrefs, dashboardLayout, userTimezone, weatherLocation, briefSchedule] = await Promise.all([
+    [courses, notificationPreferences, dashboardLayout, userTimezone, weatherLocation, briefSchedule] = await Promise.all([
       getAllCourses().catch(() => []),
       getNotificationPreferences().catch(() => []),
-      getDailySummaryPreferences().catch(() => null),
       getDashboardLayout().catch(() => ({
         widgetOrder: [],
         hiddenWidgets: [],
@@ -124,13 +120,6 @@ export default async function SettingsPage() {
               key={JSON.stringify(notificationPreferences)}
               initialPreferences={notificationPreferences}
             />
-            {dailySummaryPrefs && (
-              <DailySummarySettings
-                initialTime={dailySummaryPrefs.time}
-                initialSections={dailySummaryPrefs.sections}
-                initialTimezone={dailySummaryPrefs.timezone}
-              />
-            )}
             <BriefScheduleSettings initial={briefSchedule} />
             <LocationSettings
               initialName={weatherLocation.name}

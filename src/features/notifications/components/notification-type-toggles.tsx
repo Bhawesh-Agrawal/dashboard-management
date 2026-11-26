@@ -204,7 +204,7 @@ export function NotificationTypeToggles({
           Reset to recommended
         </button>
         <p className="text-xs text-muted-foreground">
-          Turns on daily_summary, overdue_task, class_start, review_weekly
+          Enables the 6 core notification types (class, attendance, task, event, briefs)
         </p>
       </div>
     </div>

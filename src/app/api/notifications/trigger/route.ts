@@ -61,10 +61,30 @@ export async function GET(request: Request) {
   const force = url.searchParams.get("force") === "true";
 
   const executeHandler = async () => {
+    const startedAt = Date.now();
     try {
       const result = only
         ? await runNotificationScheduler(force, { only: only as NotificationType })
         : await runNotificationScheduler(force);
+      const durationMs = Date.now() - startedAt;
+      console.log(
+        JSON.stringify({
+          event: "notifications_trigger",
+          ok: true,
+          only: only ?? "all",
+          durationMs,
+          counts: {
+            sent: result.sent,
+            deliveredPushes: result.deliveredPushes,
+            skippedDedup: result.skippedDedup,
+            skippedDisabled: result.skippedDisabled,
+            skippedQuietHours: result.skippedQuietHours,
+            skippedNoSubscription: result.skippedNoSubscription,
+            removedSubscriptions: result.removedSubscriptions,
+          },
+          errorCount: result.failed,
+        })
+      );
       return NextResponse.json({
         ok: true,
         timestamp: getNow().toISOString(),
@@ -72,6 +92,17 @@ export async function GET(request: Request) {
         result,
       });
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      console.log(
+        JSON.stringify({
+          event: "notifications_trigger",
+          ok: false,
+          only: only ?? "all",
+          durationMs,
+          counts: {},
+          errorCount: 1,
+        })
+      );
       console.error("Notification scheduler error:", error);
       return NextResponse.json(
         { ok: false, error: error instanceof Error ? error.message : "Unknown error" },

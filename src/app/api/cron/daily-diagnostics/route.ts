@@ -32,8 +32,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   const now = getNow();
   const results: Record<string, unknown> = {};
+  let errorCount = 0;
+  const reviewCounts: Record<string, number> = {};
+  let deletedSentNotifications = 0;
 
   // 1. Review generation (Weekly on Sunday, Monthly on last day of month, Quarterly on quarter end)
   const reviewTypes: ReviewType[] = [];
@@ -61,6 +65,7 @@ export async function GET(request: Request) {
       for (const userId of userIds) {
         for (const type of reviewTypes) {
           const review = await generateReview(userId, type, now);
+          reviewCounts[review.type] = (reviewCounts[review.type] ?? 0) + 1;
           generated.push({
             userId,
             reviewId: review.id,
@@ -78,6 +83,7 @@ export async function GET(request: Request) {
         reviews: generated,
       };
     } catch (err) {
+      errorCount += 1;
       console.error("[DailyDiagnostics] Review generation failed:", err);
       results["reviews"] = {
         error: err instanceof Error ? err.message : "Unknown error",
@@ -97,17 +103,32 @@ export async function GET(request: Request) {
     const cleaned = await prisma.sentNotification.deleteMany({
       where: { sentAt: { lt: cutoff } },
     });
+    deletedSentNotifications = cleaned.count;
     results["cleanup"] = {
       ok: true,
       deletedSentNotifications: cleaned.count,
       cutoff: cutoff.toISOString(),
     };
   } catch (err) {
+    errorCount += 1;
     console.error("[DailyDiagnostics] Notification cleanup failed:", err);
     results["cleanup"] = {
       error: err instanceof Error ? err.message : "Unknown error",
     };
   }
+
+  console.log(
+    JSON.stringify({
+      event: "daily_diagnostics",
+      ok: errorCount === 0,
+      durationMs: Date.now() - startedAt,
+      counts: {
+        reviews: reviewCounts,
+        deletedSentNotifications,
+      },
+      errorCount,
+    })
+  );
 
   return NextResponse.json({
     ok: true,

@@ -84,3 +84,16 @@ Generated from the codebase prior to Phase 4 refactoring. Every finding cites ex
 | Disabled type never sends | `src/features/notifications/lib/__tests__/engine-clock.test.ts` | `fires each of the 6 types once and never twice across 12 consecutive 5-minute ticks, and skips disabled types` |
 | Semester gap day produces briefs without class sections | `src/features/briefs/lib/__tests__/build.test.ts` | `skips empty sections and omits classes when semester is ended` |
 | Concurrent dispatch dedup race, all-fail claim release, partial-success claim keep | `src/features/notifications/lib/__tests__/engine.test.ts` | `handles two concurrent dispatches...`, `releases the claim when every subscription send fails...`, `keeps the claim on partial success...` |
+
+## 6. Task & Calendar Event Trigger Specification
+
+### `task_due`
+- **Eligible tasks:** `Task` rows where `userId = <user>`, `status = "open"`, and `dueDate IS NOT NULL`.
+- **Explicit time required:** `dueDate` in the user's configured timezone (`getLocalTimeParts(dueDate, tz)`) must have a non-midnight time (`hour !== 0 || minute !== 0`). Date-only tasks (stored at local `00:00`) never trigger `task_due` pushes; they appear in the Morning Brief instead.
+- **Lead time:** Fires on the local due date when `0 <= dueLocal.totalMinutes - local.totalMinutes <= 15` (15-minute window before due time).
+- **Dedup key:** `task_due:${task.id}:${YYYY-MM-DD}`.
+
+### `calendar_event`
+- **Eligible events:** `Event` rows where `userId = <user>` and `dateTime` falls on `todayDateOnly` in the user's timezone.
+- **Lead time:** Configurable via `NotificationPreference(type="calendar_event").reminderMinutes` (default **15 minutes**). Fires when `0 <= eventLocal.totalMinutes - local.totalMinutes <= minutesBefore`.
+- **Dedup key:** `calendar_event:${event.id}:${YYYY-MM-DD}`.

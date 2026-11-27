@@ -29,7 +29,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import { MobileCalendarView } from "./mobile-calendar-view";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { groupDayEvents } from "@/features/calendar/lib/calendar-selection";
 import { EventCreationDialog } from "./event-creation-dialog";
 import {
   getDocumentLibraryChoicesAction,
@@ -1228,6 +1229,7 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [showEventCreation, setShowEventCreation] = useState(false);
+  const [monthSheetOpen, setMonthSheetOpen] = useState(false);
   const [academicEntries, setAcademicEntries] = useState<AcademicCalendarEntryItem[]>([]);
   const [academicOffline, setAcademicOffline] = useState(false);
   const [showAcademic, setShowAcademic] = useState<boolean>(() => {
@@ -1448,37 +1450,241 @@ export function CalendarView({
 
   if (loading) return <CalendarSkeleton />;
 
-  // Mobile layout: Samsung Calendar-style split view
+  // Mobile layout: single unified mobile-first day agenda + week strip + month sheet
   if (isMobile) {
+    const { allDay, timed } = groupDayEvents(selectedDayEvents);
+    const dayHeading = formatCalendarDayLabel(
+      FULL_DAY_NAMES[selectedDate.getDay()] ?? "",
+      selectedDayEvents
+    );
+
     return (
-      <>
-        <MobileCalendarView
-          events={events}
-          loading={loading}
-          view={view}
-          setView={setView}
+      <div
+        className="flex flex-col -mx-4 min-h-[calc(100dvh-10rem)]"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Mobile top toolbar */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background/90 sticky top-0 z-20">
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => handleSelectDate(addDays(selectedDate, -7))}
+              className="p-2 rounded-md hover:bg-accent min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              aria-label="Previous week"
+            >
+              <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthSheetOpen(true)}
+              className="px-2 py-2 rounded-md hover:bg-accent text-sm font-serif font-bold text-foreground truncate min-h-[44px] inline-flex items-center gap-1"
+            >
+              <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="truncate">
+                {MONTH_NAMES[selectedDate.getMonth()].slice(0, 3)} {selectedDate.getFullYear()}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectDate(addDays(selectedDate, 7))}
+              className="p-2 rounded-md hover:bg-accent min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              aria-label="Next week"
+            >
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={toggleAcademic}
+              aria-pressed={showAcademic}
+              className={cn(
+                "text-xs font-medium px-2.5 py-2 rounded-md border transition-colors min-h-[44px]",
+                showAcademic
+                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              )}
+              title="Show academic calendar"
+            >
+              Academic
+            </button>
+            <button
+              type="button"
+              onClick={goToToday}
+              className="text-xs font-medium px-2.5 py-2 rounded-md border border-border hover:bg-accent transition-colors min-h-[44px]"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEventCreation(true)}
+              aria-label="Add event"
+              className="p-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {academicOffline && showAcademic && (
+          <div className="px-4 py-1.5 border-b border-border bg-muted/40 text-xs text-muted-foreground">
+            Academic calendar unavailable offline
+          </div>
+        )}
+
+        {/* Week strip */}
+        <MobileWeekStrip
+          weekStart={weekStart}
+          eventsByDate={eventsByDate}
           today={today}
           selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          currentMonth={currentMonth}
-          setCurrentMonth={setCurrentMonth}
-          currentYear={currentYear}
-          setCurrentYear={setCurrentYear}
-          eventsByDate={eventsByDate}
-          selectedDayEvents={selectedDayEvents}
-          setSelectedEvent={setSelectedEvent}
-          navigatePrev={navigatePrev}
-          navigateNext={navigateNext}
-          goToToday={goToToday}
-          handleSelectDate={handleSelectDate}
-          showAcademic={showAcademic}
-          onToggleAcademic={toggleAcademic}
-          academicOffline={academicOffline}
+          onSelectDate={handleSelectDate}
         />
 
-        {/* Event detail modal */}
+        {/* Day agenda */}
+        <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+          <div className="flex items-baseline justify-between gap-2">
+            <div>
+              <p className="section-label">{dayHeading}</p>
+              <h2 className="text-lg font-semibold text-foreground">
+                {selectedDate.getDate()} {MONTH_NAMES[selectedDate.getMonth()]}
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {selectedDayEvents.length} item{selectedDayEvents.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {selectedDayEvents.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center space-y-1">
+              <p className="text-sm text-muted-foreground">No classes or events</p>
+              <p className="text-xs text-muted-foreground/70">
+                Tap + to add an event for this day.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {allDay.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[0.65rem] uppercase tracking-widest font-medium text-muted-foreground">
+                    All Day
+                  </p>
+                  {allDay.map((event) => {
+                    const style = getEventStyle(event);
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => setSelectedEvent(event)}
+                        className={cn(
+                          "w-full flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left min-h-[44px]",
+                          style.bg,
+                          style.border
+                        )}
+                      >
+                        <span className={cn("h-2 w-2 rounded-full shrink-0", style.dot)} />
+                        <span className={cn("text-sm font-medium flex-1 truncate", style.text)}>
+                          {event.title}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {timed.length > 0 && (
+                <div className="space-y-1.5">
+                  {timed.map((event) => {
+                    const style = getEventStyle(event);
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => setSelectedEvent(event)}
+                        className="w-full flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left hover:bg-accent/40 transition-colors min-h-[44px]"
+                      >
+                        <span className={cn("w-1 self-stretch rounded-full shrink-0", style.dot)} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {event.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {event.time ? formatTime(event.time) : "All Day"}
+                            {event.endTime ? ` – ${formatTime(event.endTime)}` : ""}
+                            {event.location ? ` · ${event.location}` : ""}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Month overview bottom sheet */}
+        <Sheet open={monthSheetOpen} onOpenChange={setMonthSheetOpen}>
+          <SheetContent side="bottom" className="h-[80dvh] rounded-t-2xl p-0 flex flex-col">
+            <SheetTitle className="sr-only">Month Overview</SheetTitle>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentMonth === 0) {
+                    setCurrentMonth(11);
+                    setCurrentYear((y) => y - 1);
+                  } else {
+                    setCurrentMonth((m) => m - 1);
+                  }
+                }}
+                aria-label="Previous month"
+                className="p-2 rounded-md hover:bg-accent min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="font-serif text-base font-bold text-foreground">
+                {MONTH_NAMES[currentMonth]} {currentYear}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentMonth === 11) {
+                    setCurrentMonth(0);
+                    setCurrentYear((y) => y + 1);
+                  } else {
+                    setCurrentMonth((m) => m + 1);
+                  }
+                }}
+                aria-label="Next month"
+                className="p-2 rounded-md hover:bg-accent min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <MonthView
+                year={currentYear}
+                month={currentMonth}
+                eventsByDate={eventsByDate}
+                today={today}
+                selectedDate={selectedDate}
+                onSelectDate={(d) => {
+                  handleSelectDate(d);
+                  setMonthSheetOpen(false);
+                }}
+                onSelectEvent={(e) => {
+                  setMonthSheetOpen(false);
+                  setSelectedEvent(e);
+                }}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Event detail bottom sheet */}
         {selectedEvent && (
           <EventDetailModal
             event={selectedEvent}
@@ -1492,7 +1698,7 @@ export function CalendarView({
           onOpenChange={setShowEventCreation}
           selectedDate={selectedDate}
         />
-      </>
+      </div>
     );
   }
 
@@ -1581,7 +1787,7 @@ export function CalendarView({
           Academic calendar unavailable offline
         </div>
       )}
-      <div className="flex flex-row" style={{ height: "calc(100vh - 220px)", minHeight: 480 }}>
+      <div className="flex flex-row" style={{ height: "calc(100dvh - 220px)", minHeight: 480 }}>
         {/* Main calendar panel */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border overflow-hidden">
           {view === "week" && (

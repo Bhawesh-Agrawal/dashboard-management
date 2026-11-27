@@ -265,3 +265,17 @@ A `ScheduleException` of type `cancelled` **always wins** over any recorded or u
 2. **Exclusion from Metrics**: Cancelled occurrences are strictly excluded from the attendance percentage calculation ($\frac{\text{present}}{\text{present} + \text{absent}}$). They do not increase the denominator and do not alter the student's buffer (`canMissCount`) or deficit recovery requirement (`mustAttendCount`).
 3. **Record Preservation**: If an `AttendanceRecord` exists for that occurrence (e.g. marked prior to the cancellation exception being issued), the record and its database ID are kept intact in the database, but its status is ignored in calculations and overridden to `"cancelled"` in occurrence generation.
 4. **UI Button Suppression**: On `/today` and `/courses/[id]`, the UI hides the **Present** and **Absent** buttons for any cancelled occurrence, displaying a distinct "Class is cancelled" badge to prevent accidental marking.
+
+
+---
+
+## Phase 7 Addendum: Academic Calendar Precedence (2026-11-27)
+
+`generateOccurrences` in [src/features/attendance/lib/occurrences.ts](file:///home/bhawesh/Projects/dashboard-management/src/features/attendance/lib/occurrences.ts) now accepts `calendarEntries: OccurrenceCalendarEntry[]` from `AcademicCalendarEntry` and enforces the following precedence per date (within `[semester.startDate, semester.endDate]`):
+
+1. Class-level `ScheduleException` (`cancelled`) wins for that class slot.
+2. `AcademicCalendarEntry` with `cancelsClasses = true` (`holiday`, `break`, `exam_period`, `no_classes`) cancels all occurrences that day (`status: "cancelled"`, `reason: entry.title`, excluded from attendance percentages).
+3. `AcademicCalendarEntry` with `kind = "follows_weekday"` replaces that date's occurrences with the schedules of `followsWeekday` (`1..7`), keeping their scheduled times and attaching attendance records to the replacing schedule.
+4. Normal weekly schedule (with any `rescheduled` exception overrides).
+
+Every consumer (course attendance, notification scheduler, briefs, calendar views, and `/today` dashboard) now evaluates schedules through this same engine.

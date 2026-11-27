@@ -7,14 +7,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
-  ACADEMIC_CALENDAR_KINDS,
   bulkCreateAcademicCalendarEntries,
   createAcademicCalendarEntry,
-  defaultCancelsClassesForKind,
   deleteAcademicCalendarEntry,
   updateAcademicCalendarEntry,
-  type AcademicCalendarKindValue,
 } from "../lib/calendar-actions";
+import {
+  ACADEMIC_CALENDAR_KINDS,
+  defaultCancelsClassesForKind,
+  type AcademicCalendarKindValue,
+} from "../lib/calendar-types";
 import {
   parseCalendarTextDeterministic,
   parseIcsAllDayEvents,

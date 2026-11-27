@@ -4,7 +4,7 @@ import {
   ACADEMIC_CALENDAR_KINDS,
   defaultCancelsClassesForKind,
   type AcademicCalendarKindValue,
-} from "./calendar-actions";
+} from "./calendar-types";
 
 export interface ParsedCalendarEntry {
   id: string;

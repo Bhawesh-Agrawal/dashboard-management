@@ -1545,3 +1545,35 @@ Route (app)
 
 ƒ Proxy (Middleware)
 ```
+
+---
+
+## Phase 7: Semester Setup, Academic Calendar & Timetable Entry/Import (`phase-7-semester-setup`)
+
+### Pending Database Migrations (NOT Applied — Owner Approval Required)
+
+- `prisma/migrations/20261127020000_add_academic_calendar_entry/migration.sql` — Additive only: creates `AcademicCalendarKind` enum and `academic_calendar_entries` table with foreign keys and `(user_id, semester_id, start_date)` index. **Not applied** to any database (`prisma migrate deploy` / `prisma db push` not run).
+
+### Item Status Summary
+
+| Item | Status | Commit | Key Files | What was NOT verified |
+| --- | --- | --- | --- | --- |
+| 1. Audit | DONE | `4f79759` | `docs/SEMESTER_SETUP_AUDIT.md` | — |
+| 2. Data Model | DONE | `97230d9` | `prisma/schema.prisma`, `prisma/migrations/20261127020000_add_academic_calendar_entry/migration.sql`, `src/features/semesters/lib/calendar-actions.ts`, `src/features/semesters/lib/__tests__/calendar-actions.test.ts` | Live database migration apply & query execution against Postgres |
+| 3. Occurrence Engine & Consumers | DONE | `689db1c` | `src/features/attendance/lib/occurrences.ts`, `src/features/attendance/lib/__tests__/occurrences-calendar.test.ts`, `src/features/semesters/lib/calendar-queries.ts`, `src/features/courses/lib/queries.ts`, `src/features/attendance/components/course-attendance-section.tsx`, `src/features/briefs/lib/generate.ts`, `src/features/notifications/lib/scheduler.ts`, `src/features/calendar/lib/queries.ts`, `src/app/api/sync/calendar/route.ts`, `src/features/dashboard/lib/queries.ts`, `src/app/api/sync/dashboard/route.ts` | End-to-end runtime against live Postgres |
+| 4. Academic Calendar UI & Parsers | DONE | `2090c21` | `src/features/semesters/lib/calendar-import.ts`, `src/features/semesters/lib/calendar-ai-actions.ts`, `src/features/semesters/lib/__tests__/calendar-import.test.ts`, `src/features/semesters/components/academic-calendar-manager.tsx`, `src/app/(app)/semesters/[id]/calendar/page.tsx`, `src/lib/__tests__/ui-palette-guard.test.ts`, `src/features/schedule/components/schedule-grid.tsx` | Live OpenRouter API call & manual mobile browser visual inspection |
+| 5. Semester Setup Wizard | DONE | `9f4a170` | `src/features/semesters/lib/wizard-actions.ts`, `src/features/semesters/components/semester-setup-wizard.tsx`, `src/app/(app)/semesters/setup/page.tsx` | Manual browser walkthrough across all 5 wizard steps |
+| 6. Timetable Entry | DONE | `cb042de` | `src/features/schedule/lib/timetable-utils.ts`, `src/features/schedule/lib/timetable-actions.ts`, `src/features/schedule/components/timetable-manager.tsx`, `src/app/(app)/semesters/[id]/timetable/page.tsx`, `src/app/(app)/semesters/page.tsx`, `src/app/(app)/semesters/[id]/page.tsx` | Manual browser interaction on phone viewport |
+| 7. Timetable Import | DONE | `bfc7924` | `src/features/schedule/lib/timetable-import.ts`, `src/features/schedule/lib/timetable-import-actions.ts`, `src/features/schedule/components/timetable-import-panel.tsx`, `src/features/schedule/lib/__tests__/timetable-import.test.ts`, `src/app/(app)/semesters/[id]/timetable/page.tsx` | Live OpenRouter API call & vision image extraction |
+| 8. Upcoming Semester States | DONE | `439afaa` | `src/types/index.ts`, `src/features/dashboard/lib/queries.ts`, `src/features/dashboard/components/today-dashboard.tsx`, `src/features/schedule/components/schedule-grid.tsx`, `src/features/briefs/lib/payload-v2.ts`, `src/features/briefs/lib/sections.ts`, `src/features/briefs/lib/generate.ts`, `src/features/briefs/lib/__tests__/upcoming-semester-nudges.test.ts` | Live `/today` rendering with upcoming semester DB row |
+| 9. Convert Repeated Holidays Helper | DONE | `e17af31` | `src/features/semesters/lib/exception-migration.ts`, `src/features/semesters/lib/exception-migration-actions.ts`, `src/features/semesters/components/convert-repeated-holidays-panel.tsx`, `src/features/semesters/lib/__tests__/exception-migration.test.ts`, `src/app/(app)/semesters/[id]/calendar/page.tsx` | Transaction execution against live Postgres |
+| 10. Fixture, Docs, Build & CHANGES.md | DONE | final commit | `src/features/semesters/lib/__tests__/realistic-semester-fixture.test.ts`, `src/features/semesters/lib/calendar-types.ts`, `src/features/semesters/lib/calendar-actions.ts`, `src/features/semesters/lib/calendar-import.ts`, `src/features/semesters/components/academic-calendar-manager.tsx`, `src/features/semesters/lib/__tests__/calendar-actions.test.ts`, `docs/SEMESTER_SETUP.md`, `docs/ATTENDANCE_AUDIT.md`, `CHANGES.md` | Live deployment (excluded per instructions) |
+
+### Verification Outputs (Final Code)
+
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: passed (0 errors)
+  - `npm run lint`: passed (0 errors; existing warnings only)
+  - `vitest run`: `Test Files  60 passed (60)`, `Tests  331 passed (331)`
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
+  - `next build` (Turbopack): exited `0`, compiled in `9.9s`, TypeScript finished in `34.5s`, generated 19/19 static pages, including `/semesters`, `/semesters/[id]`, `/semesters/[id]/calendar`, `/semesters/[id]/timetable`, and `/semesters/setup`.

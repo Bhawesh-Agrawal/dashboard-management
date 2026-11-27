@@ -6,26 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
 import { parseDateOnly } from "@/lib/timezone";
-
-export const ACADEMIC_CALENDAR_KINDS = [
-  "holiday",
-  "break",
-  "exam_period",
-  "no_classes",
-  "follows_weekday",
-  "note",
-] as const;
-
-export type AcademicCalendarKindValue = (typeof ACADEMIC_CALENDAR_KINDS)[number];
-
-export function defaultCancelsClassesForKind(kind: AcademicCalendarKindValue): boolean {
-  return (
-    kind === "holiday" ||
-    kind === "break" ||
-    kind === "no_classes" ||
-    kind === "exam_period"
-  );
-}
+import {
+  ACADEMIC_CALENDAR_KINDS,
+  defaultCancelsClassesForKind,
+  type AcademicCalendarKindValue,
+} from "./calendar-types";
 
 const CalendarEntryInputSchema = z
   .object({

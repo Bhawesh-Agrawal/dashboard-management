@@ -35,7 +35,6 @@ export function DsaDashboardView({
   const [topicPending, startTopicTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
-  const [pickerTopicOnly, setPickerTopicOnly] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     data.studyToday.isCustomSelected
       ? data.studyToday.nextProblems.map((p) => p.id)
@@ -45,11 +44,7 @@ export function DsaDashboardView({
 
   const filteredAvailableProblems = useMemo(() => {
     const q = pickerSearch.trim().toLowerCase();
-    const activeTopicId = data.studyToday.currentTopic?.id;
     return data.studyToday.availableProblems.filter((p) => {
-      if (pickerTopicOnly && activeTopicId && p.topicId !== activeTopicId) {
-        return false;
-      }
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
@@ -57,12 +52,7 @@ export function DsaDashboardView({
         p.topicName.toLowerCase().includes(q)
       );
     });
-  }, [
-    data.studyToday.availableProblems,
-    data.studyToday.currentTopic?.id,
-    pickerSearch,
-    pickerTopicOnly,
-  ]);
+  }, [data.studyToday.availableProblems, pickerSearch]);
 
   function openPicker() {
     setSelectedIds(
@@ -623,29 +613,18 @@ export function DsaDashboardView({
           </DialogHeader>
 
           <div className="space-y-2">
-            <input
-              type="text"
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              placeholder="Search problems..."
-              className="w-full min-h-[44px] rounded-md border border-border bg-background px-3 text-sm text-foreground"
-            />
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-                <input
-                  type="checkbox"
-                  checked={pickerTopicOnly}
-                  onChange={(e) => setPickerTopicOnly(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span>
-                  Current topic only ({data.studyToday.currentTopic?.name ?? "All"})
-                </span>
-              </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder="Search any problem or topic..."
+                className="w-full min-h-[44px] rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              />
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
-                className="text-xs text-muted-foreground hover:text-foreground min-h-[44px] px-2"
+                className="text-xs text-muted-foreground hover:text-foreground min-h-[44px] px-2 shrink-0"
               >
                 Clear
               </button>

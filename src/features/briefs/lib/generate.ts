@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE, formatDateOnly } from "@/lib/timezone";
 import { currentSemesterWhere } from "@/features/semesters/lib/current";
-import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import {
+  getAcademicEntriesForRange,
+  getCalendarEntriesForSemester,
+} from "@/features/semesters/lib/calendar-queries";
 import { generateOccurrences } from "@/features/attendance/lib/occurrences";
 import { getDsaDueSummary } from "@/features/dsa/lib/summary";
 import { getLocalTimeParts } from "@/features/notifications/lib/scheduler";
@@ -414,11 +417,12 @@ export async function generateAndPersistBrief(input: {
     href: `/notes/${n.id}`,
   }));
 
-  const [todayClassInfo, targetClassInfo] = await Promise.all([
+  const [todayClassInfo, targetClassInfo, academicEntriesForBrief] = await Promise.all([
     getClassesForDate(input.userId, todayStr, nowHm),
     input.kind === "evening"
       ? getClassesForDate(input.userId, tomorrowStr)
       : Promise.resolve(null),
+    getAcademicEntriesForRange(input.userId, forDate, forDate),
   ]);
 
   const activeClassInfo = targetClassInfo ?? todayClassInfo;
@@ -434,6 +438,7 @@ export async function generateAndPersistBrief(input: {
     classes: activeClassInfo.classes,
     events: input.kind === "evening" ? eventsTomorrow : eventsToday,
     googleEvents: googleEventsForDate,
+    academicEntries: academicEntriesForBrief,
     tasksToday: input.kind === "evening" ? tasksDueTomorrow : tasksToday,
     overdueTasks,
     tasksWithin3Days,

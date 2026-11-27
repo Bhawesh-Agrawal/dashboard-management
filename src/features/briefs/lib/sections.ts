@@ -1,5 +1,11 @@
 import type { DsaDueSummary } from "@/features/dsa/lib/summary";
 import type { BriefAssessmentItem, BriefClassItem, BriefEventItem, BriefTaskItem } from "./build";
+import type { AcademicCalendarEntryItem } from "@/features/semesters/lib/academic-calendar-dates";
+import {
+  entriesForDate,
+  getEntryRangeDay,
+  isoWeekdayName,
+} from "@/features/semesters/lib/academic-calendar-dates";
 import type {
   BriefDeadlines,
   BriefKindV2,
@@ -53,6 +59,7 @@ export interface BriefV2Input {
   classes: BriefClassItem[];
   events: BriefEventItem[];
   googleEvents?: BriefGoogleEventInput[];
+  academicEntries?: AcademicCalendarEntryItem[];
   tasksToday: BriefTaskItem[];
   overdueTasks: BriefTaskItem[];
   tasksWithin3Days: BriefTaskItem[];
@@ -89,11 +96,42 @@ function minutesToHm(total: number): string {
 export function buildTimelineSection(input: {
   kind: BriefKindV2;
   nowHm: string;
+  forDate?: string;
   hasCurrentSemester: boolean;
   classes: BriefClassItem[];
   events: BriefEventItem[];
   googleEvents?: BriefGoogleEventInput[];
+  academicEntries?: AcademicCalendarEntryItem[];
 }): BriefTimelineItem[] {
+  const academicItems: BriefTimelineItem[] = [];
+  if (input.academicEntries && input.academicEntries.length > 0) {
+    const relevant = input.forDate
+      ? entriesForDate(input.academicEntries, input.forDate)
+      : input.academicEntries;
+    for (const entry of relevant) {
+      const { day, totalDays } = input.forDate
+        ? getEntryRangeDay(entry, input.forDate)
+        : { day: 1, totalDays: 1 };
+      const rangeSuffix = totalDays > 1 ? `, day ${day} of ${totalDays}` : "";
+      let title = entry.title;
+      if (entry.kind === "holiday") title = `Holiday: ${entry.title}${rangeSuffix}`;
+      else if (entry.kind === "no_classes") title = `No classes: ${entry.title}${rangeSuffix}`;
+      else if (entry.kind === "break") title = `Break: ${entry.title}${rangeSuffix}`;
+      else if (entry.kind === "exam_period") title = `Exam period: ${entry.title}${rangeSuffix}`;
+      else if (entry.kind === "follows_weekday") {
+        title = `Follows ${isoWeekdayName(entry.followsWeekday)} timetable`;
+      }
+      academicItems.push({
+        id: `academic-${entry.id}`,
+        kind: "academic",
+        title,
+        startTime: "00:00",
+        href: `/semesters/${entry.semesterId}/calendar`,
+        sourceLabel: "Academic calendar",
+      });
+    }
+  }
+
   const raw: BriefTimelineItem[] = [];
 
   if (input.hasCurrentSemester) {
@@ -178,7 +216,7 @@ export function buildTimelineSection(input: {
     }
   }
 
-  return withGaps;
+  return [...academicItems, ...withGaps];
 }
 
 /**
@@ -470,6 +508,7 @@ export function buildFallbackHeadlineAndSummary(input: {
   study: BriefStudy | null;
   unmarkedTodayCount?: number;
   weather?: BriefWeatherV2 | null;
+  academicEntries?: AcademicCalendarEntryItem[];
 }): { headline: string; summary: string; pushSummary: string } {
   const kindLabel =
     input.kind === "morning"
@@ -481,13 +520,18 @@ export function buildFallbackHeadlineAndSummary(input: {
   const overdueCount = input.deadlines?.overdueTotalCount ?? 0;
   const todayCount = input.deadlines?.tasksToday.length ?? 0;
   const dsaDue = (input.study?.dueToday ?? 0) + (input.study?.overdue ?? 0);
+  const topAcademic = input.academicEntries?.[0];
 
   let headline = `${kindLabel} brief`;
   if (input.isEmptyDay) {
-    headline =
-      input.kind === "evening"
-        ? "Open schedule tomorrow"
-        : "Clear schedule today";
+    if (topAcademic && (topAcademic.kind === "holiday" || topAcademic.kind === "exam_period" || topAcademic.kind === "no_classes" || topAcademic.kind === "break")) {
+      headline = topAcademic.kind === "holiday" ? `Holiday: ${topAcademic.title}` : topAcademic.title;
+    } else {
+      headline =
+        input.kind === "evening"
+          ? "Open schedule tomorrow"
+          : "Clear schedule today";
+    }
   } else if (input.nextUp) {
     headline = `Next: ${input.nextUp.title} at ${input.nextUp.startsAt}`;
   } else if (input.timelineCount > 0) {
@@ -499,6 +543,15 @@ export function buildFallbackHeadlineAndSummary(input: {
   }
 
   const parts: string[] = [];
+  if (topAcademic) {
+    if (topAcademic.kind === "holiday") parts.push(`Holiday: ${topAcademic.title}`);
+    else if (topAcademic.kind === "exam_period") parts.push(`Exam period: ${topAcademic.title}`);
+    else if (topAcademic.kind === "no_classes") parts.push(`No classes: ${topAcademic.title}`);
+    else if (topAcademic.kind === "break") parts.push(`Break: ${topAcademic.title}`);
+    else if (topAcademic.kind === "follows_weekday") {
+      parts.push(`Follows ${isoWeekdayName(topAcademic.followsWeekday)} timetable`);
+    }
+  }
   if (input.isEmptyDay) {
     parts.push("No timed classes or events");
   } else if (input.timelineCount > 0) {
@@ -529,16 +582,24 @@ export function buildFallbackHeadlineAndSummary(input: {
 }
 
 export function buildBriefPayloadV2(input: BriefV2Input): BriefPayloadV2 {
+  const dayAcademicEntries = input.academicEntries
+    ? entriesForDate(input.academicEntries, input.forDate)
+    : [];
+
   const timeline = buildTimelineSection({
     kind: input.kind,
     nowHm: input.nowHm,
+    forDate: input.forDate,
     hasCurrentSemester: input.hasCurrentSemester,
     classes: input.classes,
     events: input.events,
     googleEvents: input.googleEvents,
+    academicEntries: dayAcademicEntries,
   });
 
-  const timedCount = timeline.filter((t) => t.kind !== "gap").length;
+  const timedCount = timeline.filter(
+    (t) => t.kind !== "gap" && t.kind !== "academic"
+  ).length;
   const isEmptyDay = timedCount === 0;
 
   const nextUp = buildNextUpSection({
@@ -581,6 +642,7 @@ export function buildBriefPayloadV2(input: BriefV2Input): BriefPayloadV2 {
     study,
     unmarkedTodayCount: input.unmarkedTodayCount,
     weather: input.weather,
+    academicEntries: dayAcademicEntries,
   });
 
   return {

@@ -88,7 +88,7 @@ export interface BriefWeatherV2 {
 
 export interface BriefTimelineItem {
   id: string;
-  kind: "class" | "event" | "google_event" | "gap";
+  kind: "class" | "event" | "google_event" | "academic" | "gap";
   title: string;
   startTime: string; // HH:mm
   endTime?: string; // HH:mm

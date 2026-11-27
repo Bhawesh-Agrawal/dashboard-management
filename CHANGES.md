@@ -1452,6 +1452,7 @@ Branch: `phase-6-brief-v2` (branched from `phase-5-deploy`)
 | 10. Docs, `test:ci`, `build`, and `CHANGES.md` | DONE | `(this commit)` | `docs/TEST_PLAN.md`, `CHANGES.md` | Live `curl`/`asOf` execution against running server and production deployment (deployment intentionally skipped). |
 
 ### Pending Database Migration (Awaiting Owner Approval)
+Do NOT deploy before applying this additive migration:
 Do NOT deploy before applying these additive migrations:
 - `prisma/migrations/20261127000000_add_brief_v2_settings_and_midday/migration.sql`
   - Adds nullable `brief_config` (`JSONB`) column on `notification_preferences`
@@ -1577,3 +1578,30 @@ Route (app)
   - `vitest run`: `Test Files  60 passed (60)`, `Tests  331 passed (331)`
 - `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
   - `next build` (Turbopack): exited `0`, compiled in `9.9s`, TypeScript finished in `34.5s`, generated 19/19 static pages, including `/semesters`, `/semesters/[id]`, `/semesters/[id]/calendar`, `/semesters/[id]/timetable`, and `/semesters/setup`.
+
+---
+
+## Phase 7b: Show Academic Calendar Everywhere + Fix the Importer (`phase-7b-calendar-display`)
+
+### Item Status Summary
+
+| Item | Status | Commit | Key Files | What was NOT verified |
+| --- | --- | --- | --- | --- |
+| 1. Single Source | DONE | `90e996a` | `src/features/semesters/lib/academic-calendar-dates.ts`, `src/features/semesters/lib/calendar-queries.ts`, `src/features/semesters/lib/__tests__/academic-calendar-dates.test.ts`, `src/features/calendar/lib/queries.ts` | Live Postgres query execution |
+| 2. Main Calendar | DONE | `543562c` | `src/app/api/academic-calendar/route.ts`, `src/features/calendar/lib/academic-calendar-events.ts`, `src/features/calendar/lib/__tests__/academic-calendar-events.test.ts`, `src/types/index.ts`, `src/features/calendar/lib/google-actions.ts`, `src/features/calendar/components/calendar-view.tsx`, `src/features/calendar/components/mobile-calendar-view.tsx` | Manual browser walkthrough on mobile & desktop |
+| 3. /today & Upcoming | DONE | `0fff16b` | `src/features/dashboard/lib/today-academic.ts`, `src/features/dashboard/lib/__tests__/today-academic.test.ts`, `src/app/(app)/today/page.tsx`, `src/features/dashboard/components/today-page-client.tsx`, `src/features/dashboard/components/today-dashboard.tsx` | Live `/today` check with simulated clock |
+| 4. Brief | DONE | `ec2bfec` | `src/features/briefs/lib/payload-v2.ts`, `src/features/briefs/lib/sections.ts`, `src/features/briefs/lib/generate.ts`, `src/features/briefs/lib/__tests__/academic-calendar-brief.test.ts` | Live brief generation against DB |
+| 5. Follows-Weekday Display | DONE | `5d7be64` | `src/features/calendar/lib/academic-calendar-events.ts`, `src/features/calendar/components/calendar-view.tsx`, `src/features/calendar/components/mobile-calendar-view.tsx`, `src/features/calendar/lib/__tests__/follows-weekday-calendar.test.ts` | Manual UI inspection of Saturday-follows-Monday view |
+| 6. Importer Bug Fixes | DONE | `c419c2c` | `src/features/semesters/lib/calendar-import.ts`, `src/features/semesters/lib/__tests__/calendar-import-regression.test.ts` | Live paste test in browser |
+| 7. Import Safety Net | DONE | `cd10701` | `src/features/semesters/lib/calendar-import-safety.ts`, `src/features/semesters/lib/__tests__/calendar-import-safety.test.ts`, `src/features/semesters/components/academic-calendar-manager.tsx`, `src/app/(app)/semesters/[id]/calendar/page.tsx` | Manual UI interaction with flagged rows |
+| 8. Audit Entries Repair | DONE | `23d3935` | `src/features/semesters/lib/calendar-audit.ts`, `src/features/semesters/lib/__tests__/calendar-audit.test.ts`, `src/features/semesters/components/audit-calendar-entries-panel.tsx`, `src/app/(app)/semesters/[id]/calendar/page.tsx` | Live DB update via Audit entries confirmation |
+| 9. Docs & Self-Check | DONE | final commit | `docs/SEMESTER_SETUP.md`, `docs/TEST_PLAN.md`, `CHANGES.md` | Phone checklist manual execution |
+
+### Verification Outputs (Final Code)
+
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: passed (0 errors)
+  - `npm run lint`: passed (0 errors; existing warnings only)
+  - `vitest run`: `Test Files  68 passed (68)`, `Tests  346 passed (346)`
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
+  - `next build` (Turbopack): exited `0`, compiled in `12.6s`, TypeScript finished in `25.5s`, generated 20/20 static pages, including `/api/academic-calendar`, `/calendar`, `/today`, `/brief`, `/semesters/[id]/calendar`, `/semesters/[id]/timetable`, and `/semesters/setup`.

@@ -29,3 +29,14 @@ Entries outside the semester date range are ignored.
 ## Convert Repeated Holidays
 
 On `/semesters/[id]/calendar`, **Convert repeated holidays** scans for dates where every class scheduled on that weekday has a `cancelled` `ScheduleException`, previews proposed `AcademicCalendarEntry` rows for review, and atomically creates the calendar entries while removing the redundant per-class exceptions.
+
+
+
+## Phase 7b: Academic Calendar Everywhere & Importer Safety Net
+
+- **Single Source:** `getAcademicEntriesForRange(userId, start, end)` (`src/features/semesters/lib/calendar-queries.ts`) and `entriesForDate(entries, date)` (`src/features/semesters/lib/academic-calendar-dates.ts`) serve `/api/academic-calendar`, `/calendar`, `/today`, and daily briefs. Entries from all overlapping semesters (past, active, upcoming) are included.
+- **Main `/calendar`:** Month grid shows plain-text markers (`Holiday`, `Exams`, `Follows Mon`, etc.) and muted background on cancelled days; week, day, and mobile agenda views show all-day strips with full titles (`(day X of Y)` on multi-day ranges). Tapping opens the detail modal with `"Edit in academic calendar"`. Includes a `"Show academic calendar"` toggle (remembered in `localStorage`) and a non-blocking offline fallback.
+- **`/today` & Briefs:** `/today` displays a compact academic summary card for today/tomorrow and an upcoming-semester first-class countdown (`"N days to the first class on <date>."`). Brief v2 includes academic entries in `timeline` and mentions holidays/exams/follows-weekday in `summary`.
+- **`follows_weekday` Labels:** Calendar day headings explicitly display `"<Weekday>, follows <Target> timetable"` and expand the replaced weekday's classes through `generateOccurrences`.
+- **Importer & Safety Net:** Fixed cross-month/cross-year textual ranges, bracket kind tag stripping, `follows_weekday` real weekday titles, and `Key Dates:` note sections. Import review shows explicit start/end dates, weekday impact preview (`"These entries cancel classes on N weekdays."`), and dismissible row warnings.
+- **Audit Entries:** `/semesters/[id]/calendar` includes an `"Audit entries"` action with one-tap `"Fix end date"` and `"Clean title"` suggestions applied only on confirmation.

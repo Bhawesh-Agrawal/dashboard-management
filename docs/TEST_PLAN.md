@@ -75,3 +75,26 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 ```
 
 Re-running any of the commands above for the same local date must return `"sent": 0` and `"skippedDedup": 1`.
+
+
+---
+
+## Phase 7b: Academic Calendar Display & Importer Phone Checklist
+
+1. **Main `/calendar` on phone & desktop:**
+   - Open `/calendar` in Month view and verify markers (`Holiday`, `Exams`, `Follows Mon`) and muted backgrounds on cancelled dates:
+     - **19 Dec 2026**: `Follows Mon` marker; tapping day shows `"Saturday, follows Monday timetable"` and all-day item `"Follows Monday timetable"`.
+     - **25 Dec 2026**: `Holiday` marker; muted cell background; detail sheet shows `"Holiday: Christmas"`, `"Classes cancelled"`, and `"Edit in academic calendar"` link.
+     - **26 Jan 2027**: `Holiday` marker; `"Holiday: Republic Day"`.
+     - **28 Jan – 4 Feb 2027**: `Exams` marker on each day; detail/agenda shows `"Exam period: Mid-Semester Examinations, day 1 of 8"` through `"day 8 of 8"`.
+     - **1 Apr – 8 Apr 2027**: `Exams` marker on each day; `"Exam period: End-Semester Examinations, day 1 of 8"` through `"day 8 of 8"`.
+   - Toggle `"Show academic calendar"` off and back on; reload the page and confirm preference persists.
+   - Switch between Month, Week, and Day views on both mobile and desktop.
+2. **`/today` via simulated clock:**
+   - Set simulated clock to **2027-01-26** (Republic Day): verify `/today` top card reads `"Today: holiday, Republic Day. No classes."`.
+   - Set simulated clock to **2026-12-19**: verify `/today` top card reads `"Today follows the Monday timetable."`.
+   - Set simulated clock to **2027-01-27** (day before Mid-Sem): verify `"Tomorrow: Mid-Semester Examinations begin."`.
+   - When semester is upcoming, verify `"N days to the first class on <date>."` appears.
+3. **Importer & Audit on `/semesters/[id]/calendar`:**
+   - Paste the 24 calendar lines + 18 key-date lines; confirm exact dates, stripped bracket tags, `"Saturday follows Monday timetable"` titles, and `"These entries cancel classes on N weekdays."` impact preview.
+   - Click `"Audit entries"` on existing data and verify suggestions apply only on tap.

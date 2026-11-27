@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarPlus, FileUp, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -78,6 +78,11 @@ export function AcademicCalendarManager({
   const router = useRouter();
   const [entries, setEntries] = useState<CalendarEntryDTO[]>(initialEntries);
   const [isPending, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    setEntries(initialEntries);
+  }, [initialEntries]);
 
   // Single add/edit form
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -143,6 +148,12 @@ export function AcademicCalendarManager({
     });
   }, [entries]);
 
+  function scrollToForm() {
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
   function openNewForm() {
     setEditingId(null);
     setKind("holiday");
@@ -153,6 +164,7 @@ export function AcademicCalendarManager({
     setFollowsWeekday(1);
     setNotes("");
     setFormOpen(true);
+    scrollToForm();
   }
 
   function openEditForm(item: CalendarEntryDTO) {
@@ -165,6 +177,7 @@ export function AcademicCalendarManager({
     setFollowsWeekday(item.followsWeekday ?? 1);
     setNotes(item.notes ?? "");
     setFormOpen(true);
+    scrollToForm();
   }
 
   function handleKindChange(nextKind: AcademicCalendarKindValue) {
@@ -359,6 +372,7 @@ export function AcademicCalendarManager({
       {/* Single Entry Add/Edit Form */}
       {formOpen && (
         <form
+          ref={formRef}
           onSubmit={handleSaveSingle}
           className="rounded-xl border border-border bg-card p-4 space-y-4"
         >

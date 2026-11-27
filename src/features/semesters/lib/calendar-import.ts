@@ -66,17 +66,69 @@ function toIsoDate(year: number, month: number, day: number): string | null {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
-function inferKindAndFollows(title: string): {
+const ISO_WEEKDAY_NAMES: Record<number, string> = {
+  0: "Sunday",
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+};
+
+function realWeekdayNameFromIso(isoDate: string): string {
+  const day = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+  return ISO_WEEKDAY_NAMES[day] ?? "Day";
+}
+
+const BRACKET_KIND_REGEX =
+  /\(\s*(exam\s*period|exams?|no\s*classes?|holiday|break|vacation|recess|note|key\s*date)\s*\)/gi;
+
+function extractBracketKindAndCleanTitle(rawTitle: string): {
+  cleanedTitle: string;
+  explicitKind: AcademicCalendarKindValue | null;
+} {
+  let explicitKind: AcademicCalendarKindValue | null = null;
+  const cleanedTitle = rawTitle
+    .replace(BRACKET_KIND_REGEX, (_, tag: string) => {
+      const t = tag.toLowerCase().replace(/\s+/g, " ").trim();
+      if (t.startsWith("exam")) explicitKind = "exam_period";
+      else if (t.startsWith("no class")) explicitKind = "no_classes";
+      else if (t === "holiday") explicitKind = "holiday";
+      else if (t === "break" || t === "vacation" || t === "recess") explicitKind = "break";
+      else if (t === "note" || t === "key date") explicitKind = "note";
+      return "";
+    })
+    .replace(/^[:\-–—\s]+/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return { cleanedTitle, explicitKind };
+}
+
+function inferKindAndFollows(
+  title: string,
+  explicitKind: AcademicCalendarKindValue | null = null,
+  inNoteSection = false
+): {
   kind: AcademicCalendarKindValue;
   followsWeekday: number | null;
 } {
   const lower = title.toLowerCase();
-  const followsMatch = /follows?\s+(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)/i.exec(
-    lower
-  );
+  const followsMatch =
+    /follows?\s+(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)/i.exec(
+      lower
+    );
   if (followsMatch) {
     const wd = WEEKDAY_NAMES[followsMatch[1].toLowerCase()] ?? null;
     if (wd) return { kind: "follows_weekday", followsWeekday: wd };
+  }
+
+  if (explicitKind) {
+    return { kind: explicitKind, followsWeekday: null };
+  }
+  if (inNoteSection) {
+    return { kind: "note", followsWeekday: null };
   }
 
   if (/\b(exams?|mid-?sem(?:ester)?|end-?sem(?:ester)?|finals?|test week)\b/i.test(lower)) {
@@ -88,7 +140,51 @@ function inferKindAndFollows(title: string): {
   if (/\b(no class|no classes|classes suspended|cancelled)\b/i.test(lower)) {
     return { kind: "no_classes", followsWeekday: null };
   }
+  if (
+    /\b(registration|feedback|submission|convocation|results?|grades?|commencement|orientation|internship|key date)\b/i.test(
+      lower
+    )
+  ) {
+    return { kind: "note", followsWeekday: null };
+  }
   return { kind: "holiday", followsWeekday: null };
+}
+
+function buildParsedEntry(
+  index: number,
+  startDate: string,
+  endDate: string,
+  rawTitle: string,
+  inNoteSection: boolean
+): ParsedCalendarEntry {
+  const { cleanedTitle, explicitKind } = extractBracketKindAndCleanTitle(rawTitle);
+  const { kind, followsWeekday } = inferKindAndFollows(
+    cleanedTitle,
+    explicitKind,
+    inNoteSection
+  );
+
+  let finalTitle = cleanedTitle || rawTitle.trim();
+  if (kind === "follows_weekday" && followsWeekday) {
+    const targetName = Object.entries(WEEKDAY_NAMES).find(
+      ([k, v]) => v === followsWeekday && k.length > 4
+    )?.[0];
+    const targetCap = targetName
+      ? targetName.charAt(0).toUpperCase() + targetName.slice(1)
+      : "Weekday";
+    const dayName = realWeekdayNameFromIso(startDate);
+    finalTitle = `${dayName} follows ${targetCap} timetable`;
+  }
+
+  return {
+    id: `txt-${index}`,
+    kind,
+    title: finalTitle,
+    startDate,
+    endDate: endDate >= startDate ? endDate : startDate,
+    cancelsClasses: defaultCancelsClassesForKind(kind),
+    followsWeekday,
+  };
 }
 
 function stripLeadingWeekday(s: string): string {
@@ -101,10 +197,12 @@ function stripLeadingWeekday(s: string): string {
 /**
  * Deterministic parser for pasted academic calendar text lines.
  * Supports:
+ * - "1 Apr 2027 – 8 Apr 2027: End-Semester Examinations (exam period)"
+ * - "28 Jan 2027 – 4 Feb 2027: Mid-Semester Examinations (exam period)"
+ * - "10-15 Mar 2027: Mid-semester exams"
  * - "26 Jan 2027 – Republic Day"
- * - "10-15 Mar: Mid-semester exams"
- * - "Sat 13 Feb follows Monday timetable"
- * - "26/01/2027 - Republic Day" and "2027-01-26: Republic Day"
+ * - "Sat 19 Dec 2026 follows Monday timetable"
+ * - "26/01/2027 - Republic Day" (dd/mm/yyyy) and "2027-01-26: Republic Day"
  */
 export function parseCalendarTextDeterministic(
   text: string,
@@ -118,7 +216,18 @@ export function parseCalendarTextDeterministic(
     .map((l) => l.trim())
     .filter(Boolean);
 
+  let inNoteSection = false;
+
   lines.forEach((rawLine, index) => {
+    if (/^(?:key\s+dates?|important\s+dates?|notes?)\s*:?$/i.test(rawLine)) {
+      inNoteSection = true;
+      return;
+    }
+    if (/^(?:holidays?|academic\s+calendar|schedule|exams?)\s*:?$/i.test(rawLine)) {
+      inNoteSection = false;
+      return;
+    }
+
     const line = stripLeadingWeekday(rawLine);
 
     // 1. ISO date or range: YYYY-MM-DD [to/- YYYY-MM-DD] [:|-|–|—|space] Title
@@ -132,21 +241,12 @@ export function parseCalendarTextDeterministic(
         : startDate;
       const title = m[7].trim();
       if (startDate && endDate && title) {
-        const { kind, followsWeekday } = inferKindAndFollows(title);
-        entries.push({
-          id: `txt-${index}`,
-          kind,
-          title,
-          startDate,
-          endDate: endDate >= startDate ? endDate : startDate,
-          cancelsClasses: defaultCancelsClassesForKind(kind),
-          followsWeekday,
-        });
+        entries.push(buildParsedEntry(index, startDate, endDate, title, inNoteSection));
         return;
       }
     }
 
-    // 2. dd/mm/yyyy [– dd/mm/yyyy] [:|-|–|—|space] Title
+    // 2. dd/mm/yyyy [– dd/mm/yyyy] [:|-|–|—|space] Title (day-first for numeric dates)
     m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s*(?:-|–|—|to)\s*(\d{1,2})\/(\d{1,2})\/(\d{4}))?\s*(?:[:\-–—]\s*|\s+)(.+)$/i.exec(
       line
     );
@@ -157,21 +257,36 @@ export function parseCalendarTextDeterministic(
         : startDate;
       const title = m[7].trim();
       if (startDate && endDate && title) {
-        const { kind, followsWeekday } = inferKindAndFollows(title);
-        entries.push({
-          id: `txt-${index}`,
-          kind,
-          title,
-          startDate,
-          endDate: endDate >= startDate ? endDate : startDate,
-          cancelsClasses: defaultCancelsClassesForKind(kind),
-          followsWeekday,
-        });
+        entries.push(buildParsedEntry(index, startDate, endDate, title, inNoteSection));
         return;
       }
     }
 
-    // 3. Day range + Month [+ Year]: "10-15 Mar [2027]: Mid-semester exams"
+    // 3. Cross-month / cross-year textual-month range:
+    // "1 Apr 2027 – 8 Apr 2027: Title", "28 Jan – 4 Feb 2027: Title", "12 Dec 2026 to 17 Dec 2026: Title"
+    m = /^(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?\s*(?:-|–|—|to)\s*(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?\s*(?:[:\-–—]\s*|\s+)(.+)$/i.exec(
+      line
+    );
+    if (m) {
+      const startMonth = MONTHS[m[2].toLowerCase()];
+      const endMonth = MONTHS[m[5].toLowerCase()];
+      if (startMonth && endMonth) {
+        const endYear = m[6] ? Number(m[6]) : m[3] ? Number(m[3]) : defaultYear;
+        let startYear = m[3] ? Number(m[3]) : endYear;
+        if (!m[3] && startMonth > endMonth) {
+          startYear = endYear - 1;
+        }
+        const startDate = toIsoDate(startYear, startMonth, Number(m[1]));
+        const endDate = toIsoDate(endYear, endMonth, Number(m[4]));
+        const title = m[7].trim();
+        if (startDate && endDate && title) {
+          entries.push(buildParsedEntry(index, startDate, endDate, title, inNoteSection));
+          return;
+        }
+      }
+    }
+
+    // 4. Day range + Month [+ Year]: "10-15 Mar [2027]: Mid-semester exams"
     m = /^(\d{1,2})\s*(?:-|–|—|to)\s*(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?\s*(?:[:\-–—]\s*|\s+)(.+)$/i.exec(
       line
     );
@@ -183,22 +298,13 @@ export function parseCalendarTextDeterministic(
         const endDate = toIsoDate(year, month, Number(m[2]));
         const title = m[5].trim();
         if (startDate && endDate && title) {
-          const { kind, followsWeekday } = inferKindAndFollows(title);
-          entries.push({
-            id: `txt-${index}`,
-            kind,
-            title,
-            startDate,
-            endDate: endDate >= startDate ? endDate : startDate,
-            cancelsClasses: defaultCancelsClassesForKind(kind),
-            followsWeekday,
-          });
+          entries.push(buildParsedEntry(index, startDate, endDate, title, inNoteSection));
           return;
         }
       }
     }
 
-    // 4. Single Day + Month [+ Year]: "26 Jan 2027 – Republic Day" or "13 Feb follows Monday timetable"
+    // 5. Single Day + Month [+ Year]: "26 Jan 2027 – Republic Day" or "19 Dec 2026 follows Monday timetable"
     m = /^(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?\s*(?:[:\-–—]\s*|\s+)(.+)$/i.exec(
       line
     );
@@ -209,22 +315,13 @@ export function parseCalendarTextDeterministic(
         const startDate = toIsoDate(year, month, Number(m[1]));
         const title = m[4].trim();
         if (startDate && title) {
-          const { kind, followsWeekday } = inferKindAndFollows(title);
-          entries.push({
-            id: `txt-${index}`,
-            kind,
-            title,
-            startDate,
-            endDate: startDate,
-            cancelsClasses: defaultCancelsClassesForKind(kind),
-            followsWeekday,
-          });
+          entries.push(buildParsedEntry(index, startDate, startDate, title, inNoteSection));
           return;
         }
       }
     }
 
-    // 5. Month + Day[-Day] [+ Year]: "Mar 10-15, 2027: Exams"
+    // 6. Month + Day[-Day] [+ Year]: "Mar 10-15, 2027: Exams"
     m = /^([a-zA-Z]+)\s+(\d{1,2})(?:\s*(?:-|–|—|to)\s*(\d{1,2}))?(?:,?\s*(\d{4}))?\s*(?:[:\-–—]\s*|\s+)(.+)$/i.exec(
       line
     );
@@ -238,16 +335,7 @@ export function parseCalendarTextDeterministic(
           : startDate;
         const title = m[5].trim();
         if (startDate && endDate && title) {
-          const { kind, followsWeekday } = inferKindAndFollows(title);
-          entries.push({
-            id: `txt-${index}`,
-            kind,
-            title,
-            startDate,
-            endDate: endDate >= startDate ? endDate : startDate,
-            cancelsClasses: defaultCancelsClassesForKind(kind),
-            followsWeekday,
-          });
+          entries.push(buildParsedEntry(index, startDate, endDate, title, inNoteSection));
           return;
         }
       }

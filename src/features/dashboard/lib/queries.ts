@@ -17,6 +17,9 @@ import {
 } from "@/features/calendar/lib/google-calendar";
 import { getCurrentUserId } from "@/lib/auth";
 import { getCurrentSemester } from "@/features/semesters/lib/current";
+import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import { generateOccurrences } from "@/features/attendance/lib/occurrences";
+import { formatDateOnly } from "@/lib/timezone";
 
 /**
  * Aggregate all data needed for the /today dashboard.
@@ -142,20 +145,12 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
 
-  const [todayClasses, attendanceData, semesterCoursesForGrades, allSemesters] = await Promise.all([
-    // Today's classes — with exception awareness and date range filtering
+  const [allSemesterSchedules, calendarEntries, attendanceData, semesterCoursesForGrades, allSemesters] = await Promise.all([
+    // Today's classes — evaluated through the pure Occurrence Engine
     activeSemester
       ? prisma.classSchedule.findMany({
           where: {
-            dayOfWeek: todayDayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
             course: { semesterId: activeSemester.id },
-            OR: [
-              { effectiveStartDate: null },
-              { effectiveStartDate: { lte: todayStart } },
-            ],
-            AND: [
-              { OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayStart } }] },
-            ],
           },
           orderBy: { startTime: "asc" },
           include: {
@@ -163,6 +158,9 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
             exceptions: { where: { date: todayStart } },
           },
         })
+      : Promise.resolve([]),
+    activeSemester
+      ? getCalendarEntriesForSemester(userId, activeSemester.id)
       : Promise.resolve([]),
     // Attendance data for all active courses — single query reused for both alerts and grades
     activeSemester
@@ -178,6 +176,32 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     // All semesters for CGPA
     prisma.semester.findMany({ orderBy: { startDate: "asc" } }),
   ]);
+
+  const todayDateStr = formatDateOnly(todayStart);
+  const scheduleById = new Map(allSemesterSchedules.map((s) => [s.id, s]));
+  const todayOccurrences = activeSemester
+    ? generateOccurrences({
+        schedules: allSemesterSchedules,
+        exceptions: allSemesterSchedules.flatMap((s) => s.exceptions),
+        calendarEntries,
+        semesterId: activeSemester.id,
+        semesterStartDate: activeSemester.startDate,
+        semesterEndDate: activeSemester.endDate,
+        startDate: todayDateStr,
+        endDate: todayDateStr,
+      })
+    : [];
+  const todayClasses = todayOccurrences
+    .filter((occ) => occ.status !== "cancelled")
+    .map((occ) => {
+      const sched = scheduleById.get(occ.classScheduleId)!;
+      return {
+        ...sched,
+        startTime: occ.startTime,
+        endTime: occ.endTime,
+        location: occ.location ?? null,
+      };
+    });
 
   // ─── Build birthday list ──────────────────────────────────────────────────
   const upcomingBirthdays: DashboardData["upcomingDeadlines"] = [];

@@ -38,6 +38,23 @@ export interface OccurrenceRecord {
   status: "present" | "absent" | "cancelled" | "not_marked";
 }
 
+export interface OccurrenceCalendarEntry {
+  id?: string;
+  semesterId?: string;
+  kind:
+    | "holiday"
+    | "break"
+    | "exam_period"
+    | "no_classes"
+    | "follows_weekday"
+    | "note";
+  title: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  cancelsClasses: boolean;
+  followsWeekday?: number | null; // 1=Mon..7=Sun
+}
+
 export interface ClassOccurrence {
   occurrenceId: string; // unique key: `${classScheduleId}_${date}`
   classScheduleId: string;
@@ -52,6 +69,9 @@ export interface ClassOccurrence {
   attendanceRecordId?: string;
   exceptionId?: string;
   exceptionType?: "cancelled" | "rescheduled";
+  calendarEntryId?: string;
+  cancelReason?: string;
+  substitutedFromDay?: DayOfWeek;
   isException: boolean;
   isPast: boolean;
   isToday: boolean;
@@ -78,10 +98,23 @@ const DOW_NUMBER_TO_ENUM: Record<number, DayOfWeek> = {
   6: "SAT",
 };
 
+// 1=Monday .. 7=Sunday -> DayOfWeek
+const ISO_WEEKDAY_TO_ENUM: Record<number, DayOfWeek> = {
+  1: "MON",
+  2: "TUE",
+  3: "WED",
+  4: "THU",
+  5: "FRI",
+  6: "SAT",
+  7: "SUN",
+};
+
 export interface GenerateOccurrencesOptions {
   schedules: OccurrenceSchedule[];
   exceptions?: OccurrenceException[];
   records?: OccurrenceRecord[];
+  calendarEntries?: OccurrenceCalendarEntry[];
+  semesterId?: string;
   semesterStartDate?: Date | string | null;
   semesterEndDate?: Date | string | null;
   startDate?: string; // "YYYY-MM-DD" override
@@ -93,13 +126,16 @@ export interface GenerateOccurrencesOptions {
 /**
  * Pure occurrence engine.
  * Computes individual class occurrences across recurring schedules,
- * respecting semester bounds, effective dates, schedule exceptions,
- * and attendance record matching with ambiguous legacy resolution.
+ * respecting semester bounds, academic calendar entries (holidays, breaks,
+ * exam periods, follows_weekday), effective dates, schedule exceptions,
+ * and attendance record matching.
  */
 export function generateOccurrences({
   schedules,
   exceptions = [],
   records = [],
+  calendarEntries = [],
+  semesterId,
   semesterStartDate,
   semesterEndDate,
   startDate: explicitStartDate,
@@ -110,26 +146,47 @@ export function generateOccurrences({
   const currentClock = now ?? new Date();
   const todayStr = getTodayInTimezone(timezone, currentClock);
 
-  // If no schedules exist, return empty occurrences immediately
   if (!schedules || schedules.length === 0) {
     return [];
   }
 
-  // Determine date bounds
-  let startDate = explicitStartDate;
-  let endDate = explicitEndDate;
+  const semStartStr = semesterStartDate ? formatDateOnly(semesterStartDate) : null;
+  const semEndStr = semesterEndDate ? formatDateOnly(semesterEndDate) : null;
 
-  if (!startDate) {
-    startDate = semesterStartDate ? formatDateOnly(semesterStartDate) : todayStr;
-  }
-  if (!endDate) {
-    endDate = semesterEndDate ? formatDateOnly(semesterEndDate) : todayStr;
-  }
+  let startDate = explicitStartDate ?? semStartStr ?? todayStr;
+  let endDate = explicitEndDate ?? semEndStr ?? todayStr;
 
-  // If start is after end, return empty
+  if (semStartStr && startDate < semStartStr) startDate = semStartStr;
+  if (semEndStr && endDate > semEndStr) endDate = semEndStr;
+
   if (startDate > endDate) {
     return [];
   }
+
+  // Filter and deterministically sort calendar entries
+  const normalizedEntries = calendarEntries
+    .filter((entry) => {
+      if (semesterId && entry.semesterId && entry.semesterId !== semesterId) {
+        return false;
+      }
+      const eStart = formatDateOnly(entry.startDate);
+      const eEnd = formatDateOnly(entry.endDate);
+      if (eStart > eEnd) return false;
+      if (semStartStr && eEnd < semStartStr) return false;
+      if (semEndStr && eStart > semEndStr) return false;
+      return true;
+    })
+    .map((entry) => ({
+      ...entry,
+      startStr: formatDateOnly(entry.startDate),
+      endStr: formatDateOnly(entry.endDate),
+    }))
+    .sort((a, b) => {
+      if (a.cancelsClasses !== b.cancelsClasses) return a.cancelsClasses ? -1 : 1;
+      if (a.startStr !== b.startStr) return a.startStr.localeCompare(b.startStr);
+      if (a.endStr !== b.endStr) return a.endStr.localeCompare(b.endStr);
+      return a.title.localeCompare(b.title);
+    });
 
   // Index exceptions by `${classScheduleId}_${dateStr}`
   const exceptionMap = new Map<string, OccurrenceException>();
@@ -153,24 +210,39 @@ export function generateOccurrences({
 
   const occurrences: ClassOccurrence[] = [];
 
-  // Parse start and end date components (year, month, day) in UTC to prevent day skews
   const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
   const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
 
   const startUtc = Date.UTC(startYear, startMonth - 1, startDay);
   const endUtc = Date.UTC(endYear, endMonth - 1, endDay);
-
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
   for (let ms = startUtc; ms <= endUtc; ms += ONE_DAY_MS) {
     const cursorDate = new Date(ms);
     const dateStr = cursorDate.toISOString().slice(0, 10);
-    const dayOfWeek = DOW_NUMBER_TO_ENUM[cursorDate.getUTCDay()];
+    const nativeDayOfWeek = DOW_NUMBER_TO_ENUM[cursorDate.getUTCDay()];
+
+    const matchingEntries = normalizedEntries.filter(
+      (e) => e.startStr <= dateStr && dateStr <= e.endStr
+    );
+
+    const cancellingEntry = matchingEntries.find((e) => e.cancelsClasses);
+    const followsEntry = !cancellingEntry
+      ? matchingEntries.find(
+          (e) =>
+            e.kind === "follows_weekday" &&
+            e.followsWeekday != null &&
+            ISO_WEEKDAY_TO_ENUM[e.followsWeekday] !== undefined
+        )
+      : undefined;
+
+    const effectiveDayOfWeek = followsEntry
+      ? ISO_WEEKDAY_TO_ENUM[followsEntry.followsWeekday!]
+      : nativeDayOfWeek;
 
     for (const schedule of schedules) {
-      if (schedule.dayOfWeek !== dayOfWeek) continue;
+      if (schedule.dayOfWeek !== effectiveDayOfWeek) continue;
 
-      // Check effective start/end dates if configured
       if (schedule.effectiveStartDate) {
         const effStartStr = formatDateOnly(schedule.effectiveStartDate);
         if (dateStr < effStartStr) continue;
@@ -199,7 +271,6 @@ export function generateOccurrences({
         }
       }
 
-      // Check direct attendance record
       const directRecord = recordBySchedule.get(occurrenceKey);
 
       let status: OccurrenceStatus = "unmarked";
@@ -213,10 +284,18 @@ export function generateOccurrences({
         else status = "unmarked";
       }
 
-      // Cancellation Rule: A ScheduleException of type "cancelled" ALWAYS wins.
-      // If a record exists, we keep its ID but override status to "cancelled".
+      let calendarEntryId: string | undefined;
+      let cancelReason: string | undefined;
+
+      // Precedence:
+      // (a) Class-level ScheduleException cancelled wins
+      // (b) AcademicCalendarEntry with cancelsClasses=true cancels all occurrences that day
       if (exception?.type === "cancelled") {
         status = "cancelled";
+      } else if (cancellingEntry) {
+        status = "cancelled";
+        calendarEntryId = cancellingEntry.id;
+        cancelReason = cancellingEntry.title;
       }
 
       const timingStatus = getClassTimingStatus({
@@ -236,7 +315,7 @@ export function generateOccurrences({
         classScheduleId: schedule.id,
         courseId: schedule.courseId,
         date: dateStr,
-        dayOfWeek,
+        dayOfWeek: effectiveDayOfWeek,
         startTime,
         endTime,
         location,
@@ -245,6 +324,9 @@ export function generateOccurrences({
         attendanceRecordId,
         exceptionId: exception?.id,
         exceptionType,
+        calendarEntryId,
+        cancelReason,
+        substitutedFromDay: followsEntry ? nativeDayOfWeek : undefined,
         isException,
         isPast,
         isToday,
@@ -253,11 +335,7 @@ export function generateOccurrences({
     }
   }
 
-  // Match legacy records in memory (classScheduleId is NULL/undefined)
-  // Rule: Match only when exactly ONE schedule of that course runs on that day.
-  // When ambiguous (>1 schedule on that day), they stay unmatched in a "needs review" state.
   if (legacyRecords.length > 0) {
-    // Group occurrences by `${courseId}_${date}`
     const occsByCourseDate = new Map<string, ClassOccurrence[]>();
     for (const occ of occurrences) {
       const key = `${occ.courseId}_${occ.date}`;
@@ -272,12 +350,10 @@ export function generateOccurrences({
       const matchingOccs = occsByCourseDate.get(key) || [];
 
       if (matchingOccs.length === 1) {
-        // Unique match: attach to the single occurrence if it doesn't already have a direct record
         const targetOcc = matchingOccs[0];
         if (!targetOcc.attendanceRecordId) {
           targetOcc.attendanceRecordId = rec.id;
-          // Apply legacy status unless occurrence was cancelled by an exception
-          if (targetOcc.exceptionType !== "cancelled") {
+          if (targetOcc.status !== "cancelled") {
             if (rec.status === "present") targetOcc.status = "present";
             else if (rec.status === "absent") targetOcc.status = "absent";
             else if (rec.status === "cancelled") targetOcc.status = "cancelled";
@@ -285,8 +361,6 @@ export function generateOccurrences({
           }
         }
       } else if (matchingOccs.length > 1) {
-        // Ambiguous match: multiple schedules run on the same day.
-        // Legacy record stays UNMATCHED and occurrences enter a "needs review" state.
         for (const occ of matchingOccs) {
           occ.needsReview = true;
         }
@@ -294,7 +368,6 @@ export function generateOccurrences({
     }
   }
 
-  // Sort occurrences by date ascending, then startTime ascending
   occurrences.sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.startTime.localeCompare(b.startTime);

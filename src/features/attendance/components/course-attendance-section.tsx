@@ -3,7 +3,11 @@
 import { useState, useTransition, useEffect, useMemo } from "react";
 import { useIsOnline } from "@/lib/use-online";
 import { markAttendance } from "@/features/attendance/lib/actions";
-import { generateOccurrences, ClassOccurrence } from "@/features/attendance/lib/occurrences";
+import {
+  generateOccurrences,
+  ClassOccurrence,
+  type OccurrenceCalendarEntry,
+} from "@/features/attendance/lib/occurrences";
 import {
   computeAttendanceMetrics,
   resolveAttendanceCounts,
@@ -16,7 +20,7 @@ import type { ClassSchedule, ScheduleException, AttendanceRecord, Semester, Atte
 
 interface CourseAttendanceSectionProps {
   courseId: string;
-  semester?: Semester | null;
+  semester?: (Semester & { academicCalendarEntries?: OccurrenceCalendarEntry[] }) | null;
   attendanceMode?: string | null;
   manualPresent?: number | null;
   manualTotalClasses?: number | null;
@@ -74,10 +78,14 @@ export function CourseAttendanceSection({
       schedules,
       exceptions: allExceptions,
       records,
+      calendarEntries: semester?.academicCalendarEntries ?? [],
+      semesterId: semester?.id,
+      semesterStartDate: semester?.startDate,
+      semesterEndDate: semester?.endDate,
       startDate: startDateStr,
       endDate: endDateStr,
     });
-  }, [schedules, allExceptions, records, startDateStr, endDateStr]);
+  }, [schedules, allExceptions, records, semester, startDateStr, endDateStr]);
 
   // Group occurrences by week (Monday to Sunday)
   const groupedWeeks = useMemo(() => {

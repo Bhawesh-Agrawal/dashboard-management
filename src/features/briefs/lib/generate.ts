@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE, formatDateOnly } from "@/lib/timezone";
 import { currentSemesterWhere } from "@/features/semesters/lib/current";
+import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import { generateOccurrences } from "@/features/attendance/lib/occurrences";
 import { getDsaDueSummary } from "@/features/dsa/lib/summary";
 import { getLocalTimeParts } from "@/features/notifications/lib/scheduler";
 import {
@@ -52,21 +54,24 @@ function formatHm(date: Date, timezone: string): string {
 async function getClassesForDate(
   userId: string,
   dateOnly: string,
-  nowHm?: string
+  nowHm?: string,
+  timezone = DEFAULT_TIMEZONE
 ): Promise<{
   hasCurrentSemester: boolean;
+  hasSchedule: boolean;
   classes: BriefClassItem[];
   unmarkedCount: number;
   endedUnmarkedClasses: BriefClassItem[];
 }> {
   const sem = await prisma.semester.findFirst({
     where: currentSemesterWhere(userId, dateOnly),
-    select: { id: true },
+    select: { id: true, startDate: true, endDate: true },
   });
 
   if (!sem) {
     return {
       hasCurrentSemester: false,
+      hasSchedule: false,
       classes: [],
       unmarkedCount: 0,
       endedUnmarkedClasses: [],
@@ -74,62 +79,85 @@ async function getClassesForDate(
   }
 
   const dateUtc = new Date(`${dateOnly}T00:00:00.000Z`);
-  const dayOfWeek = getDayOfWeekEnum(dateUtc.getUTCDay());
 
-  const schedules = await prisma.classSchedule.findMany({
-    where: {
-      course: { semesterId: sem.id },
-      dayOfWeek,
-      OR: [{ effectiveStartDate: null }, { effectiveStartDate: { lte: dateUtc } }],
-      AND: [{ OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: dateUtc } }] }],
-    },
-    include: {
-      course: { select: { id: true, name: true } },
-      exceptions: { where: { date: dateUtc } },
-    },
+  const [schedules, calendarEntries] = await Promise.all([
+    prisma.classSchedule.findMany({
+      where: { course: { semesterId: sem.id } },
+      include: {
+        course: { select: { id: true, name: true } },
+        exceptions: { where: { date: dateUtc } },
+      },
+    }),
+    getCalendarEntriesForSemester(userId, sem.id),
+  ]);
+
+  if (schedules.length === 0) {
+    return {
+      hasCurrentSemester: true,
+      hasSchedule: false,
+      classes: [],
+      unmarkedCount: 0,
+      endedUnmarkedClasses: [],
+    };
+  }
+
+  const courseById = new Map(schedules.map((s) => [s.course.id, s.course]));
+  const exceptions = schedules.flatMap((s) =>
+    s.exceptions.map((e) => ({ ...e, classScheduleId: e.classScheduleId ?? s.id }))
+  );
+  const occurrences = generateOccurrences({
+    schedules,
+    exceptions,
+    calendarEntries,
+    semesterId: sem.id,
+    semesterStartDate: sem.startDate,
+    semesterEndDate: sem.endDate,
+    startDate: dateOnly,
+    endDate: dateOnly,
+    timezone,
   });
 
   const classes: BriefClassItem[] = [];
   const endedUnmarkedClasses: BriefClassItem[] = [];
   let unmarkedCount = 0;
 
-  for (const s of schedules) {
-    const exc = s.exceptions[0];
-    if (exc?.type === "cancelled") continue;
-
-    const startTime =
-      exc?.type === "rescheduled" && exc.newStartTime ? exc.newStartTime : s.startTime;
-    const endTime =
-      exc?.type === "rescheduled" && exc.newEndTime ? exc.newEndTime : s.endTime;
-    const location =
-      exc?.type === "rescheduled" && exc.newLocation ? exc.newLocation : s.location;
+  for (const occ of occurrences) {
+    if (occ.status === "cancelled") continue;
+    const course = courseById.get(occ.courseId);
+    if (!course) continue;
 
     const classItem: BriefClassItem = {
-      courseId: s.course.id,
-      courseName: s.course.name,
-      startTime,
-      endTime,
-      location,
+      courseId: course.id,
+      courseName: course.name,
+      startTime: occ.startTime,
+      endTime: occ.endTime,
+      location: occ.location,
     };
     classes.push(classItem);
 
     const record = await prisma.attendanceRecord.findFirst({
       where: {
-        courseId: s.courseId,
+        courseId: occ.courseId,
         date: dateUtc,
-        OR: [{ classScheduleId: s.id }, { classScheduleId: null }],
+        OR: [{ classScheduleId: occ.classScheduleId }, { classScheduleId: null }],
       },
       select: { status: true },
     });
     if (!record || record.status === "not_marked") {
       unmarkedCount += 1;
-      if (nowHm && endTime <= nowHm) {
+      if (nowHm && occ.endTime <= nowHm) {
         endedUnmarkedClasses.push(classItem);
       }
     }
   }
 
-  return { hasCurrentSemester: true, classes, unmarkedCount, endedUnmarkedClasses };
+  return {
+    hasCurrentSemester: true,
+    hasSchedule: true,
+    classes,
+    unmarkedCount,
+    endedUnmarkedClasses,
+  };
 }
 
 export async function generateAndPersistBrief(input: {

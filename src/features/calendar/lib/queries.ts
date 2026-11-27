@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import type { CalendarEvent } from "@/types";
 import { fetchGoogleCalendarEvents, isGoogleCalendarConnected } from "./google-calendar";
 import { getCurrentUserId } from "@/lib/auth";
+import { generateOccurrences } from "@/features/attendance/lib/occurrences";
+import { formatDateOnly } from "@/lib/timezone";
 
 /**
  * Merge class schedules, assessments, tasks, events, and (optionally) Google Calendar events
@@ -9,9 +11,12 @@ import { getCurrentUserId } from "@/lib/auth";
  */
 export async function getCalendarEvents(startDate: Date, endDate: Date) {
   const userId = await getCurrentUserId();
-  const [classSchedules, assessments, tasks, events, googleConnected] = await Promise.all([
+  const [classSchedules, assessments, tasks, events, googleConnected, calendarEntries] = await Promise.all([
     prisma.classSchedule.findMany({
-      include: { course: { select: { id: true, name: true, color: true, code: true } } },
+      include: {
+        course: { select: { id: true, name: true, color: true, code: true, semesterId: true, semester: { select: { startDate: true, endDate: true } } } },
+        exceptions: { where: { date: { gte: startDate, lte: endDate } } },
+      },
     }),
     prisma.assessment.findMany({
       where: {
@@ -33,6 +38,11 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
       },
     }),
     isGoogleCalendarConnected(userId),
+    prisma.academicCalendarEntry
+      .findMany({
+        where: { userId, startDate: { lte: endDate }, endDate: { gte: startDate } },
+      })
+      .catch(() => []),
   ]);
 
   // Fetch Google Calendar events if connected
@@ -43,31 +53,36 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
 
   const calendarEvents: CalendarEvent[] = [];
 
-  // Expand recurring class schedules into actual dates within the range
-  for (const schedule of classSchedules) {
-    const dayMap: Record<string, number> = {
-      MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 0,
-    };
-    const targetDay = dayMap[schedule.dayOfWeek];
+  // Expand recurring class schedules via the pure Occurrence Engine
+  if (classSchedules.length > 0) {
+    const scheduleMap = new Map(classSchedules.map((s) => [s.id, s]));
+    const firstSem = classSchedules[0]?.course.semester;
+    const occurrences = generateOccurrences({
+      schedules: classSchedules,
+      exceptions: classSchedules.flatMap((s) => s.exceptions),
+      calendarEntries,
+      semesterStartDate: firstSem?.startDate,
+      semesterEndDate: firstSem?.endDate,
+      startDate: formatDateOnly(startDate),
+      endDate: formatDateOnly(endDate),
+    });
 
-    // Iterate through each day in the range
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      if (current.getDay() === targetDay) {
-        calendarEvents.push({
-          id: `schedule-${schedule.id}-${current.toISOString().slice(0, 10)}`,
-          title: schedule.course.name,
-          date: current.toISOString(),
-          time: schedule.startTime,
-          endTime: schedule.endTime,
-          type: "class",
-          courseId: schedule.course.id,
-          courseName: schedule.course.code || schedule.course.name,
-          courseColor: schedule.course.color ?? undefined,
-          location: schedule.location ?? undefined,
-        });
-      }
-      current.setDate(current.getDate() + 1);
+    for (const occ of occurrences) {
+      if (occ.status === "cancelled") continue;
+      const schedule = scheduleMap.get(occ.classScheduleId);
+      if (!schedule) continue;
+      calendarEvents.push({
+        id: `schedule-${schedule.id}-${occ.date}`,
+        title: schedule.course.name,
+        date: `${occ.date}T00:00:00.000Z`,
+        time: occ.startTime,
+        endTime: occ.endTime,
+        type: "class",
+        courseId: schedule.course.id,
+        courseName: schedule.course.code || schedule.course.name,
+        courseColor: schedule.course.color ?? undefined,
+        location: occ.location ?? undefined,
+      });
     }
   }
 

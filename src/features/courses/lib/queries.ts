@@ -4,7 +4,11 @@ import { getCurrentUserId } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
 
 const courseInclude = {
-  semester: true,
+  semester: {
+    include: {
+      academicCalendarEntries: { orderBy: { startDate: "asc" as const } },
+    },
+  },
   classSchedules: {
     orderBy: { dayOfWeek: "asc" as const },
     include: { exceptions: { orderBy: { date: "asc" as const } } },

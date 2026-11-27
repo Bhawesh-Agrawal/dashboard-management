@@ -6,6 +6,9 @@ import {
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
 import { getCurrentSemester } from "@/features/semesters/lib/current";
+import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import { generateOccurrences } from "@/features/attendance/lib/occurrences";
+import { formatDateOnly } from "@/lib/timezone";
 import type { CalendarEvent } from "@/types";
 
 interface CalendarRequest {
@@ -50,17 +53,43 @@ export async function POST(request: NextRequest) {
       isGoogleCalendarConnected(userId),
     ]);
 
-    // Fetch class schedules for the active semester
-    let classSchedules: any[] = [];
+    // Fetch class schedules and academic calendar entries for the active semester
+    let classSchedules: Array<{
+      id: string;
+      courseId: string;
+      dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+      startTime: string;
+      endTime: string;
+      location: string | null;
+      effectiveStartDate: Date | null;
+      effectiveEndDate: Date | null;
+      course: { id: string; name: string; color: string | null; code: string | null };
+      exceptions: Array<{
+        id: string;
+        classScheduleId: string;
+        date: Date;
+        type: "cancelled" | "rescheduled";
+        newStartTime: string | null;
+        newEndTime: string | null;
+        newLocation: string | null;
+      }>;
+    }> = [];
+    let calendarEntries: Awaited<ReturnType<typeof getCalendarEntriesForSemester>> = [];
     if (activeSemester) {
-      classSchedules = await prisma.classSchedule.findMany({
-        where: {
-          course: { semesterId: activeSemester.id },
-        },
-        include: {
-          course: { select: { id: true, name: true, color: true, code: true } },
-        },
-      });
+      [classSchedules, calendarEntries] = await Promise.all([
+        prisma.classSchedule.findMany({
+          where: {
+            course: { semesterId: activeSemester.id },
+          },
+          include: {
+            course: { select: { id: true, name: true, color: true, code: true } },
+            exceptions: {
+              where: { date: { gte: startDate, lte: endDate } },
+            },
+          },
+        }),
+        getCalendarEntriesForSemester(userId, activeSemester.id),
+      ]);
     }
 
     // Google Calendar events
@@ -71,30 +100,36 @@ export async function POST(request: NextRequest) {
 
     const calendarEvents: CalendarEvent[] = [];
 
-    // Expand recurring class schedules into actual dates within the range
-    for (const schedule of classSchedules) {
-      const dayMap: Record<string, number> = {
-        MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 0,
-      };
-      const targetDay = dayMap[schedule.dayOfWeek];
+    // Expand recurring class schedules via the pure Occurrence Engine
+    if (activeSemester && classSchedules.length > 0) {
+      const scheduleMap = new Map(classSchedules.map((s) => [s.id, s]));
+      const occurrences = generateOccurrences({
+        schedules: classSchedules,
+        exceptions: classSchedules.flatMap((s) => s.exceptions),
+        calendarEntries,
+        semesterId: activeSemester.id,
+        semesterStartDate: activeSemester.startDate,
+        semesterEndDate: activeSemester.endDate,
+        startDate: formatDateOnly(startDate),
+        endDate: formatDateOnly(endDate),
+      });
 
-      const current = new Date(startDate);
-      while (current <= endDate) {
-        if (current.getDay() === targetDay) {
-          calendarEvents.push({
-            id: `schedule-${schedule.id}-${current.toISOString().slice(0, 10)}`,
-            title: schedule.course.name,
-            date: current.toISOString(),
-            time: schedule.startTime,
-            endTime: schedule.endTime,
-            type: "class",
-            courseId: schedule.course.id,
-            courseName: schedule.course.code || schedule.course.name,
-            courseColor: schedule.course.color ?? undefined,
-            location: schedule.location ?? undefined,
-          });
-        }
-        current.setDate(current.getDate() + 1);
+      for (const occ of occurrences) {
+        if (occ.status === "cancelled") continue;
+        const schedule = scheduleMap.get(occ.classScheduleId);
+        if (!schedule) continue;
+        calendarEvents.push({
+          id: `schedule-${schedule.id}-${occ.date}`,
+          title: schedule.course.name,
+          date: `${occ.date}T00:00:00.000Z`,
+          time: occ.startTime,
+          endTime: occ.endTime,
+          type: "class",
+          courseId: schedule.course.id,
+          courseName: schedule.course.code || schedule.course.name,
+          courseColor: schedule.course.color ?? undefined,
+          location: occ.location ?? undefined,
+        });
       }
     }
 

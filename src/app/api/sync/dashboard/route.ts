@@ -12,6 +12,9 @@ import {
   isGoogleCalendarConnected,
 } from "@/features/calendar/lib/google-calendar";
 import { getCurrentSemester } from "@/features/semesters/lib/current";
+import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import { generateOccurrences } from "@/features/attendance/lib/occurrences";
+import { formatDateOnly } from "@/lib/timezone";
 
 /**
  * Returns server-only dashboard data that isn't in the sync scope.
@@ -112,12 +115,11 @@ export async function GET() {
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
 
-    const [todayClasses, attendanceData, allSemesters, googleConnected] =
+    const [allSemesterSchedules, calendarEntries, attendanceData, allSemesters, googleConnected] =
       await Promise.all([
         activeSemester
           ? prisma.classSchedule.findMany({
               where: {
-                dayOfWeek: todayDayOfWeek as "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN",
                 course: { semesterId: activeSemester.id },
               },
               orderBy: { startTime: "asc" },
@@ -129,6 +131,9 @@ export async function GET() {
             })
           : Promise.resolve([]),
         activeSemester
+          ? getCalendarEntriesForSemester(userId, activeSemester.id)
+          : Promise.resolve([]),
+        activeSemester
           ? prisma.course.findMany({
               where: { semesterId: activeSemester.id },
               include: { attendanceRecords: { select: { status: true } } },
@@ -137,6 +142,32 @@ export async function GET() {
         prisma.semester.findMany({ where: { userId }, orderBy: { startDate: "asc" } }),
         isGoogleCalendarConnected(userId),
       ]);
+
+    const todayDateStr = formatDateOnly(todayStart);
+    const scheduleById = new Map(allSemesterSchedules.map((s) => [s.id, s]));
+    const todayOccurrences = activeSemester
+      ? generateOccurrences({
+          schedules: allSemesterSchedules,
+          exceptions: allSemesterSchedules.flatMap((s) => s.exceptions),
+          calendarEntries,
+          semesterId: activeSemester.id,
+          semesterStartDate: activeSemester.startDate,
+          semesterEndDate: activeSemester.endDate,
+          startDate: todayDateStr,
+          endDate: todayDateStr,
+        })
+      : [];
+    const todayClasses = todayOccurrences
+      .filter((occ) => occ.status !== "cancelled")
+      .map((occ) => {
+        const sched = scheduleById.get(occ.classScheduleId)!;
+        return {
+          ...sched,
+          startTime: occ.startTime,
+          endTime: occ.endTime,
+          location: occ.location ?? null,
+        };
+      });
 
     // Google Calendar events
     const googleEvents = googleConnected

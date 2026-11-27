@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { currentSemesterWhere } from "@/features/semesters/lib/current";
+import { generateOccurrences, type OccurrenceCalendarEntry } from "@/features/attendance/lib/occurrences";
 import { generateAndPersistBrief } from "@/features/briefs/lib/generate";
 import {
   buildDedupKey,
@@ -123,6 +124,33 @@ function localDateUtcMidnight(dateOnly: string): Date {
   return new Date(`${dateOnly}T00:00:00.000Z`);
 }
 
+async function getActiveCalendarEntriesForDate(
+  userId: string,
+  dateUtc: Date
+): Promise<OccurrenceCalendarEntry[]> {
+  try {
+    const rows = await prisma.academicCalendarEntry.findMany({
+      where: {
+        userId,
+        startDate: { lte: dateUtc },
+        endDate: { gte: dateUtc },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      semesterId: r.semesterId,
+      kind: r.kind,
+      title: r.title,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      cancelsClasses: r.cancelsClasses,
+      followsWeekday: r.followsWeekday,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * 1. Class Start Reminder (N minutes before, default 10).
  */
@@ -133,46 +161,54 @@ export async function generateClassStartCandidates(
   options?: { minutesBefore?: number; force?: boolean }
 ): Promise<NotificationCandidate[]> {
   const local = getLocalTimeParts(now, timezone);
-  const dayOfWeek = getDayOfWeekEnum(local.dayOfWeek);
   const todayUtc = localDateUtcMidnight(local.dateOnly);
   const minutesBefore = options?.minutesBefore ?? DEFAULT_CLASS_REMINDER_MINUTES;
 
-  const schedules = await prisma.classSchedule.findMany({
-    where: {
-      course: {
-        semester: currentSemesterWhere(userId, local.dateOnly),
+  const [schedules, calendarEntries] = await Promise.all([
+    prisma.classSchedule.findMany({
+      where: {
+        course: {
+          semester: currentSemesterWhere(userId, local.dateOnly),
+        },
+        OR: [{ effectiveStartDate: null }, { effectiveStartDate: { lte: todayUtc } }],
+        AND: [{ OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayUtc } }] }],
       },
-      dayOfWeek,
-      OR: [{ effectiveStartDate: null }, { effectiveStartDate: { lte: todayUtc } }],
-      AND: [{ OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayUtc } }] }],
-    },
-    include: {
-      course: { select: { name: true, color: true } },
-      exceptions: { where: { date: todayUtc } },
-    },
+      include: {
+        course: { select: { name: true, color: true } },
+        exceptions: { where: { date: todayUtc } },
+      },
+    }),
+    getActiveCalendarEntriesForDate(userId, todayUtc),
+  ]);
+
+  if (schedules.length === 0) return [];
+
+  const scheduleById = new Map(schedules.map((s) => [s.id, s]));
+  const occurrences = generateOccurrences({
+    schedules,
+    exceptions: schedules.flatMap((s) =>
+      s.exceptions.map((e) => ({ ...e, classScheduleId: e.classScheduleId ?? s.id }))
+    ),
+    calendarEntries,
+    startDate: local.dateOnly,
+    endDate: local.dateOnly,
+    timezone,
+    now,
   });
 
   const candidates: NotificationCandidate[] = [];
 
-  for (const schedule of schedules) {
-    const exception = schedule.exceptions[0];
-    if (exception?.type === "cancelled") continue;
+  for (const occ of occurrences) {
+    if (occ.status === "cancelled") continue;
+    const schedule = scheduleById.get(occ.classScheduleId);
+    if (!schedule) continue;
 
-    const startTimeStr =
-      exception?.type === "rescheduled" && exception.newStartTime
-        ? exception.newStartTime
-        : schedule.startTime;
-    const targetTotal = parseHmToMinutes(startTimeStr);
+    const targetTotal = parseHmToMinutes(occ.startTime);
     if (targetTotal === null) continue;
 
     const diffFromStart = targetTotal - local.totalMinutes;
     if (options?.force || (diffFromStart >= 0 && diffFromStart <= minutesBefore)) {
-      const locationPart =
-        exception?.type === "rescheduled" && exception.newLocation
-          ? ` | ${exception.newLocation}`
-          : schedule.location
-          ? ` | ${schedule.location}`
-          : "";
+      const locationPart = occ.location ? ` | ${occ.location}` : "";
 
       candidates.push({
         userId,
@@ -182,7 +218,7 @@ export async function generateClassStartCandidates(
         scheduledFor: now,
         dedupKey: buildDedupKey("class_start", schedule.id, local.dateOnly),
         title: "Class Starting Soon",
-        body: `${schedule.course.name} at ${startTimeStr}${locationPart}`,
+        body: `${schedule.course.name} at ${occ.startTime}${locationPart}`,
         url: `/courses/${schedule.courseId}`,
         actions: [
           { action: "snooze", title: "Snooze" },
@@ -207,35 +243,48 @@ export async function generateClassEndCandidates(
   options?: { force?: boolean }
 ): Promise<NotificationCandidate[]> {
   const local = getLocalTimeParts(now, timezone);
-  const dayOfWeek = getDayOfWeekEnum(local.dayOfWeek);
   const todayUtc = localDateUtcMidnight(local.dateOnly);
 
-  const schedules = await prisma.classSchedule.findMany({
-    where: {
-      course: {
-        semester: currentSemesterWhere(userId, local.dateOnly),
+  const [schedules, calendarEntries] = await Promise.all([
+    prisma.classSchedule.findMany({
+      where: {
+        course: {
+          semester: currentSemesterWhere(userId, local.dateOnly),
+        },
+        OR: [{ effectiveStartDate: null }, { effectiveStartDate: { lte: todayUtc } }],
+        AND: [{ OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayUtc } }] }],
       },
-      dayOfWeek,
-      OR: [{ effectiveStartDate: null }, { effectiveStartDate: { lte: todayUtc } }],
-      AND: [{ OR: [{ effectiveEndDate: null }, { effectiveEndDate: { gte: todayUtc } }] }],
-    },
-    include: {
-      course: { select: { id: true, name: true, color: true } },
-      exceptions: { where: { date: todayUtc } },
-    },
+      include: {
+        course: { select: { id: true, name: true, color: true } },
+        exceptions: { where: { date: todayUtc } },
+      },
+    }),
+    getActiveCalendarEntriesForDate(userId, todayUtc),
+  ]);
+
+  if (schedules.length === 0) return [];
+
+  const scheduleById = new Map(schedules.map((s) => [s.id, s]));
+  const occurrences = generateOccurrences({
+    schedules,
+    exceptions: schedules.flatMap((s) =>
+      s.exceptions.map((e) => ({ ...e, classScheduleId: e.classScheduleId ?? s.id }))
+    ),
+    calendarEntries,
+    startDate: local.dateOnly,
+    endDate: local.dateOnly,
+    timezone,
+    now,
   });
 
   const candidates: NotificationCandidate[] = [];
 
-  for (const schedule of schedules) {
-    const exception = schedule.exceptions[0];
-    if (exception?.type === "cancelled") continue;
+  for (const occ of occurrences) {
+    if (occ.status === "cancelled") continue;
+    const schedule = scheduleById.get(occ.classScheduleId);
+    if (!schedule) continue;
 
-    const endTimeStr =
-      exception?.type === "rescheduled" && exception.newEndTime
-        ? exception.newEndTime
-        : schedule.endTime;
-    const targetEnd = parseHmToMinutes(endTimeStr);
+    const targetEnd = parseHmToMinutes(occ.endTime);
     if (targetEnd === null) continue;
 
     const diffFromEnd = local.totalMinutes - targetEnd;
@@ -249,12 +298,7 @@ export async function generateClassEndCandidates(
       });
       if (existing && existing.status !== "not_marked") continue;
 
-      const locationPart =
-        exception?.type === "rescheduled" && exception.newLocation
-          ? ` | ${exception.newLocation}`
-          : schedule.location
-          ? ` | ${schedule.location}`
-          : "";
+      const locationPart = occ.location ? ` | ${occ.location}` : "";
 
       candidates.push({
         userId,

@@ -129,38 +129,40 @@ export function DsaDashboardView({
       {/* Q1 & Q2 Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Q1: What to study today */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 space-y-3 overflow-hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <h2 className="text-sm font-semibold">1. What to study today</h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {data.studyToday.dueTodayCount} revision due today
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {data.topicsSummary.perTopic.length > 0 && (
-                <select
-                  aria-label="Select today's topic"
-                  value={data.studyToday.currentTopic?.id ?? ""}
-                  disabled={topicPending}
-                  onChange={(e) => handleTopicChange(e.target.value)}
-                  className="min-h-[44px] rounded-md border border-border bg-background px-2.5 text-xs text-foreground disabled:opacity-50"
-                >
-                  {data.topicsSummary.perTopic.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.attempted}/{t.total})
-                    </option>
-                  ))}
-                </select>
-              )}
-              <Link
-                href="/dsa/problems"
-                className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center shrink-0"
-              >
-                All problems
-              </Link>
-            </div>
+            <Link
+              href="/dsa/problems"
+              className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center shrink-0 whitespace-nowrap"
+            >
+              All problems
+            </Link>
           </div>
+
+          {data.topicsSummary.perTopic.length > 0 && (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">Topic:</span>
+              <select
+                aria-label="Select today's topic"
+                value={data.studyToday.currentTopic?.id ?? ""}
+                disabled={topicPending}
+                onChange={(e) => handleTopicChange(e.target.value)}
+                className="w-full min-w-0 max-w-full min-h-[44px] rounded-md border border-border bg-background px-2.5 text-xs text-foreground truncate disabled:opacity-50"
+              >
+                {data.topicsSummary.perTopic.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.attempted}/{t.total})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {data.studyToday.nextProblems.length === 0 ? (
             <p className="text-xs text-muted-foreground">

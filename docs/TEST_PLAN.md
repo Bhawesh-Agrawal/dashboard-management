@@ -98,3 +98,16 @@ Re-running any of the commands above for the same local date must return `"sent"
 3. **Importer & Audit on `/semesters/[id]/calendar`:**
    - Paste the 24 calendar lines + 18 key-date lines; confirm exact dates, stripped bracket tags, `"Saturday follows Monday timetable"` titles, and `"These entries cancel classes on N weekdays."` impact preview.
    - Click `"Audit entries"` on existing data and verify suggestions apply only on tap.
+
+
+---
+
+## Phase 8 Item 5: Mobile PDF Viewer Checklist
+
+1. Open a pinned 50–100+ page PDF in `/notes` on mobile (`360x800` / `390x844`) while offline:
+   - Confirm the viewer opens using `/pdfjs/pdf.worker.min.mjs` (no `unpkg.com` requests in DevTools Network).
+   - Confirm only nearby pages render while distant pages show lightweight placeholders, and scrolling remains smooth without memory crashes.
+   - Test pinch-to-zoom, double-tap zoom (`1x ↔ 1.75x`), and the page jump bar (`Page X of Y` + `Go`).
+   - Close and reopen the PDF and verify it resumes at the last viewed page.
+   - Verify annotation/highlight toolbars are hidden on mobile and present on desktop (`>= 1024px`).
+   - Trigger a load failure (e.g. invalid URL) and verify `"Can't open this file"` renders with **Retry** and **Open in browser**.

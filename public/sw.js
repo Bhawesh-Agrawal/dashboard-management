@@ -30,13 +30,15 @@ const APP_SHELL_FILES = [
   "/routines",
 ];
 
+const PDFJS_PRECACHE_FILES = ["/pdfjs/pdf.worker.min.mjs"];
+
 // Install event — cache app shell robustly (individual try/catch so one bad URL never aborts installation)
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(APP_SHELL_CACHE).then(async (cache) => {
       console.log("[SW] Caching app shell");
-      for (const file of APP_SHELL_FILES) {
+      for (const file of [...APP_SHELL_FILES, ...PDFJS_PRECACHE_FILES]) {
         try {
           await cache.add(file);
         } catch (error) {
@@ -114,7 +116,8 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith(".css") ||
     url.pathname.endsWith(".woff2") ||
     url.pathname.endsWith(".woff") ||
-    url.pathname.endsWith(".ttf")
+    url.pathname.endsWith(".ttf") ||
+    url.pathname.startsWith("/pdfjs/")
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {

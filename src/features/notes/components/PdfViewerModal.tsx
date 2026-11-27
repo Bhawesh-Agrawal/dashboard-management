@@ -1,32 +1,24 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect, type TouchEvent as ReactTouchEvent } from "react";
+import { useState, useCallback, useRef, useEffect, type TouchEvent as ReactTouchEvent } from "react";
+import dynamic from "next/dynamic";
 import { Document, Page } from "react-pdf";
-
-import {
-  PdfLoader,
-  PdfHighlighter,
-  Highlight as LibHighlight,
-  AreaHighlight,
-  TextHighlight,
-  usePdfHighlighterContext,
-  useHighlightContainerContext,
-  PdfSelection,
-  ViewportPosition
-} from "react-pdf-highlighter-extended";
+import type { PdfSelection } from "react-pdf-highlighter-extended";
 
 import { useHideMobileNav } from "@/lib/ui/fullscreen-flow";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PdfViewerToolbar } from "./PdfViewerToolbar";
-import { PdfThumbnailSidebar } from "./PdfThumbnailSidebar";
 import { PdfBottomBar } from "./PdfBottomBar";
-import { PdfSearchBar } from "./PdfSearchBar";
 import { AnnotationToolbar } from "./AnnotationToolbar";
-import { AnnotationListSidebar } from "./AnnotationListSidebar";
-import { TextSelectionFloatingBar } from "./TextSelectionFloatingBar";
+import { MobilePdfViewer } from "./MobilePdfViewer";
 import { configurePdfWorker } from "@/lib/pdf/setup";
+
+const DesktopPdfHighlighter = dynamic(
+  () => import("./DesktopPdfHighlighter").then((m) => m.DesktopPdfHighlighter),
+  { ssr: false }
+);
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { getPdfViewUrl } from "@/features/notes/lib/actions";
@@ -57,54 +49,6 @@ export interface PdfViewerModalProps {
 
 const ZOOM_PRESETS = [25, 50, 75, 100, 125, 150, 200] as const;
 const TOOLBAR_HIDE_DELAY = 3000;
-
-// Inner highlight container for react-pdf-highlighter-extended
-function HighlightContainer({ 
-  onEdit, 
-  onDelete 
-}: { 
-  onEdit: (id: string, data: any) => void;
-  onDelete: (id: string) => void;
-}) {
-  const { highlight, isScrolledTo } = useHighlightContainerContext<any>();
-  const isTextHighlight = highlight.type !== "area";
-  
-  if (isTextHighlight) {
-    return (
-      <TextHighlight 
-        isScrolledTo={isScrolledTo} 
-        highlight={highlight as any} 
-        style={{ 
-          background: highlight.type === "UNDERLINE" ? "transparent" : highlight.color,
-          borderBottom: highlight.type === "UNDERLINE" ? `2px solid ${highlight.color}` : "none",
-          opacity: 0.5 
-        }} 
-      />
-    );
-  }
-  
-  return (
-    <AreaHighlight
-      isScrolledTo={isScrolledTo}
-      highlight={highlight as any}
-      onChange={() => {}}
-      bounds={document.body}
-    />
-  );
-}
-
-function DocumentLoadedHandler({ 
-  pdfDocument, 
-  onLoadSuccess 
-}: { 
-  pdfDocument: any; 
-  onLoadSuccess: (pdf: any) => void; 
-}) {
-  useEffect(() => {
-    onLoadSuccess(pdfDocument);
-  }, [pdfDocument, onLoadSuccess]);
-  return null;
-}
 
 export function PdfViewerModal({
   open,
@@ -349,9 +293,57 @@ export function PdfViewerModal({
     }
   }, [currentSelection, noteId]);
 
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+        <DialogContent
+          className="max-w-full w-full h-dvh p-0 rounded-none border-0 bg-background"
+          showCloseButton={false}
+        >
+          {isLoading ? (
+            <div className="flex flex-col h-dvh p-4 space-y-3 bg-background">
+              <div className="h-11 rounded bg-muted animate-pulse" />
+              <div className="flex-1 rounded-lg bg-muted animate-pulse" />
+            </div>
+          ) : error || !viewUrl ? (
+            <div className="flex flex-col items-center justify-center h-dvh p-6 text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-base text-foreground">
+                  Can&apos;t open this file
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  {error || "Please check your connection and try again."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => loadUrl()}
+                className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md min-h-[44px]"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <MobilePdfViewer
+              fileUrl={viewUrl}
+              fileKey={fileId}
+              title={title}
+              initialPage={initialPage}
+              onClose={handleClose}
+              onRetry={() => loadUrl()}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-[95vw] sm:max-w-[95vw] w-full h-[95vh] p-0 flex flex-col overflow-hidden shadow-2xl rounded-xl border-border/50 bg-background/95 backdrop-blur-sm sm:rounded-xl" showCloseButton={false}>
+      <DialogContent className="max-w-[95vw] sm:max-w-[95vw] w-full h-[95dvh] p-0 flex flex-col overflow-hidden shadow-2xl rounded-xl border-border/50 bg-background/95 backdrop-blur-sm sm:rounded-xl" showCloseButton={false}>
         <PdfViewerToolbar
           title={title}
           currentPage={currentPage}
@@ -443,61 +435,20 @@ export function PdfViewerModal({
             )}
 
             {viewUrl && (
-              <PdfLoader 
-                document={viewUrl}
-                workerSrc="https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"
-              >
-                {(pdfDocument) => {
-                  // Base scale: assuming average page width of 612 (8.5 inches * 72)
-                  // We subtract 64px for padding
-                  const baseScale = containerWidth > 0 ? (containerWidth - 64) / 612 : 1.2;
-                  // If zoom is 100%, we fit to container. Otherwise we scale relative to that.
-                  const computedScale = zoom === 100 ? "page-width" : baseScale * (zoom / 100);
-
-                  return (
-                    <>
-                      {pdfDocument.numPages !== totalPages && (
-                        <DocumentLoadedHandler 
-                          pdfDocument={pdfDocument} 
-                          onLoadSuccess={handleDocumentLoadSuccess} 
-                        />
-                      )}
-                      <PdfHighlighter
-                        pdfDocument={pdfDocument}
-                      enableAreaSelection={(event) => event.altKey}
-                      pdfScaleValue={computedScale}
-                      utilsRef={() => {}}
-                      onSelection={(selection) => setCurrentSelection(selection)}
-                      selectionTip={
-                        currentSelection ? (
-                          <div className="flex gap-1 p-1 bg-popover border shadow-lg rounded-md z-50">
-                            <TextSelectionFloatingBar 
-                              visible={true}
-                              selectedText="selection"
-                              activeColor={activeColor}
-                              position={{ x: 0, y: 0 }}
-                              inline={true}
-                              onHighlight={() => handleSaveAnnotation("HIGHLIGHT", activeColor)}
-                              onUnderline={() => handleSaveAnnotation("UNDERLINE", activeColor)}
-                              onAddNote={() => handleSaveAnnotation("NOTE", activeColor)}
-                              onCopy={() => {
-                                navigator.clipboard.writeText(currentSelection.makeGhostHighlight().content.text || "");
-                                toast.success("Copied to clipboard");
-                                setCurrentSelection(null);
-                              }}
-                              onClose={() => setCurrentSelection(null)}
-                            />
-                          </div>
-                        ) : undefined
-                      }
-                      highlights={localAnnotations as any}
-                    >
-                      <HighlightContainer onEdit={() => {}} onDelete={() => {}} />
-                    </PdfHighlighter>
-                    </>
-                  );
-                }}
-              </PdfLoader>
+              <DesktopPdfHighlighter
+                viewUrl={viewUrl}
+                containerWidth={containerWidth}
+                zoom={zoom}
+                totalPages={totalPages}
+                highlights={localAnnotations as any}
+                currentSelection={currentSelection}
+                activeColor={activeColor}
+                onLoadSuccess={handleDocumentLoadSuccess}
+                onSelection={setCurrentSelection}
+                onSaveAnnotation={handleSaveAnnotation}
+                onDeleteAnnotation={() => {}}
+                onEditAnnotation={() => {}}
+              />
             )}
           </div>
         </div>

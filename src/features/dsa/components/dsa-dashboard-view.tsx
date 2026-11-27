@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRight, ExternalLink, PlusCircle, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CLASSIFICATION_META, DIFFICULTY_BADGE_CLASS } from "../lib/constants";
 import type { DsaDashboardData } from "../lib/dashboard";
 import type { WeeklyTopicTrendData } from "../lib/analytics";
+import { setDsaCurrentTopic } from "../lib/topic-actions";
 import { AttemptLogSheet, type AttemptSheetTarget } from "./attempt-log-sheet";
 import { DsaProgrammeSettingsCard } from "./dsa-programme-settings-card";
 import { DsaImportCard } from "./dsa-import-card";
@@ -18,8 +21,24 @@ export function DsaDashboardView({
   data: DsaDashboardData;
   weeklyTrend?: WeeklyTopicTrendData;
 }) {
+  const router = useRouter();
   const [sheetTarget, setSheetTarget] = useState<AttemptSheetTarget | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [topicPending, startTopicTransition] = useTransition();
+
+  function handleTopicChange(topicId: string) {
+    if (!topicId || topicId === data.studyToday.currentTopic?.id) return;
+    startTopicTransition(async () => {
+      try {
+        await setDsaCurrentTopic({ topicId });
+        const chosen = data.topicsSummary.perTopic.find((t) => t.id === topicId);
+        toast.success(`Today's topic set to ${chosen?.name ?? "selected topic"}`);
+        router.refresh();
+      } catch {
+        toast.error("Failed to update today's topic");
+      }
+    });
+  }
 
   if (data.isFirstRun) {
     return (
@@ -111,21 +130,36 @@ export function DsaDashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Q1: What to study today */}
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold">1. What to study today</h2>
               <p className="text-xs text-muted-foreground">
-                Current topic:{" "}
-                <strong>{data.studyToday.currentTopic?.name ?? "None selected"}</strong> ·{" "}
                 {data.studyToday.dueTodayCount} revision due today
               </p>
             </div>
-            <Link
-              href="/dsa/problems"
-              className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center"
-            >
-              All problems
-            </Link>
+            <div className="flex items-center gap-2">
+              {data.topicsSummary.perTopic.length > 0 && (
+                <select
+                  aria-label="Select today's topic"
+                  value={data.studyToday.currentTopic?.id ?? ""}
+                  disabled={topicPending}
+                  onChange={(e) => handleTopicChange(e.target.value)}
+                  className="min-h-[44px] rounded-md border border-border bg-background px-2.5 text-xs text-foreground disabled:opacity-50"
+                >
+                  {data.topicsSummary.perTopic.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.attempted}/{t.total})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Link
+                href="/dsa/problems"
+                className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center shrink-0"
+              >
+                All problems
+              </Link>
+            </div>
           </div>
 
           {data.studyToday.nextProblems.length === 0 ? (

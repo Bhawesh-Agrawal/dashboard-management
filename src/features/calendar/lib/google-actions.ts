@@ -134,7 +134,7 @@ export async function getCalendarEventsAction(
     date: string;
     time?: string;
     endTime?: string;
-    type: "class" | "assessment" | "task" | "event" | "birthday";
+    type: "class" | "assessment" | "task" | "event" | "birthday" | "academic";
     courseId?: string;
     courseName?: string;
     courseColor?: string;

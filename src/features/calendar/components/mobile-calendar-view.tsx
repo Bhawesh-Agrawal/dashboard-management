@@ -173,6 +173,9 @@ export function MobileCalendarView({
   navigateNext,
   goToToday,
   handleSelectDate,
+  showAcademic = true,
+  onToggleAcademic,
+  academicOffline = false,
 }: {
   events: CalendarEvent[];
   loading: boolean;
@@ -194,6 +197,9 @@ export function MobileCalendarView({
   navigateNext: () => void;
   goToToday: () => void;
   handleSelectDate: (d: Date) => void;
+  showAcademic?: boolean;
+  onToggleAcademic?: () => void;
+  academicOffline?: boolean;
 }) {
   // ── Touch state for swipe ──
   const touchStartY = useRef<number | null>(null);
@@ -286,8 +292,24 @@ export function MobileCalendarView({
           </button>
         </div>
 
-        {/* Right: Today + view switcher */}
-        <div className="flex items-center gap-2">
+        {/* Right: Academic toggle + Today + view switcher */}
+        <div className="flex items-center gap-1.5">
+          {onToggleAcademic && (
+            <button
+              type="button"
+              onClick={onToggleAcademic}
+              aria-pressed={showAcademic}
+              className={cn(
+                "text-xs font-medium px-2 py-1 rounded-md border transition-colors",
+                showAcademic
+                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              )}
+              title="Show academic calendar"
+            >
+              Acad
+            </button>
+          )}
           <button
             onClick={goToToday}
             className="text-xs font-medium px-2 py-1 rounded-md border border-border hover:bg-accent transition-colors"
@@ -314,6 +336,11 @@ export function MobileCalendarView({
       </div>
 
       {/* ── Calendar section (top ~40%) ── */}
+      {academicOffline && showAcademic && (
+        <div className="px-4 py-1 border-b border-border bg-muted/40 text-[0.7rem] text-muted-foreground">
+          Academic calendar unavailable offline
+        </div>
+      )}
       <div className="shrink-0 border-b border-border">
         {view === "month" && (
           <MonthView

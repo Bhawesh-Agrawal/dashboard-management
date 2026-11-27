@@ -1,8 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { CalendarEvent } from "@/types";
 import { getCalendarEventsAction } from "@/features/calendar/lib/google-actions";
+import { academicEntriesToCalendarEvents } from "@/features/calendar/lib/academic-calendar-events";
+import {
+  isoWeekdayName,
+  type AcademicCalendarEntryItem,
+} from "@/features/semesters/lib/academic-calendar-dates";
 import {
   ChevronLeft,
   ChevronRight,
@@ -16,6 +22,7 @@ import {
   Cake,
   X,
   Plus,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -51,6 +58,7 @@ export const EVENT_STYLES: Record<string, { bg: string; text: string; dot: strin
   task:       { bg: "bg-muted",      text: "text-foreground",       dot: "bg-foreground",       border: "border-border" },
   event:      { bg: "bg-accent",     text: "text-accent-foreground",dot: "bg-foreground/70",    border: "border-border" },
   birthday:   { bg: "bg-secondary",  text: "text-secondary-foreground", dot: "bg-primary/70",   border: "border-border" },
+  academic:   { bg: "bg-secondary/70", text: "text-secondary-foreground", dot: "bg-primary/60", border: "border-border" },
 };
 
 export function getEventStyle(event: CalendarEvent) {
@@ -60,6 +68,7 @@ export function getEventStyle(event: CalendarEvent) {
 
 export function getEventIcon(event: CalendarEvent) {
   if (event.isBirthday) return <Cake className="h-3 w-3 shrink-0" />;
+  if (event.type === "academic") return <CalendarDays className="h-3 w-3 shrink-0" />;
   if (event.type === "class") return <BookOpen className="h-3 w-3 shrink-0" />;
   if (event.type === "assessment") return <Sparkles className="h-3 w-3 shrink-0" />;
   if (event.type === "task") return <CheckSquare className="h-3 w-3 shrink-0" />;
@@ -671,6 +680,10 @@ export function MonthView({
         {cells.map(({ date, isCurrentMonth }, idx) => {
           const dateStr = toDateStr(date);
           const dayEvents = eventsByDate[dateStr] || [];
+          const academicEvents = dayEvents.filter((e) => e.type === "academic");
+          const hasCancelledAcademic = academicEvents.some(
+            (e) => e.academicMeta?.cancelsClasses
+          );
           const isToday = isSameDay(date, today);
           const isSelected = isSameDay(date, selectedDate);
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -682,15 +695,31 @@ export function MonthView({
               className={cn(
                 "border-b border-r border-border p-1 cursor-pointer min-h-[80px] sm:min-h-[100px]",
                 "hover:bg-accent/30 transition-colors group",
+                hasCancelledAcademic && "bg-muted/60",
                 isToday && "bg-primary/[0.03]",
                 isSelected && !isToday && "bg-accent/50",
                 !isCurrentMonth && "opacity-40"
               )}
             >
-              {/* Date number */}
-              <div className="flex justify-end mb-1">
+              {/* Date number & academic marker */}
+              <div className="flex items-center justify-between gap-1 mb-1">
+                {academicEvents.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectEvent(academicEvents[0]);
+                    }}
+                    className="truncate text-[0.6rem] font-medium text-muted-foreground hover:text-foreground text-left"
+                    title={academicEvents.map((a) => a.title).join(" · ")}
+                  >
+                    {academicEvents[0].academicMeta?.shortLabel ?? "Academic"}
+                  </button>
+                ) : (
+                  <span />
+                )}
                 <span className={cn(
-                  "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full transition-colors",
+                  "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full transition-colors shrink-0",
                   isToday && "bg-primary text-primary-foreground font-bold",
                   isSelected && !isToday && "ring-2 ring-primary/50",
                   !isToday && isWeekend && "text-muted-foreground",
@@ -1049,6 +1078,38 @@ function EventDetailModal({
               <span>{event.courseName}</span>
             </div>
           )}
+          {event.type === "academic" && event.academicMeta && (
+            <div className="space-y-2 pt-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 shrink-0" />
+                <span>
+                  {event.academicMeta.startDate === event.academicMeta.endDate
+                    ? event.academicMeta.startDate
+                    : `${event.academicMeta.startDate} to ${event.academicMeta.endDate} (day ${event.academicMeta.day} of ${event.academicMeta.totalDays})`}
+                </span>
+              </div>
+              <p className="text-xs text-foreground font-medium">
+                {event.academicMeta.cancelsClasses
+                  ? "Classes cancelled"
+                  : event.academicMeta.kind === "follows_weekday"
+                    ? `Follows ${isoWeekdayName(event.academicMeta.followsWeekday)} timetable`
+                    : "Classes as scheduled"}
+              </p>
+              {event.academicMeta.semesterName && (
+                <p className="text-xs">Semester: {event.academicMeta.semesterName}</p>
+              )}
+              {event.academicMeta.notes && (
+                <p className="text-xs">{event.academicMeta.notes}</p>
+              )}
+              <Link
+                href={`/semesters/${event.academicMeta.semesterId}/calendar`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline pt-1 min-h-[44px]"
+              >
+                Edit in academic calendar
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Travel & Ticket Attachments (for calendar events) */}
@@ -1162,6 +1223,23 @@ export function CalendarView({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [showEventCreation, setShowEventCreation] = useState(false);
+  const [academicEntries, setAcademicEntries] = useState<AcademicCalendarEntryItem[]>([]);
+  const [academicOffline, setAcademicOffline] = useState(false);
+  const [showAcademic, setShowAcademic] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem("calendar:showAcademicCalendar");
+    return saved === null ? true : saved === "true";
+  });
+
+  function toggleAcademic() {
+    setShowAcademic((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("calendar:showAcademicCalendar", String(next));
+      }
+      return next;
+    });
+  }
 
   // Touch / swipe state
   const touchStartX = useRef<number | null>(null);
@@ -1179,6 +1257,23 @@ export function CalendarView({
     setLoading(true);
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month + 2, 0);
+
+    const startStr = toDateStr(startOfMonth);
+    const endStr = toDateStr(endOfMonth);
+    const academicPromise = fetch(
+      `/api/academic-calendar?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`,
+      { credentials: "include" }
+    )
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Academic calendar fetch failed");
+        const data = (await r.json()) as { entries?: AcademicCalendarEntryItem[] };
+        setAcademicEntries(data.entries ?? []);
+        setAcademicOffline(false);
+      })
+      .catch(() => {
+        setAcademicEntries([]);
+        setAcademicOffline(true);
+      });
 
     // If external data is provided (from Dexie), use the sync API route
     if (externalTasks || externalEvents) {
@@ -1210,6 +1305,7 @@ export function CalendarView({
       );
       setEvents(result.events as unknown as CalendarEvent[]);
     }
+    await academicPromise;
     setLoading(false);
   }, [externalTasks, externalEvents]);
 
@@ -1217,16 +1313,28 @@ export function CalendarView({
     fetchEvents(currentYear, currentMonth);
   }, [currentYear, currentMonth, fetchEvents]);
 
-  // Events by date map
+  const academicCalendarEvents = useMemo(() => {
+    if (!showAcademic || academicEntries.length === 0) return [];
+    const rangeStart = toDateStr(new Date(currentYear, currentMonth - 1, 1));
+    const rangeEnd = toDateStr(new Date(currentYear, currentMonth + 2, 0));
+    return academicEntriesToCalendarEvents(academicEntries, rangeStart, rangeEnd);
+  }, [showAcademic, academicEntries, currentYear, currentMonth]);
+
+  // Events by date map (academic entries first so all-day strips show them prominently)
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
+    for (const event of academicCalendarEvents) {
+      const key = event.date.slice(0, 10);
+      if (!map[key]) map[key] = [];
+      map[key].push(event);
+    }
     for (const event of events) {
       const key = event.date.slice(0, 10);
       if (!map[key]) map[key] = [];
       map[key].push(event);
     }
     return map;
-  }, [events]);
+  }, [academicCalendarEvents, events]);
 
   // Selected day events
   const selectedDayEvents = useMemo(() => {
@@ -1360,6 +1468,9 @@ export function CalendarView({
           navigateNext={navigateNext}
           goToToday={goToToday}
           handleSelectDate={handleSelectDate}
+          showAcademic={showAcademic}
+          onToggleAcademic={toggleAcademic}
+          academicOffline={academicOffline}
         />
 
         {/* Event detail modal */}
@@ -1418,8 +1529,21 @@ export function CalendarView({
           </button>
         </div>
 
-        {/* Right: view switcher + Add Event button */}
+        {/* Right: academic toggle + view switcher + Add Event button */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAcademic}
+            aria-pressed={showAcademic}
+            className={cn(
+              "hidden sm:inline-flex items-center text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors",
+              showAcademic
+                ? "border-primary/40 bg-primary/10 text-foreground"
+                : "border-border text-muted-foreground hover:bg-accent"
+            )}
+          >
+            Show academic calendar
+          </button>
           <button
             onClick={() => setShowEventCreation(true)}
             className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -1447,6 +1571,11 @@ export function CalendarView({
       </div>
 
       {/* ── Main area ── */}
+      {academicOffline && showAcademic && (
+        <div className="px-4 sm:px-6 md:px-8 py-1.5 border-b border-border bg-muted/40 text-xs text-muted-foreground">
+          Academic calendar unavailable offline
+        </div>
+      )}
       <div className="flex flex-row" style={{ height: "calc(100vh - 220px)", minHeight: 480 }}>
         {/* Main calendar panel */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border overflow-hidden">

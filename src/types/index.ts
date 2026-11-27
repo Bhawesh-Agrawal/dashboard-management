@@ -124,12 +124,27 @@ export type CalendarEvent = {
   date: string;
   time?: string;
   endTime?: string;
-  type: "class" | "assessment" | "task" | "event" | "birthday";
+  type: "class" | "assessment" | "task" | "event" | "birthday" | "academic";
   courseId?: string;
   courseName?: string;
   courseColor?: string;
   location?: string;
   isBirthday?: boolean;
+  academicMeta?: {
+    entryId: string;
+    semesterId: string;
+    semesterName?: string;
+    kind: "holiday" | "break" | "exam_period" | "no_classes" | "follows_weekday" | "note";
+    rawTitle: string;
+    startDate: string;
+    endDate: string;
+    cancelsClasses: boolean;
+    followsWeekday: number | null;
+    notes?: string | null;
+    day: number;
+    totalDays: number;
+    shortLabel: string;
+  };
 };
 
 // ─── Grading computation result ─────────────────────────────

@@ -132,3 +132,18 @@ Re-running any of the commands above for the same local date must return `"sent"
    - Edit a task offline, verify the mobile header sync pill shows pending dirty count; tap it to open the Sync status bottom sheet, reconnect, and tap **Sync now**.
    - Visit a non-existent route (`/does-not-exist`) and verify the custom `NotFound` state renders with a **Back to Today** link.
    - Install the PWA on Android/iOS and verify launcher shortcuts (**Today**, **Daily Brief**, **Quick Capture**, **DSA Log**) and the `/offline.html` fallback.
+
+
+### Phase 9: Notes Capture Inbox Checklist
+
+1. **Share from External Apps (Android Chrome PWA)**
+   - Share a YouTube video link from the YouTube app to CodexDash; verify `/capture/share` extracts the URL cleanly (stripping tracking params) and enriches title/thumbnail in the background.
+   - Share a Spotify playlist from the Spotify app; verify it saves as `Link` with `Spotify Playlist` label.
+2. **Fast Capture & Undo**
+   - Save a single-line phrase or Quote via **Capture**; verify **Saved** toast appears with working **Undo** within 10 seconds.
+   - Paste a link on iPhone using **Paste** and verify it switches to **Link** automatically.
+3. **Meeting Minutes & Task Conversion**
+   - Create Meeting Minutes with two action items (one with owner and due date); tap **Create tasks** and verify both appear in `/tasks` and show as converted (`Task` badge) in the meeting note.
+   - Tap **Copy as text** and paste into WhatsApp/Notes; verify clean plain-text formatting.
+4. **Search & Filters**
+   - Search by title, URL host, body text, and `#tag`; verify pinned notes stay on top and **Files** chip opens Document Library.

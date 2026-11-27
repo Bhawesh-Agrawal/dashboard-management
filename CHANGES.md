@@ -1661,3 +1661,42 @@ Route (app)
   - `vitest run`: `Test Files  72 passed (72)`, `Tests  353 passed (353)`
 - `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
   - `next build` (Turbopack): exited `0`, 21/21 static pages generated.
+
+
+---
+
+## Phase 9: Notes as a Capture Inbox (`phase-9-notes-capture`)
+
+### Base Branch
+
+- Branched `phase-9-notes-capture` from `phase-8-mobile-shell` (`55b70e1`), which includes Phases 4b, 5, 6, 7, 7b, and 8.
+
+### Pending Database Migrations (NOT Applied — Owner Approval Required)
+
+- `prisma/migrations/20261127030000_add_note_capture_kind_meta/migration.sql` — Additive only: adds `kind` (`TEXT NOT NULL DEFAULT 'note'`), `meta` (`JSONB`), `archived_at` (`TIMESTAMP(3)`) to `notes`, plus index `notes_user_id_kind_created_at_idx`. **Not applied** to any database (`prisma migrate deploy` / `prisma db push` not run).
+
+### Item Status Summary
+
+| Item | Status | Commit | Key Files | What was NOT verified |
+| --- | --- | --- | --- | --- |
+| 1. Audit & Ownership Scoping | DONE | `7da04e7` | `docs/NOTES_AUDIT.md`, `src/features/notes/lib/queries.ts`, `src/features/notes/lib/actions.ts`, `src/features/notes/lib/semantic-links.ts`, `src/app/api/notes/[id]/related/route.ts` | Live Postgres query execution |
+| 2. Data Model (Additive) | DONE | `cba63d5` | `prisma/schema.prisma`, `prisma/migrations/20261127030000_add_note_capture_kind_meta/migration.sql`, `src/features/notes/lib/capture-types.ts`, `src/features/notes/lib/validation.ts`, `src/features/notes/lib/actions.ts`, `src/features/notes/components/DocumentLibrary.tsx` | Applying migration to Postgres |
+| 3. Capture Screen | DONE | `aba41c9` | `src/features/notes/lib/capture-draft.ts`, `src/features/notes/lib/capture-actions.ts`, `src/features/notes/components/CaptureSheet.tsx`, `src/components/layout/fab-cluster.tsx` | Live mobile browser tap & clipboard paste |
+| 4. Link Enrichment | DONE | `d8ff53f` | `src/features/notes/lib/link-enrichment.ts`, `src/app/api/notes/link-metadata/route.ts` | Live external HTTP fetch (tested with injected fakes) |
+| 5. Meeting Minutes | DONE | `09efc4c` | `src/features/notes/lib/meeting-format.ts`, `src/features/notes/lib/capture-actions.ts`, `src/features/notes/components/MeetingMinutesEditor.tsx` | Live task creation in Postgres |
+| 6. Quotes & Steps | DONE | `17584be` | `src/features/notes/components/QuoteEditor.tsx`, `src/features/notes/components/StepsChecklistEditor.tsx` | Live mobile reorder interaction |
+| 7. Inbox | DONE | `39663b7` | `src/features/notes/lib/inbox-queries.ts`, `src/features/notes/lib/capture-actions.ts`, `src/features/notes/components/NotesInboxClient.tsx`, `src/app/(app)/notes/page.tsx` | Live Postgres `ILIKE` search & filter execution |
+| 8. Web Share Target | DONE | `30efbe6` | `public/manifest.json`, `src/features/auth/lib/return-url.ts`, `src/proxy.ts`, `src/app/(auth)/login/page.tsx`, `src/features/auth/lib/actions.ts`, `src/features/notes/lib/share-target.ts`, `src/features/notes/components/ShareCaptureClient.tsx`, `src/app/(app)/capture/share/page.tsx`, `docs/PWA.md` | Android Chrome installed PWA share sheet |
+| 9. Offline Policy | DONE | `7da04e7` | `docs/NOTES_AUDIT.md` (Section 4) | — |
+| 10. Brief Integration | DONE | `55afa47` | `src/features/briefs/lib/generate.ts` | Live Brief v2 generation with Postgres captures |
+| 11. Tests & Palette Guard | DONE | `test` commit | `src/features/notes/lib/__tests__/share-and-links.test.ts`, `src/features/notes/lib/__tests__/capture-inbox.test.ts`, `src/lib/__tests__/ui-palette-guard.test.ts` | — |
+| 12. Docs, Build & `CHANGES.md` | DONE | final commit | `docs/NOTES.md`, `docs/TEST_PLAN.md`, `CHANGES.md` | Live deployment (excluded per instructions) |
+
+### Verification Outputs (Final Code)
+
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: passed (0 errors)
+  - `npm run lint`: passed (0 errors; warnings only)
+  - `vitest run`: `Test Files  74 passed (74)`, `Tests  374 passed (374)`
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
+  - `next build` (Turbopack): exited `0`, compiled in `7.2s`, TypeScript finished in `20.8s`, generated 21/21 static pages, including `/capture/share`, `/notes`, `/notes/[id]`, `/notes/graph`, and `/api/notes/link-metadata`.

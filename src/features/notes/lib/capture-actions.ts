@@ -6,11 +6,14 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
 import {
+  meetingMetaSchema,
   noteKindSchema,
   validateNoteMeta,
+  type MeetingMeta,
   type NoteKind,
 } from "./capture-types";
 import { extractFirstUrl } from "./capture-draft";
+import { formatMeetingMarkdown } from "./meeting-format";
 
 export interface CreateCaptureInput {
   kind?: NoteKind;
@@ -126,5 +129,138 @@ export async function undoCaptureNote(
     const message = error instanceof Error ? error.message : "Failed to undo capture";
     console.error("undoCaptureNote error:", message);
     return { ok: false, error: "Failed to undo capture" };
+  }
+}
+
+export async function updateCaptureNote(
+  id: string,
+  input: {
+    title?: string | null;
+    content?: string;
+    kind?: NoteKind;
+    meta?: unknown;
+    tags?: string[];
+    isPinned?: boolean;
+    archivedAt?: Date | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const userId = await getCurrentUserId();
+    const existing = await prisma.note.findFirst({
+      where: { id, ...ownerWhere(userId) },
+      select: { id: true, kind: true },
+    });
+    if (!existing) {
+      return { ok: false, error: "Note not found" };
+    }
+
+    const effectiveKind = (input.kind ?? existing.kind) as NoteKind;
+    let validatedMeta: unknown = undefined;
+    if (input.meta !== undefined) {
+      const check = validateNoteMeta(effectiveKind, input.meta);
+      if (!check.success) {
+        return { ok: false, error: check.error.issues[0]?.message ?? "Invalid metadata" };
+      }
+      validatedMeta = check.data;
+    }
+
+    await prisma.note.update({
+      where: { id },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.content !== undefined ? { content: input.content } : {}),
+        ...(input.kind !== undefined ? { kind: input.kind } : {}),
+        ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.isPinned !== undefined ? { isPinned: input.isPinned } : {}),
+        ...(input.archivedAt !== undefined ? { archivedAt: input.archivedAt } : {}),
+        ...(validatedMeta !== undefined
+          ? { meta: validatedMeta as Prisma.InputJsonValue }
+          : {}),
+      },
+    });
+
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${id}`);
+    revalidatePath("/today");
+    revalidatePath("/brief");
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update note";
+    console.error("updateCaptureNote error:", message);
+    return { ok: false, error: "Failed to update note" };
+  }
+}
+
+export async function convertMeetingActionItemsToTasks(
+  noteId: string,
+  indices?: number[]
+): Promise<
+  | { ok: true; data: { createdTaskIds: string[]; meta: MeetingMeta } }
+  | { ok: false; error: string }
+> {
+  try {
+    const userId = await getCurrentUserId();
+    const note = await prisma.note.findFirst({
+      where: { id: noteId, ...ownerWhere(userId) },
+      select: { id: true, title: true, content: true, meta: true },
+    });
+    if (!note) {
+      return { ok: false, error: "Note not found" };
+    }
+
+    const parsed = meetingMetaSchema.safeParse(note.meta);
+    if (!parsed.success) {
+      return { ok: false, error: "Note does not contain valid meeting metadata" };
+    }
+
+    const meta = parsed.data;
+    const targetSet = indices ? new Set(indices) : null;
+    const createdTaskIds: string[] = [];
+    const updatedItems = [...meta.actionItems];
+
+    for (let i = 0; i < updatedItems.length; i++) {
+      if (targetSet && !targetSet.has(i)) continue;
+      const item = updatedItems[i];
+      if (!item || item.taskId) continue;
+
+      let dueDate: Date | null = null;
+      if (item.due) {
+        const d = new Date(item.due);
+        if (!Number.isNaN(d.getTime())) dueDate = d;
+      }
+
+      const task = await prisma.task.create({
+        data: {
+          userId,
+          title: item.text,
+          notes: `From ${note.title || `Meeting (${meta.date})`}${item.owner ? ` • Owner: ${item.owner}` : ""}`,
+          dueDate,
+          priority: 2,
+        },
+        select: { id: true },
+      });
+
+      createdTaskIds.push(task.id);
+      updatedItems[i] = { ...item, taskId: task.id };
+    }
+
+    const nextMeta: MeetingMeta = { ...meta, actionItems: updatedItems };
+    await prisma.note.update({
+      where: { id: note.id },
+      data: {
+        meta: nextMeta as unknown as Prisma.InputJsonValue,
+        content: formatMeetingMarkdown(nextMeta, note.content),
+      },
+    });
+
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${note.id}`);
+    revalidatePath("/tasks");
+    revalidatePath("/today");
+    return { ok: true, data: { createdTaskIds, meta: nextMeta } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to convert action items";
+    console.error("convertMeetingActionItemsToTasks error:", message);
+    return { ok: false, error: "Failed to convert action items" };
   }
 }

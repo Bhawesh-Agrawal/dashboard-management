@@ -3,6 +3,7 @@ import type { CalendarEvent } from "@/types";
 import { fetchGoogleCalendarEvents, isGoogleCalendarConnected } from "./google-calendar";
 import { getCurrentUserId } from "@/lib/auth";
 import { generateOccurrences } from "@/features/attendance/lib/occurrences";
+import { getAcademicEntriesForRange } from "@/features/semesters/lib/calendar-queries";
 import { formatDateOnly } from "@/lib/timezone";
 
 /**
@@ -38,11 +39,7 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
       },
     }),
     isGoogleCalendarConnected(userId),
-    prisma.academicCalendarEntry
-      .findMany({
-        where: { userId, startDate: { lte: endDate }, endDate: { gte: startDate } },
-      })
-      .catch(() => []),
+    getAcademicEntriesForRange(userId, startDate, endDate),
   ]);
 
   // Fetch Google Calendar events if connected

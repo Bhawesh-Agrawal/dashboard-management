@@ -43,12 +43,38 @@ export default async function SettingsPage() {
   let briefSchedule: Awaited<ReturnType<typeof getBriefScheduleSettingsAction>> = {
     morningEnabled: true,
     morningTime: "07:00",
+    middayEnabled: false,
+    middayTime: "13:00",
     eveningEnabled: true,
     eveningTime: "20:30",
     classReminderMinutes: 10,
     eventReminderMinutes: 15,
     quietHoursStart: "22:00",
     quietHoursEnd: "06:30",
+    aiHeadline: true,
+    includeAqi: true,
+    cardOrder: [
+      "nextUp",
+      "weather",
+      "timeline",
+      "deadlines",
+      "travel",
+      "study",
+      "notes",
+      "nudges",
+      "quickActions",
+    ],
+    enabledCards: [
+      "nextUp",
+      "weather",
+      "timeline",
+      "deadlines",
+      "travel",
+      "study",
+      "notes",
+      "nudges",
+      "quickActions",
+    ],
   };
 
   try {

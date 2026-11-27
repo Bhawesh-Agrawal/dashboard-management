@@ -36,9 +36,13 @@ export async function saveDailyBrief(input: {
 }
 
 export async function getLatestDailyBriefs(userId: string) {
-  const [morning, evening] = await Promise.all([
+  const [morning, midday, evening] = await Promise.all([
     prisma.dailyBrief.findFirst({
       where: { userId, kind: "morning" },
+      orderBy: [{ forDate: "desc" }, { generatedAt: "desc" }],
+    }),
+    prisma.dailyBrief.findFirst({
+      where: { userId, kind: "midday" },
       orderBy: [{ forDate: "desc" }, { generatedAt: "desc" }],
     }),
     prisma.dailyBrief.findFirst({
@@ -47,7 +51,7 @@ export async function getLatestDailyBriefs(userId: string) {
     }),
   ]);
 
-  return { morning, evening };
+  return { morning, midday, evening };
 }
 
 export async function getDailyBriefByDate(

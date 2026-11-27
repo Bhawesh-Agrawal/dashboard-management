@@ -587,6 +587,7 @@ model NotificationPreference {
   locationLat          Float?   @map("location_lat")
   locationLon          Float?   @map("location_lon")
   reminderMinutes      Int?     @map("reminder_minutes")
+  briefConfig          Json?    @map("brief_config")
 
   @@unique([userId, type])
   @@index([userId])
@@ -1176,6 +1177,7 @@ model DsaContest {
 // ─── Daily Briefs (Phase 4) ──────────────────────────────────────────────
 enum DailyBriefKind {
   morning
+  midday
   evening
 }
 

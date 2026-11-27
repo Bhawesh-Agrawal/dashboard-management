@@ -409,27 +409,46 @@ export async function getWeatherLocationAction(): Promise<{
   }
 }
 
+import {
+  getDefaultBriefUserConfig,
+  parseBriefUserConfig,
+} from "@/features/briefs/lib/settings";
+import type { BriefCardId } from "@/features/briefs/lib/payload-v2";
+
 export interface BriefScheduleSettingsData {
   morningEnabled: boolean;
   morningTime: string;
+  middayEnabled: boolean;
+  middayTime: string;
   eveningEnabled: boolean;
   eveningTime: string;
   classReminderMinutes: number;
   eventReminderMinutes: number;
   quietHoursStart: string;
   quietHoursEnd: string;
+  aiHeadline: boolean;
+  includeAqi: boolean;
+  cardOrder: BriefCardId[];
+  enabledCards: BriefCardId[];
 }
 
 export async function getBriefScheduleSettingsAction(): Promise<BriefScheduleSettingsData> {
+  const briefDefaults = getDefaultBriefUserConfig();
   const defaults: BriefScheduleSettingsData = {
     morningEnabled: true,
     morningTime: "07:00",
+    middayEnabled: briefDefaults.middayEnabled,
+    middayTime: briefDefaults.middayTime,
     eveningEnabled: true,
     eveningTime: "20:30",
     classReminderMinutes: 10,
     eventReminderMinutes: 15,
     quietHoursStart: "22:00",
     quietHoursEnd: "06:30",
+    aiHeadline: briefDefaults.aiHeadline,
+    includeAqi: briefDefaults.includeAqi,
+    cardOrder: briefDefaults.cardOrder,
+    enabledCards: briefDefaults.enabledCards,
   };
 
   try {
@@ -437,20 +456,28 @@ export async function getBriefScheduleSettingsAction(): Promise<BriefScheduleSet
     const prefs = await prisma.notificationPreference.findMany({ where: { userId } });
 
     const morning = prefs.find((p) => p.type === "morning_brief");
+    const midday = prefs.find((p) => p.type === "midday_brief");
     const evening = prefs.find((p) => p.type === "evening_brief");
     const classPref = prefs.find((p) => p.type === "class_start");
     const eventPref = prefs.find((p) => p.type === "calendar_event");
     const quietPref = prefs.find((p) => p.quietHoursStart && p.quietHoursEnd);
+    const parsedBrief = parseBriefUserConfig(morning?.briefConfig, midday ?? null);
 
     return {
       morningEnabled: morning ? morning.enabled : defaults.morningEnabled,
       morningTime: morning?.dailySummaryTime ?? defaults.morningTime,
+      middayEnabled: parsedBrief.middayEnabled,
+      middayTime: parsedBrief.middayTime,
       eveningEnabled: evening ? evening.enabled : defaults.eveningEnabled,
       eveningTime: evening?.dailySummaryTime ?? defaults.eveningTime,
       classReminderMinutes: classPref?.reminderMinutes ?? defaults.classReminderMinutes,
       eventReminderMinutes: eventPref?.reminderMinutes ?? defaults.eventReminderMinutes,
       quietHoursStart: quietPref?.quietHoursStart ?? defaults.quietHoursStart,
       quietHoursEnd: quietPref?.quietHoursEnd ?? defaults.quietHoursEnd,
+      aiHeadline: parsedBrief.aiHeadline,
+      includeAqi: parsedBrief.includeAqi,
+      cardOrder: parsedBrief.cardOrder,
+      enabledCards: parsedBrief.enabledCards,
     };
   } catch {
     return defaults;
@@ -462,6 +489,12 @@ export async function saveBriefScheduleSettingsAction(
 ): Promise<{ success: boolean }> {
   try {
     const userId = await getCurrentUserId();
+    const briefConfigJson = {
+      aiHeadline: input.aiHeadline,
+      includeAqi: input.includeAqi,
+      cardOrder: input.cardOrder,
+      enabledCards: input.enabledCards,
+    };
 
     await Promise.all([
       prisma.notificationPreference.upsert({
@@ -473,10 +506,29 @@ export async function saveBriefScheduleSettingsAction(
           dailySummaryTime: input.morningTime,
           quietHoursStart: input.quietHoursStart,
           quietHoursEnd: input.quietHoursEnd,
+          briefConfig: briefConfigJson,
         },
         update: {
           enabled: input.morningEnabled,
           dailySummaryTime: input.morningTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+          briefConfig: briefConfigJson,
+        },
+      }),
+      prisma.notificationPreference.upsert({
+        where: { userId_type: { userId, type: "midday_brief" } },
+        create: {
+          userId,
+          type: "midday_brief",
+          enabled: input.middayEnabled,
+          dailySummaryTime: input.middayTime,
+          quietHoursStart: input.quietHoursStart,
+          quietHoursEnd: input.quietHoursEnd,
+        },
+        update: {
+          enabled: input.middayEnabled,
+          dailySummaryTime: input.middayTime,
           quietHoursStart: input.quietHoursStart,
           quietHoursEnd: input.quietHoursEnd,
         },
@@ -530,6 +582,8 @@ export async function saveBriefScheduleSettingsAction(
     ]);
 
     revalidatePath("/settings");
+    revalidatePath("/brief");
+    revalidatePath("/today");
     return { success: true };
   } catch (error) {
     console.error("Failed to save brief schedule settings:", error);

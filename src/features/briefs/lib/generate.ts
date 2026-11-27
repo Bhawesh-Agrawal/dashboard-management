@@ -22,6 +22,7 @@ import type {
 } from "./payload-v2";
 import { buildBriefPayloadV2, type BriefGoogleEventInput } from "./sections";
 import { narrateBrief, type LlmNarrateFn } from "./narrate";
+import { getBriefUserConfig } from "./settings";
 import { saveDailyBrief } from "./storage";
 import {
   fetchDestinationWeather,
@@ -156,6 +157,10 @@ export async function generateAndPersistBrief(input: {
     })
     .catch(() => null);
 
+  const briefConfig = await getBriefUserConfig(input.userId);
+  const includeAqi = input.includeAqi ?? briefConfig.includeAqi;
+  const aiHeadline = input.aiHeadline ?? briefConfig.aiHeadline;
+
   const weatherPromise =
     locPref?.locationLat != null && locPref?.locationLon != null
       ? fetchRichWeather({
@@ -163,7 +168,7 @@ export async function generateAndPersistBrief(input: {
           longitude: locPref.locationLon,
           dateOnly: forDate,
           locationName: locPref.locationName,
-          includeAqi: input.includeAqi ?? true,
+          includeAqi,
           now,
           fetcher: input.weatherFetcher,
         })
@@ -424,7 +429,7 @@ export async function generateAndPersistBrief(input: {
   });
 
   const narrated = await narrateBrief(payload, {
-    aiHeadline: input.aiHeadline ?? true,
+    aiHeadline,
     llmCall: input.llmCall,
   });
 
@@ -435,15 +440,13 @@ export async function generateAndPersistBrief(input: {
     pushSummary: narrated.summary,
   };
 
-  if (input.kind === "morning" || input.kind === "evening") {
-    await saveDailyBrief({
-      userId: input.userId,
-      kind: input.kind,
-      forDate,
-      payload: payload as unknown as Prisma.InputJsonValue,
-      generatedAt: now,
-    });
-  }
+  await saveDailyBrief({
+    userId: input.userId,
+    kind: input.kind,
+    forDate,
+    payload: payload as unknown as Prisma.InputJsonValue,
+    generatedAt: now,
+  });
 
   return payload;
 }

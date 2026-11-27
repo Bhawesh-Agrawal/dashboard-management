@@ -1,10 +1,20 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Trash2, Paperclip } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import { UploadDialog } from "./UploadDialog";
-import { MarkdownEditor } from "./MarkdownEditor";
+
+const MarkdownEditor = dynamic(
+  () => import("./MarkdownEditor").then((m) => m.MarkdownEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-48 w-full rounded-md bg-muted animate-pulse" />
+    ),
+  }
+);
 import type { NoteWithCourse } from "@/types";
 import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
 

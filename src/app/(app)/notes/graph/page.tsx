@@ -1,6 +1,6 @@
 import { getNoteGraphData } from "@/features/notes/lib/semantic-links";
 import { getCurrentUserId } from "@/lib/auth";
-import { NoteGraphView } from "@/features/notes/components/note-graph-view";
+import { NoteGraphClient } from "@/features/notes/components/NoteGraphClient";
 import { PageHeader } from "@/components/shared/page-header";
 import Link from "next/link";
 
@@ -26,7 +26,7 @@ export default async function NoteGraphPage() {
         }
       />
       <div className="flex-1 min-h-0 -mx-6">
-        <NoteGraphView data={graphData} className="h-full" />
+        <NoteGraphClient data={graphData} className="h-full" />
       </div>
     </div>
   );

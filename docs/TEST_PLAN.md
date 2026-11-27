@@ -53,3 +53,25 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" \
 ## Duplicate-Prevention Check
 
 Run the exact same `curl` command twice in a row. The second response should report `"sent": 0` and `"skippedDedup": 1`.
+
+---
+
+## Brief v2 (`morning_brief`, `midday_brief`, `evening_brief`) Verification
+
+Use `asOf` (non-production) and `only` against `/api/notifications/trigger` to verify each brief variant and dedup:
+
+```bash
+# 1. Morning brief (07:00 Asia/Kathmandu = 01:15 UTC)
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3000/api/notifications/trigger?asOf=2026-11-27T01:15:00.000Z&only=morning_brief"
+
+# 2. Midday brief (13:00 Asia/Kathmandu = 07:15 UTC; requires midday_brief enabled in Settings)
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3000/api/notifications/trigger?asOf=2026-11-27T07:15:00.000Z&only=midday_brief"
+
+# 3. Evening brief (20:30 Asia/Kathmandu = 14:45 UTC)
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3000/api/notifications/trigger?asOf=2026-11-27T14:45:00.000Z&only=evening_brief"
+```
+
+Re-running any of the commands above for the same local date must return `"sent": 0` and `"skippedDedup": 1`.

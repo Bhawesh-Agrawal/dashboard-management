@@ -1428,3 +1428,118 @@ These models have no `userId` column in `prisma/schema.prisma` and are scoped vi
   - `✓ Finished TypeScript in 27.1s`
   - `✓ Generating static pages using 15 workers (19/19) in 300ms`
   - All routes including `/api/health` and `/signup` built cleanly.
+
+
+---
+
+## Phase 6: Brief v2 ("Now Brief" style)
+
+Branch: `phase-6-brief-v2` (branched from `phase-5-deploy`)
+
+### Phase 6 Verification Table
+
+| Item | Status | Commit | Files Changed | What Was NOT Verified |
+| :--- | :--- | :--- | :--- | :--- |
+| 1. Audit (`docs/BRIEF_AUDIT.md`) | DONE | `2bfa83d` | `docs/BRIEF_AUDIT.md` | Documentation-only. |
+| 2. Payload v2 (`schemaVersion: 2`) | DONE | `6de0a0b` | `src/features/briefs/lib/payload-v2.ts`, `src/features/briefs/lib/__tests__/payload-v2.test.ts` | Live reading of existing production `DailyBrief` rows from Supabase (unit tests use fixture payloads). |
+| 3. Rich Weather + AQI + Destination Forecast | DONE | `2ffc590` | `src/features/briefs/lib/weather.ts`, `src/features/briefs/lib/__tests__/weather.test.ts` | Live Open-Meteo Forecast / Air Quality / Geocoding HTTP responses (tests use injected fetchers; field names verified against Open-Meteo docs). |
+| 4. Pure Section Builders & Empty-Day Behaviour | DONE | `7f8ce0d` | `src/features/briefs/lib/sections.ts`, `src/features/briefs/lib/__tests__/sections.test.ts` | Live end-to-end query against Supabase data. |
+| 5. AI Headline Narrator (`narrate.ts`) | DONE | `1b0e840` | `src/features/briefs/lib/narrate.ts`, `src/features/briefs/lib/__tests__/narrate.test.ts` | Live OpenRouter LLM call (tests use injected `llmCall` fakes). |
+| 6. Cards UI (`/brief`), Quick Actions, Cooldown, Debug Mask, `/today` Sync | DONE | `bec02c6` | `src/features/briefs/lib/debug-mask.ts`, `src/features/briefs/lib/generate.ts`, `src/features/briefs/lib/actions.ts`, `src/features/briefs/components/brief-view.tsx`, `src/features/briefs/components/brief-today-card.tsx`, `src/app/(app)/today/page.tsx`, `src/app/(app)/brief/page.tsx` | Live browser rendering, 60s regenerate cooldown interaction, and clipboard copy in mobile viewport. |
+| 7. Settings & Additive Migration | DONE | `03591b8` | `prisma/schema.prisma`, `prisma/migrations/20261127000000_add_brief_v2_settings_and_midday/migration.sql`, `src/features/briefs/lib/settings.ts`, `src/features/briefs/lib/storage.ts`, `src/features/briefs/lib/generate.ts`, `src/features/notifications/lib/actions.ts`, `src/features/notifications/components/brief-schedule-settings.tsx`, `src/app/(app)/brief/page.tsx`, `src/app/(app)/settings/page.tsx` | Migration NOT applied to database (awaiting owner approval); live settings form persistence against Supabase. |
+| 8. Notifications (`midday_brief` + `headline`/`summary` push) | DONE | `39c4668` | `src/features/notifications/lib/scheduler.ts`, `src/features/notifications/components/notification-type-toggles.tsx`, `src/features/notifications/components/notification-reason-banner.tsx`, `src/features/notifications/components/notification-weekly-stats.tsx`, `src/features/notifications/lib/__tests__/brief-scheduling.test.ts`, `docs/NOTIFICATIONS_AUDIT.md` | Live Web Push delivery to a physical device for `midday_brief`. |
+| 9. Test Fixtures (9 Scenario Snapshots) | DONE | `fbf6fbe` | `src/features/briefs/lib/__tests__/fixtures.test.ts`, `src/features/briefs/lib/__tests__/__snapshots__/fixtures.test.ts.snap` | Visual inspection of rendered UI for each scenario. |
+| 10. Docs, `test:ci`, `build`, and `CHANGES.md` | DONE | `(this commit)` | `docs/TEST_PLAN.md`, `CHANGES.md` | Live `curl`/`asOf` execution against running server and production deployment (deployment intentionally skipped). |
+
+### Pending Database Migration (Awaiting Owner Approval)
+Do NOT deploy before applying this additive migration:
+- `prisma/migrations/20261127000000_add_brief_v2_settings_and_midday/migration.sql`
+  - Adds nullable `brief_config` (`JSONB`) column on `notification_preferences`
+  - Adds `'midday'` value to `DailyBriefKind` enum
+
+### Raw Verification Output (Phase 6)
+
+#### `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`
+```text
+> dashboard-management@0.1.0 test:ci
+> tsc --noEmit && npm run lint && vitest run
+
+tsc --noEmit: 0 errors
+eslint: 0 errors (pre-existing warnings only)
+ Test Files  53 passed (53)
+      Tests  277 passed (277)
+   Duration  4.61s
+```
+
+#### `npm run build`
+```text
+> dashboard-management@0.1.0 build
+> NODE_OPTIONS='--max-old-space-size=4096' next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 9.3s
+✓ Finished TypeScript in 25.7s
+✓ Collecting page data using 15 workers in 1904ms
+✓ Generating static pages using 15 workers (19/19) in 328ms
+✓ Finalizing page optimization in 494ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/attendance/mark-from-push
+├ ƒ /api/auth/google/callback
+├ ƒ /api/cron/daily-diagnostics
+├ ƒ /api/health
+├ ƒ /api/notes/[id]/backlinks
+├ ƒ /api/notes/[id]/related
+├ ƒ /api/notes/graph
+├ ƒ /api/notes/link-metadata
+├ ƒ /api/notifications/mark-opened
+├ ƒ /api/notifications/snooze
+├ ƒ /api/notifications/trigger
+├ ƒ /api/sync/calendar
+├ ƒ /api/sync/dashboard
+├ ƒ /api/sync/google-calendar
+├ ƒ /api/sync/seed
+├ ƒ /api/sync/write
+├ ƒ /api/widget/quick-add
+├ ƒ /api/widget/routines/[id]/complete
+├ ƒ /api/widget/summary
+├ ƒ /api/widget/tasks/[id]/toggle
+├ ƒ /ask
+├ ƒ /brief
+├ ƒ /calendar
+├ ƒ /courses/[id]
+├ ƒ /dsa
+├ ƒ /dsa/contests
+├ ƒ /dsa/log
+├ ƒ /dsa/problems
+├ ƒ /dsa/problems/[id]
+├ ƒ /dsa/report
+├ ƒ /dsa/revision
+├ ƒ /dsa/settings
+├ ƒ /dsa/topics
+├ ƒ /login
+├ ƒ /more
+├ ƒ /notes
+├ ƒ /notes/[id]
+├ ƒ /notes/graph
+├ ƒ /notifications/digest
+├ ƒ /projects
+├ ƒ /projects/[id]
+├ ƒ /reviews
+├ ƒ /reviews/[id]
+├ ƒ /routines
+├ ƒ /search
+├ ƒ /semesters
+├ ƒ /semesters/[id]
+├ ƒ /settings
+├ ƒ /signup
+├ ƒ /tasks
+└ ƒ /today
+
+ƒ Proxy (Middleware)
+```

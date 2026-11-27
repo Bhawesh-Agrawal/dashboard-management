@@ -7,6 +7,7 @@ import {
   type CalendarEntryDTO,
 } from "@/features/semesters/components/academic-calendar-manager";
 import { ConvertRepeatedHolidaysPanel } from "@/features/semesters/components/convert-repeated-holidays-panel";
+import { AuditCalendarEntriesPanel } from "@/features/semesters/components/audit-calendar-entries-panel";
 
 export const revalidate = 0;
 
@@ -46,6 +47,10 @@ export default async function SemesterCalendarPage({
         initialEntries={initialEntries}
       />
       <ConvertRepeatedHolidaysPanel semesterId={id} />
+      <AuditCalendarEntriesPanel
+        semesterEndDate={semester.endDate.toISOString().slice(0, 10)}
+        entries={initialEntries}
+      />
     </div>
   );
 }

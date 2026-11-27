@@ -30,12 +30,21 @@ describe("UI palette guard", () => {
       path.resolve(process.cwd(), "src/features/settings/components"),
       path.resolve(process.cwd(), "src/features/semesters/components"),
       path.resolve(process.cwd(), "src/features/schedule/components"),
+      path.resolve(process.cwd(), "src/features/notes/components/CaptureSheet.tsx"),
+      path.resolve(process.cwd(), "src/features/notes/components/MeetingMinutesEditor.tsx"),
+      path.resolve(process.cwd(), "src/features/notes/components/QuoteEditor.tsx"),
+      path.resolve(process.cwd(), "src/features/notes/components/StepsChecklistEditor.tsx"),
+      path.resolve(process.cwd(), "src/features/notes/components/NotesInboxClient.tsx"),
+      path.resolve(process.cwd(), "src/features/notes/components/ShareCaptureClient.tsx"),
     ];
 
     const violations: string[] = [];
 
     for (const root of roots) {
-      for (const filePath of collectSourceFiles(root)) {
+      const files = fs.existsSync(root) && fs.statSync(root).isFile()
+        ? [root]
+        : collectSourceFiles(root);
+      for (const filePath of files) {
         const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
         lines.forEach((line, idx) => {
           const matches = line.match(PALETTE_CLASS_REGEX);

@@ -28,6 +28,8 @@ describe("UI palette guard", () => {
       path.resolve(process.cwd(), "src/features/notifications/components"),
       path.resolve(process.cwd(), "src/features/calendar/components"),
       path.resolve(process.cwd(), "src/features/settings/components"),
+      path.resolve(process.cwd(), "src/features/semesters/components"),
+      path.resolve(process.cwd(), "src/features/schedule/components"),
     ];
 
     const violations: string[] = [];

@@ -126,7 +126,7 @@ function ScheduleRow({
               </span>
             )}
             {todayException?.type === "rescheduled" && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-foreground">
                 → {todayException.newStartTime} — {todayException.newEndTime}
               </span>
             )}
@@ -146,7 +146,7 @@ function ScheduleRow({
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setShowException(!showException)}
-            className="p-1 text-muted-foreground hover:text-amber-500 transition-colors"
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
             title="Today's exception"
           >
             {todayException ? (

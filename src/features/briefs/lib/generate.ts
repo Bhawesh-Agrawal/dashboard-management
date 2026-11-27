@@ -264,12 +264,15 @@ export async function generateAndPersistBrief(input: {
       orderBy: { date: "asc" },
     }),
     prisma.note.findMany({
-      where: { userId: input.userId, isDocumentLibraryEntry: false },
+      where: { userId: input.userId, isDocumentLibraryEntry: false, archivedAt: null },
       orderBy: { updatedAt: "desc" },
       take: 3,
       select: {
         id: true,
+        kind: true,
         title: true,
+        content: true,
+        sourceLink: true,
         updatedAt: true,
         course: { select: { name: true } },
       },
@@ -409,13 +412,18 @@ export async function generateAndPersistBrief(input: {
       )
     : null;
 
-  const recentNotes = recentNotesRaw.map((n) => ({
-    id: n.id,
-    title: n.title || "Untitled note",
-    updatedAt: formatDateOnly(n.updatedAt),
-    courseName: n.course?.name ?? null,
-    href: `/notes/${n.id}`,
-  }));
+  const recentNotes = recentNotesRaw.map((n) => {
+    const firstLine = n.content?.split(/\r?\n/)[0]?.trim();
+    const baseTitle = n.title?.trim() || firstLine || n.sourceLink || "Untitled note";
+    const prefix = n.kind === "link" ? "Link: " : n.kind === "meeting" ? "Minutes: " : "";
+    return {
+      id: n.id,
+      title: `${prefix}${baseTitle}`,
+      updatedAt: formatDateOnly(n.updatedAt),
+      courseName: n.course?.name ?? null,
+      href: `/notes/${n.id}`,
+    };
+  });
 
   const [todayClassInfo, targetClassInfo, academicEntriesForBrief] = await Promise.all([
     getClassesForDate(input.userId, todayStr, nowHm),

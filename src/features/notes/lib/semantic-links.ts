@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 import type { NoteWithScore, NoteGraphData, NoteGraphNode, NoteGraphEdge } from "@/types";
 
 // ─── Stopwords ──────────────────────────────────────────────
@@ -199,11 +200,21 @@ export async function generateSemanticLinks(
  */
 export async function getRelatedNotes(
   noteId: string,
-  limit: number = 10
+  limit: number = 10,
+  userId?: string
 ): Promise<NoteWithScore[]> {
+  const effectiveUserId = userId ?? (await getCurrentUserId());
+  const ownerFilter = ownerWhere(effectiveUserId);
+
+  const ownedSource = await prisma.note.findFirst({
+    where: { id: noteId, ...ownerFilter },
+    select: { id: true },
+  });
+  if (!ownedSource) return [];
+
   // Fetch outgoing links
   const outgoingLinks = await prisma.noteLink.findMany({
-    where: { sourceId: noteId },
+    where: { sourceId: noteId, target: ownerFilter },
     include: {
       target: {
         include: {
@@ -217,7 +228,7 @@ export async function getRelatedNotes(
 
   // Fetch incoming links
   const incomingLinks = await prisma.noteLink.findMany({
-    where: { targetId: noteId },
+    where: { targetId: noteId, source: ownerFilter },
     include: {
       source: {
         include: {

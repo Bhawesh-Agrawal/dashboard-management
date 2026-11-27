@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 import { deleteFile } from "@/lib/s3/actions";
 import { getPresignedUrl } from "@/lib/s3/client";
 import { generateSemanticLinks } from "./semantic-links";
@@ -108,6 +109,15 @@ export async function updateNote(
     extractedText?: string | null;
   }
 ) {
+  const userId = await getCurrentUserId();
+  const existing = await prisma.note.findFirst({
+    where: { id, ...ownerWhere(userId) },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new Error("Note not found or access denied");
+  }
+
   const note = await prisma.note.update({ where: { id }, data });
   revalidatePath("/notes");
   revalidatePath(`/notes/${id}`);
@@ -130,8 +140,8 @@ export async function deleteNote(
   try {
     const userId = await getCurrentUserId();
 
-    const note = await prisma.note.findUnique({
-      where: { id },
+    const note = await prisma.note.findFirst({
+      where: { id, ...ownerWhere(userId) },
       select: {
         userId: true,
         courseId: true,
@@ -142,10 +152,6 @@ export async function deleteNote(
 
     if (!note) {
       return { ok: false, error: "Note not found" };
-    }
-
-    if (note.userId !== userId) {
-      return { ok: false, error: "Access denied" };
     }
 
     const s3KeysToDelete: string[] = [];
@@ -225,6 +231,13 @@ export async function createExplicitLink(
   sourceId: string,
   targetId: string
 ): Promise<void> {
+  const userId = await getCurrentUserId();
+  const ownedCount = await prisma.note.count({
+    where: { id: { in: [sourceId, targetId] }, ...ownerWhere(userId) },
+  });
+  if (ownedCount < (sourceId === targetId ? 1 : 2)) {
+    throw new Error("Access denied");
+  }
   await createLink(sourceId, targetId);
   revalidatePath("/notes");
   revalidatePath(`/notes/${sourceId}`);
@@ -235,6 +248,14 @@ export async function removeExplicitLink(
   sourceId: string,
   targetId: string
 ): Promise<void> {
+  const userId = await getCurrentUserId();
+  const owned = await prisma.note.findFirst({
+    where: { id: sourceId, ...ownerWhere(userId) },
+    select: { id: true },
+  });
+  if (!owned) {
+    throw new Error("Access denied");
+  }
   await deleteLink(sourceId, targetId);
   revalidatePath("/notes");
   revalidatePath(`/notes/${sourceId}`);

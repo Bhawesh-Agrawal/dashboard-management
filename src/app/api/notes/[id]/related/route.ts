@@ -7,9 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await getCurrentUserId();
+    const userId = await getCurrentUserId();
     const { id } = await params;
-    const notes = await getRelatedNotes(id, 10);
+    const notes = await getRelatedNotes(id, 10, userId);
     return NextResponse.json({ notes });
   } catch (error) {
     if (error instanceof UnauthorizedError) {

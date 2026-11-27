@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
+import { getCurrentUserId } from "@/lib/auth";
+import { ownerWhere } from "@/lib/owner-scoping";
 
 export const getNotes = cache(async (filters?: {
   courseId?: string;
@@ -7,8 +9,10 @@ export const getNotes = cache(async (filters?: {
   isDocumentLibraryEntry?: boolean;
   search?: string;
 }) => {
+  const userId = await getCurrentUserId();
   return prisma.note.findMany({
     where: {
+      ...ownerWhere(userId),
       courseId: filters?.courseId,
       folderId: filters?.folderId,
       isDocumentLibraryEntry: filters?.isDocumentLibraryEntry,
@@ -24,8 +28,9 @@ export const getNotes = cache(async (filters?: {
 });
 
 export const getNoteById = cache(async (id: string) => {
-  return prisma.note.findUnique({
-    where: { id },
+  const userId = await getCurrentUserId();
+  return prisma.note.findFirst({
+    where: { id, ...ownerWhere(userId) },
     include: {
       course: { select: { id: true, name: true, color: true } },
       folder: { select: { id: true, name: true, type: true, color: true } },
@@ -40,8 +45,10 @@ export const getDocumentLibraryNotes = cache(async (filters?: {
   courseId?: string;
   search?: string;
 }) => {
+  const userId = await getCurrentUserId();
   return prisma.note.findMany({
     where: {
+      ...ownerWhere(userId),
       isDocumentLibraryEntry: true,
       folderId: filters?.folderId,
       courseId: filters?.courseId,

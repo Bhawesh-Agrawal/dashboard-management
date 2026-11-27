@@ -132,6 +132,7 @@ export interface BriefNoteItem {
 export type BriefNudgeKind =
   | "semester_ended"
   | "no_current_semester"
+  | "no_timetable"
   | "notifications_disabled"
   | "no_city"
   | "google_calendar_disconnected"

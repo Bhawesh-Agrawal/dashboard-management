@@ -142,16 +142,40 @@ export function TodayDashboard({
   return (
     <div className="space-y-6">
       <BriefTodayCard summary={briefSummary} />
-      {data.hasCurrentSemester === false && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm">
-          <span className="text-muted-foreground">No active semester</span>
-          <Link
-            href="/semesters"
-            className="font-medium text-primary hover:underline min-h-[44px] inline-flex items-center"
-          >
-            Add semester
-          </Link>
+      {data.hasCurrentSemester === false && data.upcomingSemester && !data.upcomingSemester.hasTimetable ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-foreground">
+            Semester starts in {data.upcomingSemester.daysUntilStart}{" "}
+            {data.upcomingSemester.daysUntilStart === 1 ? "day" : "days"}, timetable not added yet
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/semesters/${data.upcomingSemester.id}/timetable`}
+              className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 min-h-[44px]"
+            >
+              Add timetable
+            </Link>
+            <Link
+              href={`/semesters/${data.upcomingSemester.id}/calendar`}
+              className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-accent min-h-[44px]"
+            >
+              Academic calendar
+            </Link>
+          </div>
         </div>
+      ) : (
+        data.hasCurrentSemester === false &&
+        !data.upcomingSemester && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+            <span className="text-muted-foreground">No active semester</span>
+            <Link
+              href="/semesters"
+              className="font-medium text-primary hover:underline min-h-[44px] inline-flex items-center"
+            >
+              Add semester
+            </Link>
+          </div>
+        )
       )}
       <DashboardGrid
         mainWidgets={layout.main}

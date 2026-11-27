@@ -27,6 +27,13 @@ export interface BriefGoogleEventInput {
 
 export interface BriefNudgeContext {
   hasCurrentSemester: boolean;
+  hasTimetable?: boolean;
+  upcomingSemester?: {
+    id: string;
+    name: string;
+    daysUntilStart: number;
+    hasTimetable: boolean;
+  } | null;
   lastEndedSemester?: { name: string; endDate: string } | null;
   hasPushSubscription: boolean;
   hasCitySet: boolean;
@@ -301,7 +308,18 @@ export function buildNudgesSection(ctx?: BriefNudgeContext): BriefNudgeItem[] {
   };
 
   if (!ctx.hasCurrentSemester) {
-    if (ctx.lastEndedSemester) {
+    if (ctx.upcomingSemester && !ctx.upcomingSemester.hasTimetable) {
+      pushIfNew({
+        id: "nudge-no-timetable-upcoming",
+        kind: "no_timetable",
+        title: "Timetable not added yet",
+        message: `${ctx.upcomingSemester.name} starts in ${ctx.upcomingSemester.daysUntilStart} ${
+          ctx.upcomingSemester.daysUntilStart === 1 ? "day" : "days"
+        }, timetable not added yet.`,
+        href: `/semesters/${ctx.upcomingSemester.id}/timetable`,
+        actionLabel: "Add Timetable",
+      });
+    } else if (ctx.lastEndedSemester) {
       pushIfNew({
         id: "nudge-semester-ended",
         kind: "semester_ended",
@@ -310,7 +328,7 @@ export function buildNudgesSection(ctx?: BriefNudgeContext): BriefNudgeItem[] {
         href: "/semesters",
         actionLabel: "Add Semester",
       });
-    } else {
+    } else if (!ctx.upcomingSemester) {
       pushIfNew({
         id: "nudge-no-semester",
         kind: "no_current_semester",
@@ -320,6 +338,15 @@ export function buildNudgesSection(ctx?: BriefNudgeContext): BriefNudgeItem[] {
         actionLabel: "Add Semester",
       });
     }
+  } else if (ctx.hasTimetable === false) {
+    pushIfNew({
+      id: "nudge-no-timetable",
+      kind: "no_timetable",
+      title: "Timetable not added yet",
+      message: "Add your weekly class timetable to see classes in daily briefs.",
+      href: "/semesters",
+      actionLabel: "Add Timetable",
+    });
   }
 
   if (!ctx.hasPushSubscription) {

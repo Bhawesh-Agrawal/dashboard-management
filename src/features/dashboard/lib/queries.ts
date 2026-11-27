@@ -18,6 +18,7 @@ import {
 import { getCurrentUserId } from "@/lib/auth";
 import { getCurrentSemester } from "@/features/semesters/lib/current";
 import { getCalendarEntriesForSemester } from "@/features/semesters/lib/calendar-queries";
+import { semesterStatus } from "@/features/semesters/lib/status";
 import { generateOccurrences } from "@/features/attendance/lib/occurrences";
 import { formatDateOnly } from "@/lib/timezone";
 
@@ -316,8 +317,32 @@ async function _getDashboardData(userId: string): Promise<DashboardData> {
     }
   }
 
+  let upcomingSemester: DashboardData["upcomingSemester"] = null;
+  if (!activeSemester && allSemesters.length > 0) {
+    const todayDateStr = formatDateOnly(today);
+    const upcoming = allSemesters
+      .filter((s) => semesterStatus(s, todayDateStr) === "upcoming")
+      .sort((a, b) => formatDateOnly(a.startDate).localeCompare(formatDateOnly(b.startDate)))[0];
+    if (upcoming) {
+      const startStr = formatDateOnly(upcoming.startDate);
+      const startMs = Date.parse(`${startStr}T00:00:00Z`);
+      const todayMs = Date.parse(`${todayDateStr}T00:00:00Z`);
+      const daysUntilStart = Math.max(0, Math.round((startMs - todayMs) / 86_400_000));
+      const scheduleCount = await prisma.classSchedule.count({
+        where: { course: { semesterId: upcoming.id } },
+      });
+      upcomingSemester = {
+        id: upcoming.id,
+        name: upcoming.name,
+        daysUntilStart,
+        hasTimetable: scheduleCount > 0,
+      };
+    }
+  }
+
   return {
     hasCurrentSemester: Boolean(activeSemester),
+    upcomingSemester,
     topTasks,
     allOpenTasks,
     todayClasses,

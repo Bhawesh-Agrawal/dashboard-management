@@ -45,7 +45,7 @@ export function ScheduleSection({
       )}
 
       {schedules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No schedule set.</p>
+        <p className="text-sm text-muted-foreground">No schedule yet</p>
       ) : (
         <div className="space-y-1">
           {schedules.map((schedule) => (

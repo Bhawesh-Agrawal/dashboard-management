@@ -446,6 +446,7 @@ export async function generateAndPersistBrief(input: {
     weather,
     nudgeContext: {
       hasCurrentSemester: todayClassInfo.hasCurrentSemester,
+      hasTimetable: todayClassInfo.hasSchedule,
       lastEndedSemester: lastSemester
         ? { name: lastSemester.name, endDate: formatDateOnly(lastSemester.endDate) }
         : null,

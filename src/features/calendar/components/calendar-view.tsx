@@ -893,7 +893,9 @@ export function DayDetailPanel({
         </div>
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close agenda panel"
             className="p-1.5 rounded-md hover:bg-accent transition-colors lg:hidden"
           >
             <X className="h-4 w-4 text-muted-foreground" />
@@ -1051,7 +1053,9 @@ function EventDetailModal({
             <span className="capitalize">{event.isBirthday ? "Birthday" : event.type}</span>
           </span>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close event details"
             className="p-1.5 rounded-md hover:bg-accent transition-colors"
           >
             <X className="h-4 w-4 text-muted-foreground" />

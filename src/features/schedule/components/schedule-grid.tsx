@@ -160,6 +160,7 @@ function ScheduleRow({
           >
             <button
               type="submit"
+              aria-label="Delete class schedule"
               className="p-1 text-muted-foreground hover:text-destructive transition-colors"
             >
               <X className="h-3.5 w-3.5" />

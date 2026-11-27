@@ -23,10 +23,75 @@ export function isEntityDirty(
   return false;
 }
 
+export interface SyncStatusSnapshot {
+  isSyncing: boolean;
+  dirtyCount: number;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  retryAttempt: number;
+}
+
+const SYNCABLE_TABLES: SyncableTable[] = [
+  "tasks",
+  "courses",
+  "notes",
+  "routines",
+  "events",
+  "classSchedules",
+  "assessments",
+];
+
 class SyncManager {
   private _isSeeding = false;
   private _isPushing = false;
   private _realtimeUnsubscribe: (() => void) | null = null;
+  private _dirtyCount = 0;
+  private _lastSuccessAt: string | null = null;
+  private _lastError: string | null = null;
+  private _retryAttempt = 0;
+  private _retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private _listeners = new Set<() => void>();
+  private _snapshot: SyncStatusSnapshot = {
+    isSyncing: false,
+    dirtyCount: 0,
+    lastSuccessAt: null,
+    lastError: null,
+    retryAttempt: 0,
+  };
+
+  private emit() {
+    this._snapshot = {
+      isSyncing: this._isPushing || this._isSeeding,
+      dirtyCount: this._dirtyCount,
+      lastSuccessAt: this._lastSuccessAt,
+      lastError: this._lastError,
+      retryAttempt: this._retryAttempt,
+    };
+    for (const l of this._listeners) l();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this._listeners.add(listener);
+    return () => this._listeners.delete(listener);
+  }
+
+  getSnapshot(): SyncStatusSnapshot {
+    return this._snapshot;
+  }
+
+  async refreshDirtyCount(): Promise<number> {
+    let total = 0;
+    for (const tableName of SYNCABLE_TABLES) {
+      try {
+        total += await db[tableName].where("dirty").equals(1).count();
+      } catch {
+        // Ignore in mocked/partial DB environments
+      }
+    }
+    this._dirtyCount = total;
+    this.emit();
+    return total;
+  }
 
   get isSeeding() {
     return this._isSeeding;
@@ -130,27 +195,56 @@ class SyncManager {
   // ─── Push: Sweep dirty rows and retry API writes ───────────
 
   async pushDirtyRows(): Promise<void> {
-    if (this._isPushing || !navigator.onLine) return;
+    if (this._isPushing || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+    if (this._retryTimer) {
+      clearTimeout(this._retryTimer);
+      this._retryTimer = null;
+    }
     this._isPushing = true;
+    this.emit();
+
+    const errors: string[] = [];
+    const collect = (label: string, fn: () => Promise<void>) =>
+      fn().catch((err) => {
+        const msg = err instanceof Error ? err.message : "Sync write failed";
+        errors.push(`${label}: ${msg}`);
+      });
 
     try {
       await Promise.all([
-        this.pushDirtyTasks(),
-        this.pushDirtyCourses(),
-        this.pushDirtyNotes(),
-        this.pushDirtyRoutines(),
-        this.pushDirtyEvents(),
+        collect("tasks", () => this.pushDirtyTasks()),
+        collect("courses", () => this.pushDirtyCourses()),
+        collect("notes", () => this.pushDirtyNotes()),
+        collect("routines", () => this.pushDirtyRoutines()),
+        collect("events", () => this.pushDirtyEvents()),
         // Attendance marking is online-only; not pushed via sync queue
-        this.pushDirtyClassSchedules(),
-        this.pushDirtyAssessments(),
+        collect("classSchedules", () => this.pushDirtyClassSchedules()),
+        collect("assessments", () => this.pushDirtyAssessments()),
       ]);
+
+      await this.refreshDirtyCount();
+
+      if (errors.length > 0) {
+        this._lastError = errors[0];
+        const delayMs = Math.min(60_000, 2000 * Math.pow(2, this._retryAttempt));
+        this._retryAttempt += 1;
+        this._retryTimer = setTimeout(() => {
+          void this.pushDirtyRows();
+        }, delayMs);
+      } else {
+        this._lastError = null;
+        this._retryAttempt = 0;
+        this._lastSuccessAt = new Date().toISOString();
+      }
     } finally {
       this._isPushing = false;
+      this.emit();
     }
   }
 
   private async pushDirtyTasks(): Promise<void> {
     const dirtyTasks = await db.tasks.where("dirty").equals(1).toArray();
+    let firstErr: unknown = null;
     for (const task of dirtyTasks) {
       try {
         if (task._deleted) {
@@ -163,10 +257,11 @@ class SyncManager {
             updatedAt: serverTask.updatedAt,
           });
         }
-      } catch {
-        // Will retry on next push cycle
+      } catch (err) {
+        if (!firstErr) firstErr = err;
       }
     }
+    if (firstErr) throw firstErr;
   }
 
   private async pushDirtyCourses(): Promise<void> {

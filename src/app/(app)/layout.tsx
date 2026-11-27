@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 import { OverdueBanner } from "@/components/layout/overdue-banner";
 import { KeyboardFocusHelper } from "@/components/shared/keyboard-focus-helper";
+import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
 
 export default async function AppLayout({
   children,
@@ -36,6 +37,10 @@ export default async function AppLayout({
       <main className="lg:pl-64 min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
         {/* Persistent Overdue Tasks Banner */}
         <OverdueBanner />
+
+        <div className="lg:hidden flex justify-end px-4 pt-2" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}>
+          <SyncStatusIndicator />
+        </div>
 
         <div
           className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 lg:px-8 py-6 md:py-8 lg:py-10"

@@ -787,8 +787,8 @@ model Person {
   @@map("people")
 }
 
-// ─── Google Calendar Token ──────────────────────────────────
-// Stores OAuth tokens for Google Calendar read-only sync.
+// ─── Google Calendar Token (legacy single-account) ─────────
+// Preserved for backward compatibility; new connections use GoogleCalendarAccount.
 model GoogleCalendarToken {
   id           String   @id @default(uuid())
   userId       String   @map("user_id")
@@ -801,6 +801,49 @@ model GoogleCalendarToken {
   @@unique([userId])
   @@index([userId])
   @@map("google_calendar_tokens")
+}
+
+// ─── Google Calendar Accounts (Multi-Account) ───────────────
+// Stores OAuth tokens for one or more Google accounts per user.
+model GoogleCalendarAccount {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  googleAccountId String   @map("google_account_id")
+  email           String
+  label           String?
+  accessToken     String   @map("access_token")
+  refreshToken    String   @map("refresh_token")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  calendars GoogleCalendarSubscription[]
+
+  @@unique([userId, googleAccountId])
+  @@index([userId])
+  @@map("google_calendar_accounts")
+}
+
+// ─── Google Calendar Subscriptions (Multi-Calendar) ────────
+// Tracks which calendars within a connected Google account are synced.
+model GoogleCalendarSubscription {
+  id         String                @id @default(uuid())
+  userId     String                @map("user_id")
+  accountId  String                @map("account_id")
+  account    GoogleCalendarAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  calendarId String                @map("calendar_id")
+  summary    String
+  color      String?
+  isPrimary  Boolean               @default(false) @map("is_primary")
+  isBirthday Boolean               @default(false) @map("is_birthday")
+  enabled    Boolean               @default(true)
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+
+  @@unique([accountId, calendarId])
+  @@index([userId])
+  @@index([accountId])
+  @@map("google_calendar_subscriptions")
 }
 
 // ─── AI Insights (deprecated — kept for data retention) ────

@@ -1293,6 +1293,7 @@ $ npx vitest run src/features/notifications/lib/__tests__/engine-clock.test.ts
 | **10. AGENTS & CLAUDE** | DONE | `7d9ba19` | `AGENTS.md`, `CLAUDE.md` | Documentation-only |
 | **11. Cleanup** | DONE | `cad7770` | `ARCHITECTURE.md`, `docs/archive/{AUDIT_REPORT,CONSISTENCY}.md`, removed `vercel.json`, `temp_migration.sql`, `reference_screenshot/` | Documentation/repo cleanup only |
 
+
 ---
 
 ## 2. Event Edit / Creation Surfaces (Item 8)

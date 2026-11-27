@@ -4,7 +4,11 @@ import {
   getAuthUrl,
   isGoogleCalendarConnected,
   disconnectGoogleCalendar,
-  getCalendarList,
+  disconnectGoogleAccount,
+  listConnectedAccounts,
+  refreshAccountCalendars,
+  toggleCalendarSubscription,
+  type ConnectedGoogleAccountInfo,
 } from "@/features/calendar/lib/google-calendar";
 import { getCalendarEvents } from "@/features/calendar/lib/queries";
 import { revalidatePath } from "next/cache";
@@ -19,7 +23,7 @@ export async function getGoogleCalendarAuthUrl(): Promise<{ url: string }> {
 }
 
 /**
- * Check if Google Calendar is connected.
+ * Check if any Google Calendar account is connected.
  */
 export async function checkGoogleCalendarConnection(): Promise<{
   connected: boolean;
@@ -30,7 +34,75 @@ export async function checkGoogleCalendarConnection(): Promise<{
 }
 
 /**
- * Disconnect Google Calendar.
+ * List all connected Google accounts and their calendars.
+ */
+export async function getGoogleCalendarAccountsAction(): Promise<{
+  accounts: ConnectedGoogleAccountInfo[];
+}> {
+  const userId = await getCurrentUserId();
+  const accounts = await listConnectedAccounts(userId);
+  return { accounts };
+}
+
+/**
+ * Toggle whether a specific Google calendar subscription is synced.
+ */
+export async function toggleGoogleCalendarSubscriptionAction(
+  subscriptionId: string,
+  enabled: boolean
+): Promise<{ success: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+    await toggleCalendarSubscription(subscriptionId, enabled, userId);
+    revalidatePath("/settings");
+    revalidatePath("/calendar");
+    revalidatePath("/today");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to toggle Google Calendar subscription:", error);
+    return { success: false };
+  }
+}
+
+/**
+ * Refresh the calendar list for a connected Google account.
+ */
+export async function refreshGoogleAccountCalendarsAction(
+  accountId: string
+): Promise<{ success: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+    await refreshAccountCalendars(accountId, userId);
+    revalidatePath("/settings");
+    revalidatePath("/calendar");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to refresh Google account calendars:", error);
+    return { success: false };
+  }
+}
+
+/**
+ * Disconnect a single Google account.
+ */
+export async function disconnectGoogleAccountAction(
+  accountId: string
+): Promise<{ success: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+    await disconnectGoogleAccount(accountId, userId);
+    revalidatePath("/settings");
+    revalidatePath("/calendar");
+    revalidatePath("/today");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to disconnect Google account:", error);
+    return { success: false };
+  }
+}
+
+/**
+ * Disconnect all Google Calendar accounts.
  */
 export async function disconnectGoogleCalendarAction(): Promise<{
   success: boolean;
@@ -40,6 +112,7 @@ export async function disconnectGoogleCalendarAction(): Promise<{
     await disconnectGoogleCalendar(userId);
     revalidatePath("/settings");
     revalidatePath("/calendar");
+    revalidatePath("/today");
     return { success: true };
   } catch (error) {
     console.error("Failed to disconnect Google Calendar:", error);
@@ -48,21 +121,8 @@ export async function disconnectGoogleCalendarAction(): Promise<{
 }
 
 /**
- * Get the list of calendars from the connected Google account.
- * Shows which calendars are being synced (primary + Birthdays).
- */
-export async function getGoogleCalendarCalendars(): Promise<{
-  calendars: { id: string; summary: string; primary: boolean }[];
-}> {
-  const userId = await getCurrentUserId();
-  const calendars = await getCalendarList(userId);
-  return { calendars };
-}
-
-/**
  * Fetch calendar events for a date range.
  * Returns JSON-serializable data — safe to pass from server action to client.
- * Now tags birthday events with isBirthday flag.
  */
 export async function getCalendarEventsAction(
   startDate: string,

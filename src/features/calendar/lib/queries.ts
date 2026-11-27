@@ -121,12 +121,12 @@ export async function getCalendarEvents(startDate: Date, endDate: Date) {
       id: `google-${event.id}`,
       title: event.title,
       date: event.start.toISOString(),
-      time: event.start.toTimeString().slice(0, 5),
-      endTime: event.end?.toTimeString().slice(0, 5),
+      time: event.isAllDay ? undefined : event.start.toTimeString().slice(0, 5),
+      endTime: event.isAllDay ? undefined : event.end?.toTimeString().slice(0, 5),
       type: event.isBirthday ? "birthday" : "event",
       location: event.location ?? undefined,
-      // Tag birthday events so the UI can render them distinctly
-      ...(event.isBirthday ? { courseName: "Birthday" } : {}),
+      courseName: event.isBirthday ? "Birthday" : event.calendarName,
+      courseColor: event.isBirthday ? undefined : event.calendarColor ?? undefined,
     });
   }
 

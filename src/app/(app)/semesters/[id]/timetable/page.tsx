@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { getSemesterById } from "@/features/semesters/lib/queries";
 import { TimetableManager } from "@/features/schedule/components/timetable-manager";
+import { TimetableImportPanel } from "@/features/schedule/components/timetable-import-panel";
 
 export const revalidate = 0;
 
@@ -45,6 +46,23 @@ export default async function SemesterTimetablePage({
           endTime: s.endTime,
           location: s.location,
         }))}
+        importPanel={
+          <TimetableImportPanel
+            semesterId={id}
+            courses={semester.courses.map((c) => ({
+              id: c.id,
+              name: c.name,
+              code: c.code,
+            }))}
+            existingSlots={schedules.map((s) => ({
+              id: s.id,
+              dayOfWeek: s.dayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              courseName: s.course.name,
+            }))}
+          />
+        }
       />
     </div>
   );

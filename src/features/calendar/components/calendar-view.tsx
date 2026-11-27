@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { CalendarEvent } from "@/types";
 import { getCalendarEventsAction } from "@/features/calendar/lib/google-actions";
-import { academicEntriesToCalendarEvents } from "@/features/calendar/lib/academic-calendar-events";
+import {
+  academicEntriesToCalendarEvents,
+  formatCalendarDayLabel,
+} from "@/features/calendar/lib/academic-calendar-events";
 import {
   isoWeekdayName,
   type AcademicCalendarEntryItem,
@@ -547,7 +550,7 @@ export function DayView({
       <div className="border-b border-border px-4 py-3 bg-background flex items-center gap-3">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
-            {FULL_DAY_NAMES[date.getDay()]}
+            {formatCalendarDayLabel(FULL_DAY_NAMES[date.getDay()], dayEvents)}
           </p>
           <p className={cn("text-2xl font-bold", isToday && "text-primary")}>
             {date.getDate()} {MONTH_NAMES[date.getMonth()]}
@@ -880,7 +883,9 @@ export function DayDetailPanel({
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
-          <p className="section-label">{FULL_DAY_NAMES[date.getDay()]}</p>
+          <p className="section-label">
+            {formatCalendarDayLabel(FULL_DAY_NAMES[date.getDay()], events)}
+          </p>
           <p className="text-lg font-semibold text-foreground">
             {date.getDate()} {MONTH_NAMES[date.getMonth()]}
           </p>

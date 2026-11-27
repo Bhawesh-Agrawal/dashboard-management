@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCalendarDayLabel } from "@/features/calendar/lib/academic-calendar-events";
 import {
   type CalendarViewType,
   MONTH_NAMES,
@@ -50,9 +51,18 @@ function MobileEventList({
   const isTomorrow = isSameDay(date, tomorrow);
 
   const dateLabel = (() => {
-    if (isToday) return "TODAY";
-    if (isTomorrow) return "TOMORROW";
-    return FULL_DAY_NAMES[date.getDay()]?.toUpperCase();
+    const base = isToday
+      ? "TODAY"
+      : isTomorrow
+        ? "TOMORROW"
+        : (FULL_DAY_NAMES[date.getDay()]?.toUpperCase() ?? "");
+    const withFollows = formatCalendarDayLabel(
+      FULL_DAY_NAMES[date.getDay()] ?? "",
+      events
+    );
+    return withFollows !== (FULL_DAY_NAMES[date.getDay()] ?? "")
+      ? withFollows
+      : base;
   })();
 
   if (events.length === 0) {

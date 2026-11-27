@@ -25,6 +25,19 @@ export function formatAcademicShortLabel(entry: AcademicCalendarEntryItem): stri
   }
 }
 
+export function formatCalendarDayLabel(
+  dayName: string,
+  dayEvents: CalendarEvent[]
+): string {
+  const fw = dayEvents.find(
+    (e) => e.type === "academic" && e.academicMeta?.kind === "follows_weekday"
+  );
+  if (fw?.academicMeta?.followsWeekday) {
+    return `${dayName}, follows ${isoWeekdayName(fw.academicMeta.followsWeekday)} timetable`;
+  }
+  return dayName;
+}
+
 export function formatAcademicEventTitle(
   entry: AcademicCalendarEntryItem,
   day: number,

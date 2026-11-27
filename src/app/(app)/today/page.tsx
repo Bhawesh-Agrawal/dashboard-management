@@ -8,19 +8,58 @@ import {
   parseStoredBriefPayload,
 } from "@/features/briefs/lib/payload-v2";
 import type { BriefTodaySummary } from "@/features/briefs/components/brief-today-card";
-import { formatDateOnly } from "@/lib/timezone";
+import { formatDateOnly, getTodayInTimezone } from "@/lib/timezone";
+import { getUserTimezone } from "@/lib/timezone-server";
+import { getAcademicEntriesForRange } from "@/features/semesters/lib/calendar-queries";
+import { semesterStatus } from "@/features/semesters/lib/status";
+import { prisma } from "@/lib/prisma";
+import {
+  addDaysToDateStr,
+  buildTodayAcademicLines,
+} from "@/features/dashboard/lib/today-academic";
 
 export const revalidate = 0;
 
 export default async function TodayPage() {
   let dsaSummary = null;
   let briefSummary: BriefTodaySummary | null = null;
+  let todayAcademicLines: string[] = [];
   try {
     const userId = await getCurrentUserId();
-    const [dsa, briefs] = await Promise.all([
-      getDsaDueSummary(userId, getNow()),
+    const now = getNow();
+    const tz = await getUserTimezone();
+    const todayStr = getTodayInTimezone(tz, now);
+    const tomorrowStr = addDaysToDateStr(todayStr, 1);
+
+    const [dsa, briefs, academicEntries, semesters] = await Promise.all([
+      getDsaDueSummary(userId, now),
       getLatestDailyBriefs(userId),
+      getAcademicEntriesForRange(userId, todayStr, tomorrowStr),
+      prisma.semester.findMany({
+        where: { userId },
+        select: { id: true, name: true, startDate: true, endDate: true },
+        orderBy: { startDate: "asc" },
+      }),
     ]);
+
+    const activeSem = semesters.find((s) => semesterStatus(s, todayStr) === "active");
+    const upcomingSem = !activeSem
+      ? semesters.find((s) => semesterStatus(s, todayStr) === "upcoming")
+      : undefined;
+
+    todayAcademicLines = buildTodayAcademicLines({
+      entries: academicEntries,
+      todayStr,
+      tomorrowStr,
+      upcomingSemester: upcomingSem
+        ? {
+            id: upcomingSem.id,
+            name: upcomingSem.name,
+            startDate: formatDateOnly(upcomingSem.startDate),
+          }
+        : null,
+    });
+
     dsaSummary = dsa;
     const latest =
       briefs.morning && briefs.evening
@@ -57,7 +96,11 @@ export default async function TodayPage() {
 
   return (
     <div>
-      <TodayPageClient dsaSummary={dsaSummary} briefSummary={briefSummary} />
+      <TodayPageClient
+        dsaSummary={dsaSummary}
+        briefSummary={briefSummary}
+        todayAcademicLines={todayAcademicLines}
+      />
     </div>
   );
 }

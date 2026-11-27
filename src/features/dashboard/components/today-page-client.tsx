@@ -18,9 +18,11 @@ type ServerDashboardData = DashboardData & {
 export default function TodayPageClient({
   dsaSummary,
   briefSummary,
+  todayAcademicLines,
 }: {
   dsaSummary?: DsaDueSummary | null;
   briefSummary?: BriefTodaySummary | null;
+  todayAcademicLines?: string[];
 }) {
   const [serverData, setServerData] = useState<ServerDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -232,6 +234,7 @@ export default function TodayPageClient({
         userId="local"
         dsaSummary={dsaSummary}
         briefSummary={briefSummary}
+        todayAcademicLines={todayAcademicLines}
       />
     </div>
   );

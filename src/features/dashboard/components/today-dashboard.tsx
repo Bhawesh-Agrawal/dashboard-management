@@ -41,6 +41,7 @@ export function TodayDashboard({
   userId,
   dsaSummary,
   briefSummary,
+  todayAcademicLines,
 }: {
   data: DashboardData;
   widgetOrder: string[];
@@ -48,6 +49,7 @@ export function TodayDashboard({
   userId: string;
   dsaSummary?: DsaDueSummary | null;
   briefSummary?: BriefTodaySummary | null;
+  todayAcademicLines?: string[];
 }) {
   const [layout, setLayout] = useState(() => resolveLayout(widgetOrder));
   const today = new Date();
@@ -141,6 +143,15 @@ export function TodayDashboard({
 
   return (
     <div className="space-y-6">
+      {todayAcademicLines && todayAcademicLines.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm space-y-1">
+          {todayAcademicLines.map((line, i) => (
+            <p key={i} className="text-foreground">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
       <BriefTodayCard summary={briefSummary} />
       {data.hasCurrentSemester === false && data.upcomingSemester && !data.upcomingSemester.hasTimetable ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">

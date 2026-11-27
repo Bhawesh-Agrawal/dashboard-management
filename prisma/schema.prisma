@@ -25,6 +25,7 @@ model Semester {
   attendanceMarksConfigs AttendanceMarksConfig[]
   files                  FileAttachment[]
   documentFolders        DocumentFolder[]
+  academicCalendarEntries AcademicCalendarEntry[]
 
   @@index([userId])
   @@map("semesters")
@@ -1203,5 +1204,34 @@ model WeatherCache {
 
   @@index([fetchedAt])
   @@map("weather_cache")
+}
+
+// ─── Academic Calendar (Phase 7) ────────────────────────────
+enum AcademicCalendarKind {
+  holiday
+  break
+  exam_period
+  no_classes
+  follows_weekday
+  note
+}
+
+model AcademicCalendarEntry {
+  id             String               @id @default(uuid())
+  userId         String               @map("user_id")
+  semesterId     String               @map("semester_id")
+  semester       Semester             @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  kind           AcademicCalendarKind
+  title          String
+  startDate      DateTime             @db.Date @map("start_date")
+  endDate        DateTime             @db.Date @map("end_date")
+  cancelsClasses Boolean              @default(true) @map("cancels_classes")
+  followsWeekday Int?                 @map("follows_weekday")
+  notes          String?
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  @@index([userId, semesterId, startDate])
+  @@index([semesterId])
+  @@map("academic_calendar_entries")
 }
 // ─── End DSA Progress Tracker ───────────────────────────────

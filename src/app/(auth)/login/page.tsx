@@ -1,4 +1,5 @@
 import { login } from "@/features/auth/lib/actions";
+import { sanitizeReturnUrl } from "@/features/auth/lib/return-url";
 
 export default function LoginPage({
   searchParams,
@@ -15,6 +16,7 @@ export default function LoginPage({
 
         <form action={login} className="space-y-4">
           <SearchParamsMessage searchParams={searchParams} />
+          <ReturnUrlField searchParams={searchParams} />
 
           <div className="space-y-2">
             <label htmlFor="email" className="section-label">
@@ -91,4 +93,15 @@ async function SearchParamsMessage({
   }
 
   return null;
+}
+
+async function ReturnUrlField({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const raw = typeof params.returnUrl === "string" ? params.returnUrl : null;
+  if (!raw) return null;
+  return <input type="hidden" name="returnUrl" value={sanitizeReturnUrl(raw)} />;
 }

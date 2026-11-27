@@ -66,6 +66,16 @@
     }
   ],
   "categories": ["education", "productivity"],
+  "share_target": {
+    "action": "/capture/share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "shortcuts": [
     {
       "name": "Today",

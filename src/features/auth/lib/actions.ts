@@ -3,9 +3,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/features/auth/lib/supabase-server";
 import { isSignupAllowed } from "@/features/auth/lib/signup-guard";
+import { sanitizeReturnUrl } from "@/features/auth/lib/return-url";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
+  const returnUrl = sanitizeReturnUrl(formData.get("returnUrl") as string | null);
 
   const data = {
     email: formData.get("email") as string,
@@ -15,10 +17,12 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data);
 
   if (error) {
-    redirect("/login?error=" + encodeURIComponent(error.message));
+    const returnParam =
+      returnUrl !== "/today" ? `&returnUrl=${encodeURIComponent(returnUrl)}` : "";
+    redirect("/login?error=" + encodeURIComponent(error.message) + returnParam);
   }
 
-  redirect("/today");
+  redirect(returnUrl);
 }
 
 export async function signup(formData: FormData) {

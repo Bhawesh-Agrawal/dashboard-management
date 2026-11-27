@@ -1,25 +1,37 @@
-# PWA Installation & Offline Verification
+# PWA & Web Share Target Guide
 
-## Installing on Phone (Android / iOS)
+## Installing the App
 
-1. Open the deployed HTTPS URL in Chrome (Android) or Safari (iOS) and sign in.
-2. **Android (Chrome):** Tap the browser menu -> **Install app** (or **Add to Home screen**). Chrome uses `manifest.json` (`id: "/"`, `scope: "/"`, `start_url: "/today"`) and the dedicated `any` and `maskable` 192x192 / 512x512 icons.
-3. **iOS (Safari):** Tap the Share button -> **Add to Home Screen**.
+- **Android (Chrome):** Open CodexDash in Chrome and tap **Install** in the browser menu or the one-time install banner.
+- **iPhone / iPad (Safari):** Tap the Share button and choose **Add to Home Screen**.
 
-## Testing the Service Worker Locally
+## Sharing Links from Other Apps (Web Share Target)
 
-By default, `ServiceWorkerRegistration` unregisters service workers outside production so local dev stays fresh. To test `/sw.js` locally:
+### Android (Chrome Installed PWA)
 
-```bash
-NEXT_PUBLIC_ENABLE_SW=true npm run build && NEXT_PUBLIC_ENABLE_SW=true npm run start
+`public/manifest.json` registers a W3C Web App Manifest `share_target`:
+
+```json
+"share_target": {
+  "action": "/capture/share",
+  "method": "GET",
+  "enctype": "application/x-www-form-urlencoded",
+  "params": {
+    "title": "title",
+    "text": "text",
+    "url": "url"
+  }
+}
 ```
 
-`/sw.js` is served with `Cache-Control: no-cache, no-store, must-revalidate` (configured in `next.config.ts`) so browser SW updates apply immediately on deploy.
+Once CodexDash is installed from Chrome on Android, sharing a YouTube video, Spotify playlist, or article from any app shows **CodexDash** in the Android share sheet:
+- Android apps frequently put the URL inside `text` instead of `url`; `/capture/share` scans `url`, `text`, and `title` to extract the first `http(s)` URL and strips safe tracking query parameters (`utm_*`, `fbclid`, `gclid`, `si` on YouTube/Spotify).
+- If your session expired, `/login?returnUrl=...` preserves the full `/capture/share?...` query string after signing in.
+- Enable **Auto-save shared items immediately** on `/capture/share` if you want one-tap instant saves with an Undo toast.
 
-## Offline Verification Checklist
+### iOS / iPadOS (Safari)
 
-1. Load `/today` and `/brief` while online so the app shell and IndexedDB (Dexie) seed cache are populated.
-2. Enable Airplane Mode (or DevTools -> Network -> **Offline**).
-3. Reload `/today`: the app shell loads from the service worker cache and Dexie data renders.
-4. Navigate to an uncached server-only route (e.g. `/dsa`): `/offline.html` is served cleanly.
-5. Disable Airplane Mode and verify pending offline attendance/task mutations sync back to the server.
+iOS PWAs do not support the Web Share Target API (`share_target`). On iPhone/iPad:
+1. Copy the link or text in YouTube, Spotify, or Safari.
+2. Open CodexDash -> tap **+** (FAB) or **Capture** on `/notes`.
+3. Tap **Paste** (or paste into the text box) — CodexDash automatically detects the URL and switches to **Link**.

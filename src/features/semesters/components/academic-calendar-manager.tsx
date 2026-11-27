@@ -22,6 +22,10 @@ import {
   parseIcsAllDayEvents,
   type ParsedCalendarEntry,
 } from "../lib/calendar-import";
+import {
+  countCancelledWeekdays,
+  evaluateImportRows,
+} from "../lib/calendar-import-safety";
 import { parseCalendarTextWithAiAction } from "../lib/calendar-ai-actions";
 
 export interface CalendarEntryDTO {
@@ -57,12 +61,16 @@ const WEEKDAY_OPTIONS = [
 export function AcademicCalendarManager({
   semesterId,
   defaultYear,
+  semesterStartDate,
+  semesterEndDate,
   initialEntries,
   onChanged,
   extraHeaderAction,
 }: {
   semesterId: string;
   defaultYear: number;
+  semesterStartDate?: string;
+  semesterEndDate?: string;
   initialEntries: CalendarEntryDTO[];
   onChanged?: () => void;
   extraHeaderAction?: React.ReactNode;
@@ -86,7 +94,34 @@ export function AcademicCalendarManager({
   const [importMode, setImportMode] = useState<"none" | "text" | "ics">("none");
   const [pasteText, setPasteText] = useState("");
   const [reviewRows, setReviewRows] = useState<ParsedCalendarEntry[]>([]);
+  const [excludedRowIds, setExcludedRowIds] = useState<Set<string>>(new Set());
+  const [dismissedFlags, setDismissedFlags] = useState<Set<string>>(new Set());
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+
+  const safetyAnalysis = useMemo(
+    () =>
+      evaluateImportRows(reviewRows, {
+        semesterStartDate,
+        semesterEndDate,
+        existingEntries: entries,
+      }),
+    [reviewRows, semesterStartDate, semesterEndDate, entries]
+  );
+
+  const includedReviewRows = useMemo(
+    () => reviewRows.filter((r) => !excludedRowIds.has(r.id)),
+    [reviewRows, excludedRowIds]
+  );
+
+  const impactCancelledWeekdays = useMemo(
+    () =>
+      countCancelledWeekdays(
+        includedReviewRows,
+        semesterStartDate,
+        semesterEndDate
+      ),
+    [includedReviewRows, semesterStartDate, semesterEndDate]
+  );
 
   const groupedByMonth = useMemo(() => {
     const groups = new Map<string, CalendarEntryDTO[]>();
@@ -222,7 +257,7 @@ export function AcademicCalendarManager({
 
   function handleParseTextDeterministic() {
     const res = parseCalendarTextDeterministic(pasteText, defaultYear);
-    setReviewRows(res.entries);
+    applyParsedRows(res.entries);
     setParseWarnings(res.warnings);
   }
 
@@ -230,7 +265,7 @@ export function AcademicCalendarManager({
     startTransition(async () => {
       try {
         const res = await parseCalendarTextWithAiAction(semesterId, pasteText);
-        setReviewRows(res.entries);
+        applyParsedRows(res.entries);
         setParseWarnings(res.warnings);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "AI parsing failed");
@@ -243,7 +278,7 @@ export function AcademicCalendarManager({
     if (!file) return;
     const text = await file.text();
     const res = parseIcsAllDayEvents(text);
-    setReviewRows(res.entries);
+    applyParsedRows(res.entries);
     setParseWarnings(res.warnings);
   }
 
@@ -251,13 +286,24 @@ export function AcademicCalendarManager({
     setReviewRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
+  function applyParsedRows(parsed: ParsedCalendarEntry[]) {
+    const analysis = evaluateImportRows(parsed, {
+      semesterStartDate,
+      semesterEndDate,
+      existingEntries: entries,
+    });
+    setReviewRows(parsed);
+    setExcludedRowIds(analysis.defaultExcludedIds);
+    setDismissedFlags(new Set());
+  }
+
   function handleConfirmReview() {
-    if (reviewRows.length === 0) return;
+    if (includedReviewRows.length === 0) return;
     startTransition(async () => {
       try {
         const res = await bulkCreateAcademicCalendarEntries(
           semesterId,
-          reviewRows.map((r) => ({
+          includedReviewRows.map((r) => ({
             kind: r.kind,
             title: r.title,
             startDate: r.startDate,
@@ -502,15 +548,25 @@ export function AcademicCalendarManager({
                 </Button>
                 <Button
                   type="button"
-                  disabled={isPending}
+                  disabled={isPending || includedReviewRows.length === 0}
                   onClick={handleConfirmReview}
                   className="min-h-[44px]"
                 >
-                  {isPending ? "Saving..." : "Confirm & Save"}
+                  {isPending
+                    ? "Saving..."
+                    : `Confirm & Save (${includedReviewRows.length})`}
                 </Button>
               </div>
             )}
           </div>
+
+          {reviewRows.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-foreground">
+              <span className="font-medium">Impact preview:</span> These entries cancel
+              classes on {impactCancelledWeekdays}{" "}
+              {impactCancelledWeekdays === 1 ? "weekday" : "weekdays"}.
+            </div>
+          )}
 
           {parseWarnings.length > 0 && (
             <ul className="space-y-1 text-xs text-destructive">
@@ -522,11 +578,61 @@ export function AcademicCalendarManager({
 
           {reviewRows.length > 0 && (
             <div className="space-y-2">
-              {reviewRows.map((row) => (
+              {reviewRows.map((row) => {
+                const isIncluded = !excludedRowIds.has(row.id);
+                const rowFlags = (safetyAnalysis.flagsByRowId[row.id] ?? []).filter(
+                  (f) => !dismissedFlags.has(`${row.id}:${f.code}`)
+                );
+                return (
                 <div
                   key={row.id}
                   className="rounded-lg border border-border bg-background p-3 space-y-2"
                 >
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <label className="flex items-center gap-2 font-medium text-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isIncluded}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setExcludedRowIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.delete(row.id);
+                            else next.add(row.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span>
+                        {row.startDate} to {row.endDate}
+                      </span>
+                    </label>
+                  </div>
+                  {rowFlags.length > 0 && (
+                    <div className="space-y-1">
+                      {rowFlags.map((flag) => (
+                        <div
+                          key={flag.code}
+                          className="flex items-center justify-between gap-2 rounded border border-border bg-muted/50 px-2 py-1 text-xs text-destructive"
+                        >
+                          <span>{flag.message}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDismissedFlags((prev) => {
+                                const next = new Set(prev);
+                                next.add(`${row.id}:${flag.code}`);
+                                return next;
+                              })
+                            }
+                            className="text-muted-foreground hover:text-foreground underline shrink-0"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {row.lowConfidence && (
                     <p className="text-xs text-destructive font-medium">
                       Check this row (low confidence)
@@ -595,7 +701,8 @@ export function AcademicCalendarManager({
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -41,6 +41,8 @@ export default async function SemesterCalendarPage({
       <AcademicCalendarManager
         semesterId={id}
         defaultYear={semester.startDate.getUTCFullYear()}
+        semesterStartDate={semester.startDate.toISOString().slice(0, 10)}
+        semesterEndDate={semester.endDate.toISOString().slice(0, 10)}
         initialEntries={initialEntries}
       />
       <ConvertRepeatedHolidaysPanel semesterId={id} />

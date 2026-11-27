@@ -6,6 +6,7 @@ import {
   AcademicCalendarManager,
   type CalendarEntryDTO,
 } from "@/features/semesters/components/academic-calendar-manager";
+import { ConvertRepeatedHolidaysPanel } from "@/features/semesters/components/convert-repeated-holidays-panel";
 
 export const revalidate = 0;
 
@@ -42,6 +43,7 @@ export default async function SemesterCalendarPage({
         defaultYear={semester.startDate.getUTCFullYear()}
         initialEntries={initialEntries}
       />
+      <ConvertRepeatedHolidaysPanel semesterId={id} />
     </div>
   );
 }

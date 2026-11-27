@@ -76,6 +76,18 @@ export default async function SemesterDetailPage({
                 </button>
               </form>
             )}
+            <Link
+              href={`/semesters/${semester.id}/calendar`}
+              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent transition-colors min-h-[44px]"
+            >
+              Academic calendar
+            </Link>
+            <Link
+              href={`/semesters/${semester.id}/timetable`}
+              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent transition-colors min-h-[44px]"
+            >
+              Timetable
+            </Link>
             <CreateCourseDialog semesterId={semester.id} />
           </div>
         }

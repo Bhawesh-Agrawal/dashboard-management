@@ -64,7 +64,17 @@ export default async function SemestersPage() {
       <PageHeader
         title="Semesters"
         subtitle={cgpa !== null ? `CGPA ${cgpa.toFixed(2)} · ${semesters.length} semester${semesters.length !== 1 ? "s" : ""}` : `${semesters.length} semester${semesters.length !== 1 ? "s" : ""}`}
-        action={<CreateSemesterDialog />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/semesters/setup"
+              className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors min-h-[44px]"
+            >
+              Setup wizard
+            </Link>
+            <CreateSemesterDialog />
+          </div>
+        }
       />
 
       {semesters.length === 0 ? (

@@ -1,0 +1,793 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Brief v2 scenario snapshots (Item 9) > 1. busy class day 1`] = `
+{
+  "payload": {
+    "deadlines": {
+      "assessmentsWithin7Days": [],
+      "overdueTasks": [],
+      "overdueTotalCount": 0,
+      "tasksToday": [
+        {
+          "dueDate": "2026-11-27",
+          "id": "t1",
+          "isOverdue": false,
+          "title": "Lab 4",
+        },
+      ],
+      "tasksWithin3Days": [],
+    },
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Next: Algorithms at 09:00",
+    },
+    "isEmptyDay": false,
+    "kind": "morning",
+    "nextUp": {
+      "href": "/courses/c1",
+      "kind": "class",
+      "location": "LH-1",
+      "minutesRemaining": 90,
+      "startsAt": "09:00",
+      "title": "Algorithms",
+    },
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "5 timed commitments. 1 due today. Pack a jacket — low near 12°C..",
+    "quickActions": [
+      {
+        "href": "/tasks",
+        "id": "act-task-t1",
+        "kind": "open_task",
+        "label": "Open task: Lab 4",
+      },
+    ],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "5 timed commitments. 1 due today. Pack a jacket — low near 12°C..",
+    "timeline": [
+      {
+        "courseId": "c1",
+        "endTime": "10:00",
+        "href": "/courses/c1",
+        "id": "class-c1-09:00",
+        "kind": "class",
+        "location": "LH-1",
+        "startTime": "09:00",
+        "title": "Algorithms",
+      },
+      {
+        "durationMinutes": 90,
+        "endTime": "11:30",
+        "id": "gap-class-c1-09:00-class-c2-11:30",
+        "kind": "gap",
+        "startTime": "10:00",
+        "title": "1h 30m free gap",
+      },
+      {
+        "courseId": "c2",
+        "endTime": "12:30",
+        "href": "/courses/c2",
+        "id": "class-c2-11:30",
+        "kind": "class",
+        "location": "LH-2",
+        "startTime": "11:30",
+        "title": "OS",
+      },
+      {
+        "durationMinutes": 90,
+        "endTime": "14:00",
+        "id": "gap-class-c2-11:30-class-c3-14:00",
+        "kind": "gap",
+        "startTime": "12:30",
+        "title": "1h 30m free gap",
+      },
+      {
+        "courseId": "c3",
+        "endTime": "15:00",
+        "href": "/courses/c3",
+        "id": "class-c3-14:00",
+        "kind": "class",
+        "location": "Lab-3",
+        "startTime": "14:00",
+        "title": "Networks",
+      },
+      {
+        "durationMinutes": 90,
+        "endTime": "16:30",
+        "id": "gap-class-c3-14:00-event-e1",
+        "kind": "gap",
+        "startTime": "15:00",
+        "title": "1h 30m free gap",
+      },
+      {
+        "href": "/calendar",
+        "id": "event-e1",
+        "kind": "event",
+        "location": null,
+        "startTime": "16:30",
+        "title": "Club Sync",
+      },
+      {
+        "durationMinutes": 90,
+        "endTime": "18:00",
+        "id": "gap-event-e1-google-g1",
+        "kind": "gap",
+        "startTime": "16:30",
+        "title": "1h 30m free gap",
+      },
+      {
+        "endTime": "18:30",
+        "href": "/calendar",
+        "id": "google-g1",
+        "kind": "google_event",
+        "location": null,
+        "sourceLabel": "Personal",
+        "startTime": "18:00",
+        "title": "Dentist",
+      },
+    ],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Pack a jacket — low near 12°C.",
+      "aqi": {
+        "advice": "Air quality is clean; great for outdoor activity.",
+        "category": "Good",
+        "pm25": 9.2,
+        "usAqi": 42,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": "Kathmandu: Mainly clear, 12°–22°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Next: Algorithms at 09:00 (fallback)
+Summary: 5 timed commitments. 1 due today. Pack a jacket — low near 12°C..
+NextUp: Algorithms at 09:00 (in 90m)
+Weather: Kathmandu: Mainly clear, 12°–22°C | Advice: Pack a jacket — low near 12°C. | AQI: 42 Good | Unavailable: none
+Timeline (9): 09:00 Algorithms | 10:00 1h 30m free gap | 11:30 OS | 12:30 1h 30m free gap | 14:00 Networks | 15:00 1h 30m free gap | 16:30 Club Sync | 16:30 1h 30m free gap | 18:00 Dentist
+Deadlines: today=1, overdue=0, 3d=0, exams=0",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 2. empty day with semester ended 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T08:00:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Clear schedule today",
+    },
+    "isEmptyDay": true,
+    "kind": "morning",
+    "nextUp": null,
+    "notes": [
+      {
+        "href": "/notes/n1",
+        "id": "n1",
+        "title": "Graph Theory",
+        "updatedAt": "2026-11-26",
+      },
+    ],
+    "nudges": [
+      {
+        "actionLabel": "Add Semester",
+        "href": "/semesters",
+        "id": "nudge-semester-ended",
+        "kind": "semester_ended",
+        "message": "Semester 3 ended on 2026-11-15, add the next one.",
+        "title": "Semester ended",
+      },
+    ],
+    "pushSummary": "No timed classes or events. Pack a jacket — low near 12°C..",
+    "quickActions": [
+      {
+        "href": "/semesters",
+        "id": "act-add-semester",
+        "kind": "add_semester",
+        "label": "Add next semester",
+      },
+    ],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "No timed classes or events. Pack a jacket — low near 12°C..",
+    "timeline": [],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Pack a jacket — low near 12°C.",
+      "aqi": {
+        "advice": "Air quality is clean; great for outdoor activity.",
+        "category": "Good",
+        "pm25": 9.2,
+        "usAqi": 42,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": "Kathmandu: Mainly clear, 12°–22°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Clear schedule today (fallback)
+Summary: No timed classes or events. Pack a jacket — low near 12°C..
+Weather: Kathmandu: Mainly clear, 12°–22°C | Advice: Pack a jacket — low near 12°C. | AQI: 42 Good | Unavailable: none
+Timeline (0): 
+Nudges: semester_ended: Semester 3 ended on 2026-11-15, add the next one.",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 3. exam week 1`] = `
+{
+  "payload": {
+    "deadlines": {
+      "assessmentsWithin7Days": [
+        {
+          "courseName": "Algorithms",
+          "dueDate": "2026-11-29",
+          "id": "a1",
+          "title": "end sem",
+        },
+        {
+          "courseName": "DBMS",
+          "dueDate": "2026-12-01",
+          "id": "a2",
+          "title": "end sem",
+        },
+      ],
+      "overdueTasks": [
+        {
+          "dueDate": "2026-11-25",
+          "id": "t2",
+          "isOverdue": true,
+          "title": "Past paper 2024",
+        },
+      ],
+      "overdueTotalCount": 1,
+      "tasksToday": [
+        {
+          "dueDate": "2026-11-27",
+          "id": "t1",
+          "isOverdue": false,
+          "title": "Revise Ch 5",
+        },
+      ],
+      "tasksWithin3Days": [
+        {
+          "dueDate": "2026-11-29",
+          "id": "t3",
+          "isOverdue": false,
+          "title": "Formula sheet",
+        },
+      ],
+    },
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:00:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Clear schedule today",
+    },
+    "isEmptyDay": true,
+    "kind": "morning",
+    "nextUp": null,
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "No timed classes or events. 1 overdue. 1 due today.",
+    "quickActions": [
+      {
+        "href": "/tasks",
+        "id": "act-task-t2",
+        "kind": "open_task",
+        "label": "Open task: Past paper 2024",
+      },
+    ],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "No timed classes or events. 1 overdue. 1 due today.",
+    "timeline": [],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Pack a jacket — low near 12°C.",
+      "aqi": {
+        "advice": "Air quality is clean; great for outdoor activity.",
+        "category": "Good",
+        "pm25": 9.2,
+        "usAqi": 42,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": "Kathmandu: Mainly clear, 12°–22°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Clear schedule today (fallback)
+Summary: No timed classes or events. 1 overdue. 1 due today.
+Weather: Kathmandu: Mainly clear, 12°–22°C | Advice: Pack a jacket — low near 12°C. | AQI: 42 Good | Unavailable: none
+Timeline (0): 
+Deadlines: today=1, overdue=1, 3d=1, exams=2",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 4. travel day with a ticket and destination weather 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T06:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Next: Flight to Pokhara at 10:15",
+    },
+    "isEmptyDay": false,
+    "kind": "morning",
+    "nextUp": {
+      "href": "/calendar",
+      "kind": "event",
+      "location": "Pokhara",
+      "minutesRemaining": 225,
+      "startsAt": "10:15",
+      "title": "Flight to Pokhara",
+    },
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "1 timed commitment. Pack a jacket — low near 12°C..",
+    "quickActions": [
+      {
+        "href": "/notes/doc-1",
+        "id": "act-ticket-doc-1",
+        "kind": "open_ticket",
+        "label": "Open ticket: BoardingPass.pdf",
+      },
+    ],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "1 timed commitment. Pack a jacket — low near 12°C..",
+    "timeline": [
+      {
+        "href": "/calendar",
+        "id": "event-e1",
+        "kind": "event",
+        "location": "Pokhara",
+        "startTime": "10:15",
+        "title": "Flight to Pokhara",
+      },
+    ],
+    "travel": [
+      {
+        "dateTimeLabel": "2026-11-27 10:15",
+        "destinationWeather": {
+          "dateOnly": "2026-11-27",
+          "location": "Pokhara",
+          "precipProbMax": 10,
+          "summary": "Pokhara: Mainly clear, 13°–24°C · 10% rain",
+          "tempMaxC": 24,
+          "tempMinC": 13,
+        },
+        "documents": [
+          {
+            "noteId": "doc-1",
+            "offlineUrl": "/notes/doc-1",
+            "title": "BoardingPass.pdf",
+          },
+        ],
+        "eventId": "e1",
+        "location": "Pokhara",
+        "ticketsPinnedCount": 1,
+        "title": "Flight to Pokhara",
+      },
+    ],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Pack a jacket — low near 12°C.",
+      "aqi": {
+        "advice": "Air quality is clean; great for outdoor activity.",
+        "category": "Good",
+        "pm25": 9.2,
+        "usAqi": 42,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": "Kathmandu: Mainly clear, 12°–22°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Next: Flight to Pokhara at 10:15 (fallback)
+Summary: 1 timed commitment. Pack a jacket — low near 12°C..
+NextUp: Flight to Pokhara at 10:15 (in 225m)
+Weather: Kathmandu: Mainly clear, 12°–22°C | Advice: Pack a jacket — low near 12°C. | AQI: 42 Good | Unavailable: none
+Timeline (1): 10:15 Flight to Pokhara
+Travel: Flight to Pokhara (Pokhara: Mainly clear, 13°–24°C · 10% rain, tickets=1)",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 5. rainy day with unhealthy AQI 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Next: Compilers at 10:00",
+    },
+    "isEmptyDay": false,
+    "kind": "morning",
+    "nextUp": {
+      "href": "/courses/c1",
+      "kind": "class",
+      "location": null,
+      "minutesRemaining": 150,
+      "startsAt": "10:00",
+      "title": "Compilers",
+    },
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "1 timed commitment. Wear a mask outdoors (AQI 175 · Unhealthy)..",
+    "quickActions": [],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "1 timed commitment. Wear a mask outdoors (AQI 175 · Unhealthy)..",
+    "timeline": [
+      {
+        "courseId": "c1",
+        "endTime": "11:00",
+        "href": "/courses/c1",
+        "id": "class-c1-10:00",
+        "kind": "class",
+        "location": null,
+        "startTime": "10:00",
+        "title": "Compilers",
+      },
+    ],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Wear a mask outdoors (AQI 175 · Unhealthy).",
+      "aqi": {
+        "advice": "Wear a mask outdoors and limit prolonged exertion.",
+        "category": "Unhealthy",
+        "pm25": 88.5,
+        "usAqi": 175,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [
+        "likely 15:00 to 18:00",
+      ],
+      "summaryLine": "Kathmandu: Rain, 12°–19°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Next: Compilers at 10:00 (fallback)
+Summary: 1 timed commitment. Wear a mask outdoors (AQI 175 · Unhealthy)..
+NextUp: Compilers at 10:00 (in 150m)
+Weather: Kathmandu: Rain, 12°–19°C | Advice: Wear a mask outdoors (AQI 175 · Unhealthy). | AQI: 175 Unhealthy | Unavailable: none
+Timeline (1): 10:00 Compilers",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 6. weather API down 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Next: Databases at 09:00",
+    },
+    "isEmptyDay": false,
+    "kind": "morning",
+    "nextUp": {
+      "href": "/courses/c1",
+      "kind": "class",
+      "location": null,
+      "minutesRemaining": 90,
+      "startsAt": "09:00",
+      "title": "Databases",
+    },
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "1 timed commitment.",
+    "quickActions": [],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "1 timed commitment.",
+    "timeline": [
+      {
+        "courseId": "c1",
+        "endTime": "10:00",
+        "href": "/courses/c1",
+        "id": "class-c1-09:00",
+        "kind": "class",
+        "location": null,
+        "startTime": "09:00",
+        "title": "Databases",
+      },
+    ],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": null,
+      "aqi": null,
+      "bestHours": null,
+      "currentTempC": null,
+      "feelsLikeC": null,
+      "fogNote": null,
+      "hourly": [],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": null,
+      "sunrise": null,
+      "sunset": null,
+      "tempMaxC": null,
+      "tempMinC": null,
+      "unavailableNote": "Forecast unavailable · Air quality unavailable",
+      "uvIndexMax": null,
+      "visibilityMinKm": null,
+      "windSpeedMaxKmh": null,
+      "worstHours": null,
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Next: Databases at 09:00 (fallback)
+Summary: 1 timed commitment.
+NextUp: Databases at 09:00 (in 90m)
+Weather: N/A | Advice: none | AQI: none | Unavailable: Forecast unavailable · Air quality unavailable
+Timeline (1): 09:00 Databases",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 7. AI down (fallback headline) 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Next: Databases at 09:00",
+    },
+    "isEmptyDay": false,
+    "kind": "morning",
+    "nextUp": {
+      "href": "/courses/c1",
+      "kind": "class",
+      "location": null,
+      "minutesRemaining": 90,
+      "startsAt": "09:00",
+      "title": "Databases",
+    },
+    "notes": [],
+    "nudges": [],
+    "pushSummary": "1 timed commitment. Pack a jacket — low near 12°C..",
+    "quickActions": [],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "1 timed commitment. Pack a jacket — low near 12°C..",
+    "timeline": [
+      {
+        "courseId": "c1",
+        "endTime": "10:00",
+        "href": "/courses/c1",
+        "id": "class-c1-09:00",
+        "kind": "class",
+        "location": null,
+        "startTime": "09:00",
+        "title": "Databases",
+      },
+    ],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": {
+      "adviceLine": "Pack a jacket — low near 12°C.",
+      "aqi": {
+        "advice": "Air quality is clean; great for outdoor activity.",
+        "category": "Good",
+        "pm25": 9.2,
+        "usAqi": 42,
+      },
+      "bestHours": "Best around 10:00 (19°C)",
+      "currentTempC": 18,
+      "feelsLikeC": 18,
+      "fogNote": null,
+      "hourly": [
+        {
+          "apparentTempC": 16,
+          "precipProb": 0,
+          "tempC": 16,
+          "time": "09:00",
+          "weatherCode": 1,
+        },
+      ],
+      "locationName": "Kathmandu",
+      "rainWindows": [],
+      "summaryLine": "Kathmandu: Mainly clear, 12°–22°C",
+      "sunrise": "06:34",
+      "sunset": "17:12",
+      "tempMaxC": 22,
+      "tempMinC": 12,
+      "unavailableNote": null,
+      "uvIndexMax": 4,
+      "visibilityMinKm": 10,
+      "windSpeedMaxKmh": 10,
+      "worstHours": "Worst around 16:00 (0% rain)",
+    },
+  },
+  "rendered": "[MORNING · 2026-11-27] Next: Databases at 09:00 (fallback)
+Summary: 1 timed commitment. Pack a jacket — low near 12°C..
+NextUp: Databases at 09:00 (in 90m)
+Weather: Kathmandu: Mainly clear, 12°–22°C | Advice: Pack a jacket — low near 12°C. | AQI: 42 Good | Unavailable: none
+Timeline (1): 09:00 Databases",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 8. morning vs evening vs midday 1`] = `
+{
+  "evening": "[EVENING · 2026-11-28] 2 scheduled items (fallback)
+Summary: 2 timed commitments. 1 unmarked attendance.
+Weather: none
+Timeline (3): 09:00 Morning Class | 10:00 4h free gap | 14:00 Afternoon Lab",
+  "midday": "[MIDDAY · 2026-11-27] Next: Afternoon Lab at 14:00 (fallback)
+Summary: 1 timed commitment.
+NextUp: Afternoon Lab at 14:00 (in 60m)
+Weather: none
+Timeline (1): 14:00 Afternoon Lab",
+  "morning": "[MORNING · 2026-11-27] Next: Morning Class at 09:00 (fallback)
+Summary: 2 timed commitments.
+NextUp: Morning Class at 09:00 (in 120m)
+Weather: none
+Timeline (3): 09:00 Morning Class | 10:00 4h free gap | 14:00 Afternoon Lab",
+}
+`;
+
+exports[`Brief v2 scenario snapshots (Item 9) > 9. no city set 1`] = `
+{
+  "payload": {
+    "deadlines": null,
+    "forDate": "2026-11-27",
+    "generatedAt": "2026-11-27T07:30:00.000Z",
+    "headline": {
+      "source": "fallback",
+      "text": "Clear schedule today",
+    },
+    "isEmptyDay": true,
+    "kind": "morning",
+    "nextUp": null,
+    "notes": [],
+    "nudges": [
+      {
+        "actionLabel": "Set City",
+        "href": "/settings",
+        "id": "nudge-city",
+        "kind": "no_city",
+        "message": "Set your city in Settings for live forecasts, rain alerts, and AQI.",
+        "title": "No weather city set",
+      },
+    ],
+    "pushSummary": "No timed classes or events.",
+    "quickActions": [],
+    "schemaVersion": 2,
+    "study": null,
+    "summary": "No timed classes or events.",
+    "timeline": [],
+    "travel": [],
+    "unmarkedTodayCount": undefined,
+    "weather": null,
+  },
+  "rendered": "[MORNING · 2026-11-27] Clear schedule today (fallback)
+Summary: No timed classes or events.
+Weather: none
+Timeline (0): 
+Nudges: no_city: Set your city in Settings for live forecasts, rain alerts, and AQI.",
+}
+`;

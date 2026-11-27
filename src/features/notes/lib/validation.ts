@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AttachmentType } from "@prisma/client";
+import { noteKindSchema } from "./capture-types";
 
 // ─── Enums ──────────────────────────────────────────────────
 
@@ -55,6 +56,9 @@ export const createNoteSchema = z.object({
   projectId: z.string().uuid().optional(),
   folderId: z.string().uuid().nullable().optional(),
   attachments: z.array(attachmentInputSchema).optional(),
+  kind: noteKindSchema.optional(),
+  meta: z.unknown().optional(),
+  archivedAt: z.date().nullable().optional(),
 });
 
 // ─── Create Document Note ──────────────────────────────────

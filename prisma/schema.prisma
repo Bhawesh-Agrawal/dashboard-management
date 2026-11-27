@@ -274,6 +274,9 @@ model Note {
   isFavorite              Boolean        @default(false) @map("is_favorite")
   lastReviewedAt          DateTime?      @map("last_reviewed_at") // spaced repetition tracking
   reviewCount             Int            @default(0) @map("review_count") // spaced repetition count
+  kind                    String         @default("note") // note | link | quote | meeting | checklist
+  meta                    Json?
+  archivedAt              DateTime?      @map("archived_at")
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
 
@@ -288,6 +291,7 @@ model Note {
   eventDocuments   EventDocument[]
 
   @@index([userId])
+  @@index([userId, kind, createdAt])
   @@index([folderId])
   @@index([taskId])
   @@index([projectId])

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@/lib/auth";
 import { ownerWhere } from "@/lib/owner-scoping";
@@ -34,10 +35,14 @@ export async function createNote(data: {
       return { ok: false, error: validated.error.issues[0].message };
     }
 
-    const { attachments, ...noteData } = validated.data;
+    const { attachments, meta, ...noteData } = validated.data;
 
     const note = await prisma.note.create({
-      data: { ...noteData, userId },
+      data: {
+        ...noteData,
+        userId,
+        ...(meta !== undefined ? { meta: meta as Prisma.InputJsonValue } : {}),
+      },
       select: { id: true },
     });
 

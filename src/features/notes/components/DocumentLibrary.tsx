@@ -130,6 +130,22 @@ export function DocumentLibrary({
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<NoteWithDocumentInfo | null>(null);
   const [pdfAnnotations, setPdfAnnotations] = useState<NoteAnnotation[]>([]);
+  const [storageOffline, setStorageOffline] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/health/storage", { credentials: "include" })
+      .then((res) => {
+        if (!active) return;
+        setStorageOffline(!res.ok);
+      })
+      .catch(() => {
+        if (active) setStorageOffline(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -247,6 +263,11 @@ export function DocumentLibrary({
       )}
 
       {/* Toolbar */}
+      {storageOffline && (
+        <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs text-destructive">
+          Files are unavailable: storage offline
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Type filter */}
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">

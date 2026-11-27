@@ -82,7 +82,7 @@ export function AttemptLogSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="rounded-t-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6"
+        className="rounded-t-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6"
       >
         {target && (
           <AttemptLogSheetBody

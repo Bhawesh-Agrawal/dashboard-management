@@ -10,7 +10,7 @@ export default function SignupPage({
 }) {
   if (!isSignupAllowed()) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm space-y-4 text-center">
           <h1 className="page-heading text-3xl">Registration closed</h1>
           <p className="text-sm text-muted-foreground">

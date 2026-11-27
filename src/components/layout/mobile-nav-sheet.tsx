@@ -58,7 +58,7 @@ export function MobileNavSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger render={children as React.ReactElement} />
 
-      <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl px-4 pt-3 pb-8">
+      <SheetContent side="bottom" className="h-[75dvh] rounded-t-2xl px-4 pt-3 pb-8">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="overflow-y-auto h-full pt-2 pb-8">
           {moreSections.map((section, idx) => (

@@ -11,7 +11,7 @@ export default async function NoteGraphPage() {
   const graphData = await getNoteGraphData(userId, 100);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100dvh-4rem)]">
       <PageHeader
         title="Note Graph"
         subtitle={`${graphData.nodes.length} notes, ${graphData.edges.length} connections`}

@@ -1605,3 +1605,59 @@ Route (app)
   - `vitest run`: `Test Files  68 passed (68)`, `Tests  346 passed (346)`
 - `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
   - `next build` (Turbopack): exited `0`, compiled in `12.6s`, TypeScript finished in `25.5s`, generated 20/20 static pages, including `/api/academic-calendar`, `/calendar`, `/today`, `/brief`, `/semesters/[id]/calendar`, `/semesters/[id]/timetable`, and `/semesters/setup`.
+
+
+---
+
+## Phase 8: Mobile Shell + Reliability (`phase-8-mobile-shell`)
+
+### Base Branch Verification
+
+- Checked `git log --oneline -40` and `git branch -a`:
+  - `phase-5-deploy` (`27f8037`) included Phases 4b and 5, but **did NOT** include Phase 6 (Brief v2), Phase 7 (Semester Setup), or Phase 7b (Calendar Display).
+  - `phase-7b-calendar-display` (`45ce67d`) included **Phases 4b, 5, 6, 7, and 7b**.
+  - Per owner confirmation, `phase-8-mobile-shell` was branched from `phase-7b-calendar-display` (`45ce67d`).
+
+### Database Migrations
+
+- **Zero new migrations added in Phase 8** (no schema changes required).
+- Existing Phase 7 migration `prisma/migrations/20261127020000_add_academic_calendar_entry/migration.sql` remains in the repository (no database commands were run in Phase 8).
+
+### Item Status Summary
+
+| Item | Status | Commit | Key Files | What was NOT verified |
+| --- | --- | --- | --- | --- |
+| 1. Audit & Screenshots | PARTIAL | `f9ac2db` | `docs/MOBILE_AUDIT.md` | Live authenticated screenshots in `docs/ui-screenshots/` could not be captured because RSC layout/pages query `prisma` against Postgres (DB connection disallowed). Audited all routes by reading components. |
+| 2. Bottom Navigation | DONE | `18b64d4` | `src/lib/ui/fullscreen-flow.ts`, `src/components/layout/mobile-tabs.tsx`, `src/app/(app)/more/page.tsx`, `src/components/layout/fab-cluster.tsx`, `src/features/documents/components/PdfViewerModal.tsx` | Physical phone tap walkthrough |
+| 3. Safe Areas & Viewport | DONE | `3497c34` | `src/app/layout.tsx`, `src/app/(app)/layout.tsx`, `src/components/shared/keyboard-focus-helper.tsx`, `src/components/ui/sheet.tsx`, `src/app/(app)/notes/graph/page.tsx`, `src/app/(auth)/login/page.tsx`, `src/app/(auth)/signup/page.tsx`, `src/features/ai-chat/components/chat-interface.tsx`, `src/features/dsa/components/attempt-log-sheet.tsx`, `src/components/layout/mobile-nav-sheet.tsx` | Physical iOS/Android virtual keyboard & notch visual check |
+| 4. One Calendar | DONE | `230f997` | `docs/CALENDAR_AUDIT.md`, `src/features/calendar/lib/date-utils.ts`, `src/features/calendar/lib/calendar-selection.ts`, `src/features/calendar/lib/__tests__/calendar-selection.test.ts`, `src/features/calendar/components/calendar-view.tsx` (deleted `mobile-calendar-view.tsx`) | Live browser drag/tap interaction |
+| 5. PDF Viewer | DONE | `2650c9d` | `public/pdfjs/**`, `src/lib/pdf/setup.ts`, `public/sw.js`, `eslint.config.mjs`, `src/features/documents/components/MobilePdfViewer.tsx`, `src/features/documents/components/DesktopPdfHighlighter.tsx`, `src/features/documents/components/PdfViewerModal.tsx`, `docs/TEST_PLAN.md` | Physical mobile pinch-zoom & multi-page PDF scroll |
+| 6. Upload UX & Storage Readiness | DONE | `510fedb` | `src/app/api/health/storage/route.ts`, `src/app/api/health/__tests__/storage.test.ts`, `src/components/shared/UnifiedUploadDialog.tsx`, `src/features/courses/components/FileUploadDialog.tsx`, `src/features/documents/components/DocumentUploadDialog.tsx`, `src/features/documents/components/DocumentLibrary.tsx`, `docs/STORAGE.md` | Live MinIO/S3 upload & cancel under throttled network |
+| 7. Sync Visibility | DONE | `a89322b` | `docs/SYNC_AUDIT.md`, `src/components/layout/sync-status-indicator.tsx`, `src/lib/sync/sync-manager.ts`, `src/lib/sync/provider.tsx`, `src/app/(app)/layout.tsx`, `src/lib/sync/__tests__/sync-status.test.ts` | Live offline/online toggle sync in browser |
+| 8. States & Errors | DONE | `3119b5a` | `src/lib/errors/report.ts`, `src/components/shared/route-error-state.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/not-found.tsx`, route `error.tsx` files (`today`, `tasks`, `calendar`, `notes`, `semesters`, `dsa`, `brief`) | Live React error-boundary trigger in browser |
+| 9. Performance | DONE | `44c2bc9` | `src/features/notes/components/NoteGraphClient.tsx`, `src/app/(app)/notes/graph/page.tsx`, `src/features/notes/components/NoteForm.tsx` | Client bundle gzip delta comparison (Turbopack `next build` route table does not print per-route JS kB) |
+| 10. PWA Polish | DONE | `c8bb83a` | `public/apple-touch-icon.png`, `public/manifest.json`, `public/offline.html`, `src/app/layout.tsx`, `src/app/(app)/layout.tsx`, `src/components/shared/install-app-hint.tsx` | Android/iOS home-screen install prompt & launcher shortcut tap |
+| 11. Accessibility Basics | DONE | `4b7382f` | `src/app/globals.css`, `src/lib/__tests__/a11y-icon-buttons.test.ts`, `src/features/calendar/components/calendar-view.tsx`, `src/features/schedule/components/schedule-grid.tsx` | Screen-reader (VoiceOver/TalkBack) walkthrough |
+| 12. Regression Checklist, Build & `CHANGES.md` | DONE | final commit | `docs/TEST_PLAN.md`, `CHANGES.md` | Live production deployment (excluded per instructions) |
+
+### Item 4 Calendar Parity & Deletion
+
+- Deleted `src/features/calendar/components/mobile-calendar-view.tsx`.
+- Unified mobile (`<1024px`) and desktop (`>=1024px`) into `src/features/calendar/components/calendar-view.tsx`:
+  - Shared `date-utils.ts` and `calendar-selection.ts` for date selection and `follows_weekday` academic calendar entries.
+  - Mobile renders `MobileWeekStrip` + `DayAgendaView` + Month overview `Sheet` + bottom-sheet `EventCreationDialog`.
+
+### Performance & Cold Start Notes (Item 9)
+
+- Lazy-loaded `NoteGraphView` (`react-force-graph-2d`) via `NoteGraphClient.tsx` (`dynamic(..., { ssr: false })`) and `MarkdownEditor` in `NoteForm.tsx` (`dynamic(..., { ssr: false })`).
+- Local production cold start measured on `next start -p 3111` hitting `/login` (HTTP 200): `readyMs: 1440ms`, `firstByteMs: 2537ms`.
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build` (Turbopack): compiled in `8.1s`, TypeScript finished in `42s`, generated 21/21 static pages, including `/api/health/storage`, `/more`, `/notes/graph`, `/calendar`, `/today`, `/brief`, `/semesters/setup`.
+
+### Verification Outputs (Final Code)
+
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: passed (0 errors)
+  - `npm run lint`: passed (0 errors; warnings only)
+  - `vitest run`: `Test Files  72 passed (72)`, `Tests  353 passed (353)`
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
+  - `next build` (Turbopack): exited `0`, 21/21 static pages generated.

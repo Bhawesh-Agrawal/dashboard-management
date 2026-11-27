@@ -111,3 +111,24 @@ Re-running any of the commands above for the same local date must return `"sent"
    - Close and reopen the PDF and verify it resumes at the last viewed page.
    - Verify annotation/highlight toolbars are hidden on mobile and present on desktop (`>= 1024px`).
    - Trigger a load failure (e.g. invalid URL) and verify `"Can't open this file"` renders with **Retry** and **Open in browser**.
+
+
+### Phase 8: Phone Shell & Reliability Checklist
+
+1. **Bottom Navigation & Safe Areas (360x800 / 390x844)**
+   - Verify bottom navigation shows **Today, Tasks, Calendar, Notes, More** with `44px+` touch targets.
+   - Verify **Ask** is accessible under **More** (`/ask`) and via the floating action cluster.
+   - Open the PDF viewer, note editor, and setup wizard; verify the bottom navigation hides during fullscreen flows and reappears on exit.
+   - Scroll to the bottom of any page and verify content clears the fixed bottom nav + iPhone home indicator (`safe-area-inset-bottom`).
+2. **One Unified Calendar**
+   - On mobile (`<1024px`), open `/calendar` and verify the week strip + day agenda renders with zero horizontal overflow.
+   - Tap the month button to open the Month overview bottom sheet, tap a day, and verify the day agenda updates.
+   - Tap `+` to open event creation as a bottom sheet; verify keyboard focus keeps the active input visible.
+3. **Mobile PDF Viewer & Uploads**
+   - Open a course PDF on mobile; verify lazy `±2` page window rendering, pinch-to-zoom, double-tap zoom, jump-to-page, and remembered last page on reopen.
+   - Turn on Airplane Mode on a pinned PDF and verify it opens cleanly from Cache Storage without network.
+   - When MinIO/S3 is offline, verify `/api/health/storage` returns offline and the document library shows `"Files are unavailable: storage offline"`.
+4. **Sync Visibility, Errors & PWA**
+   - Edit a task offline, verify the mobile header sync pill shows pending dirty count; tap it to open the Sync status bottom sheet, reconnect, and tap **Sync now**.
+   - Visit a non-existent route (`/does-not-exist`) and verify the custom `NotFound` state renders with a **Back to Today** link.
+   - Install the PWA on Android/iOS and verify launcher shortcuts (**Today**, **Daily Brief**, **Quick Capture**, **DSA Log**) and the `/offline.html` fallback.

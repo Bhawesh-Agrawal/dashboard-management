@@ -143,5 +143,60 @@ describe("DSA Dashboard Computation", () => {
     expect(data.consistency.sessionsThisWeek).toBe(2);
     expect(data.consistency.daysSinceLastSession).toBe(0);
     expect(data.consistency.last4Weeks[3].count).toBe(1);
+    expect(data.studyToday.isCustomSelected).toBe(false);
+  });
+
+  it("uses manually selected todayProblemIds when provided", () => {
+    const now = new Date("2026-11-25T10:00:00.000Z");
+    const data = computeDsaDashboard({
+      now,
+      todayStr: "2026-11-25",
+      settings: {
+        programmeStartDate: "2026-11-01",
+        programmeLengthDays: 90,
+        phases: [],
+        currentTopicId: "t1",
+        todayProblemIds: ["p4", "p1"],
+        lastBackupAt: null,
+      },
+      topics: [{ id: "t1", name: "Arrays", order: 1, status: "in_progress" }],
+      problems: [
+        {
+          id: "p1",
+          topicId: "t1",
+          topicName: "Arrays",
+          subtopic: "",
+          title: "P1",
+          difficulty: "easy",
+          sourceUrl: "",
+          orderInTopic: 1,
+          archived: false,
+          lastClassification: "editorial",
+          nextRevisionDate: null,
+          manualNextRevisionDate: null,
+          attempts: [],
+        },
+        {
+          id: "p4",
+          topicId: "t1",
+          topicName: "Arrays",
+          subtopic: "",
+          title: "P4",
+          difficulty: "medium",
+          sourceUrl: "",
+          orderInTopic: 4,
+          archived: false,
+          lastClassification: null,
+          nextRevisionDate: null,
+          manualNextRevisionDate: null,
+          attempts: [],
+        },
+      ],
+      sessions: [],
+      recentAttempts: [],
+    });
+
+    expect(data.studyToday.isCustomSelected).toBe(true);
+    expect(data.studyToday.nextProblems.map((p) => p.id)).toEqual(["p4", "p1"]);
   });
 });

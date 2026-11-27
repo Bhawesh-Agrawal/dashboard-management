@@ -28,6 +28,7 @@ export interface DashboardInput {
     programmeLengthDays: number;
     phases: DsaPhase[];
     currentTopicId: string | null;
+    todayProblemIds?: string[] | null;
     lastBackupAt: Date | null;
   } | null;
   topics: Array<{
@@ -88,6 +89,7 @@ export interface DsaDashboardData {
   };
   studyToday: {
     currentTopic: { id: string; name: string } | null;
+    isCustomSelected: boolean;
     nextProblems: Array<{
       id: string;
       title: string;
@@ -95,6 +97,16 @@ export interface DsaDashboardData {
       difficulty: DsaDifficultyValue | null;
       sourceUrl: string;
       orderInTopic: number;
+    }>;
+    availableProblems: Array<{
+      id: string;
+      title: string;
+      topicId: string;
+      topicName: string;
+      subtopic: string;
+      difficulty: DsaDifficultyValue | null;
+      sourceUrl: string;
+      attempted: boolean;
     }>;
     dueTodayCount: number;
     overdueCount: number;
@@ -227,7 +239,7 @@ export function computeDsaDashboard(input: DashboardInput): DsaDashboardData {
 
   const topTopics = Array.from(strugglingByTopic.values()).sort((a, b) => b.count - a.count);
 
-  // Q1: Current topic and its next 3 not-yet-attempted problems in order
+  // Q1: Current topic and either custom-selected problems or next 3 unattempted in order
   const currentTopic =
     (input.settings?.currentTopicId
       ? input.topics.find((t) => t.id === input.settings?.currentTopicId)
@@ -235,20 +247,42 @@ export function computeDsaDashboard(input: DashboardInput): DsaDashboardData {
     input.topics[0] ??
     null;
 
-  const nextProblems = currentTopic
+  const byId = new Map(nonArchived.map((p) => [p.id, p]));
+  const customSelected = (input.settings?.todayProblemIds ?? [])
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+
+  const isCustomSelected = customSelected.length > 0;
+  const chosenProblems = isCustomSelected
+    ? customSelected
+    : currentTopic
     ? nonArchived
         .filter((p) => p.topicId === currentTopic.id && p.lastClassification === null)
         .sort((a, b) => a.orderInTopic - b.orderInTopic)
         .slice(0, 3)
-        .map((p) => ({
-          id: p.id,
-          title: p.title,
-          subtopic: p.subtopic,
-          difficulty: p.difficulty,
-          sourceUrl: p.sourceUrl,
-          orderInTopic: p.orderInTopic,
-        }))
     : [];
+
+  const nextProblems = chosenProblems.map((p) => ({
+    id: p.id,
+    title: p.title,
+    subtopic: p.subtopic,
+    difficulty: p.difficulty,
+    sourceUrl: p.sourceUrl,
+    orderInTopic: p.orderInTopic,
+  }));
+
+  const availableProblems = [...nonArchived]
+    .sort((a, b) => a.orderInTopic - b.orderInTopic)
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      topicId: p.topicId,
+      topicName: p.topicName,
+      subtopic: p.subtopic,
+      difficulty: p.difficulty,
+      sourceUrl: p.sourceUrl,
+      attempted: p.lastClassification !== null,
+    }));
 
   // Q3: Topics summary
   let covered = 0;
@@ -323,7 +357,9 @@ export function computeDsaDashboard(input: DashboardInput): DsaDashboardData {
     },
     studyToday: {
       currentTopic: currentTopic ? { id: currentTopic.id, name: currentTopic.name } : null,
+      isCustomSelected,
       nextProblems,
+      availableProblems,
       dueTodayCount,
       overdueCount,
     },
@@ -408,6 +444,9 @@ export async function getDsaDashboardData(
   const parsedPhases = Array.isArray(settingsRow?.phases)
     ? (settingsRow.phases as unknown as DsaPhase[])
     : [];
+  const parsedTodayProblemIds = Array.isArray(settingsRow?.todayProblemIds)
+    ? settingsRow.todayProblemIds.filter((id): id is string => typeof id === "string")
+    : null;
 
   return computeDsaDashboard({
     now,
@@ -418,6 +457,7 @@ export async function getDsaDashboardData(
           programmeLengthDays: settingsRow.programmeLengthDays,
           phases: parsedPhases,
           currentTopicId: settingsRow.currentTopicId,
+          todayProblemIds: parsedTodayProblemIds,
           lastBackupAt: settingsRow.lastBackupAt,
         }
       : null,

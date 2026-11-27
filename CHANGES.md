@@ -1452,10 +1452,12 @@ Branch: `phase-6-brief-v2` (branched from `phase-5-deploy`)
 | 10. Docs, `test:ci`, `build`, and `CHANGES.md` | DONE | `(this commit)` | `docs/TEST_PLAN.md`, `CHANGES.md` | Live `curl`/`asOf` execution against running server and production deployment (deployment intentionally skipped). |
 
 ### Pending Database Migration (Awaiting Owner Approval)
-Do NOT deploy before applying this additive migration:
+Do NOT deploy before applying these additive migrations:
 - `prisma/migrations/20261127000000_add_brief_v2_settings_and_midday/migration.sql`
   - Adds nullable `brief_config` (`JSONB`) column on `notification_preferences`
   - Adds `'midday'` value to `DailyBriefKind` enum
+- `prisma/migrations/20261127010000_add_dsa_today_problems/migration.sql`
+  - Adds nullable `today_problem_ids` (`JSONB`) column on `dsa_settings`
 
 ### Raw Verification Output (Phase 6)
 

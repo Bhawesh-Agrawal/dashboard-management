@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRight, ExternalLink, PlusCircle, ShieldAlert } from "lucide-react";
+import { AlertTriangle, ArrowRight, ExternalLink, ListChecks, PlusCircle, ShieldAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CLASSIFICATION_META, DIFFICULTY_BADGE_CLASS } from "../lib/constants";
 import type { DsaDashboardData } from "../lib/dashboard";
 import type { WeeklyTopicTrendData } from "../lib/analytics";
-import { setDsaCurrentTopic } from "../lib/topic-actions";
+import { setDsaCurrentTopic, setDsaTodayProblems } from "../lib/topic-actions";
 import { AttemptLogSheet, type AttemptSheetTarget } from "./attempt-log-sheet";
 import { DsaProgrammeSettingsCard } from "./dsa-programme-settings-card";
 import { DsaImportCard } from "./dsa-import-card";
@@ -25,6 +33,74 @@ export function DsaDashboardView({
   const [sheetTarget, setSheetTarget] = useState<AttemptSheetTarget | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [topicPending, startTopicTransition] = useTransition();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerTopicOnly, setPickerTopicOnly] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    data.studyToday.isCustomSelected
+      ? data.studyToday.nextProblems.map((p) => p.id)
+      : []
+  );
+  const [problemsPending, startProblemsTransition] = useTransition();
+
+  const filteredAvailableProblems = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase();
+    const activeTopicId = data.studyToday.currentTopic?.id;
+    return data.studyToday.availableProblems.filter((p) => {
+      if (pickerTopicOnly && activeTopicId && p.topicId !== activeTopicId) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.subtopic.toLowerCase().includes(q) ||
+        p.topicName.toLowerCase().includes(q)
+      );
+    });
+  }, [
+    data.studyToday.availableProblems,
+    data.studyToday.currentTopic?.id,
+    pickerSearch,
+    pickerTopicOnly,
+  ]);
+
+  function openPicker() {
+    setSelectedIds(
+      data.studyToday.isCustomSelected
+        ? data.studyToday.nextProblems.map((p) => p.id)
+        : data.studyToday.nextProblems.map((p) => p.id)
+    );
+    setPickerSearch("");
+    setPickerOpen(true);
+  }
+
+  function togglePickedProblem(id: string) {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 10) {
+        toast.error("You can pick up to 10 problems for today");
+        return prev;
+      }
+      return [...prev, id];
+    });
+  }
+
+  function handleSavePickedProblems(idsToSave: string[]) {
+    startProblemsTransition(async () => {
+      try {
+        await setDsaTodayProblems({ problemIds: idsToSave });
+        toast.success(
+          idsToSave.length > 0
+            ? `Saved ${idsToSave.length} problem${idsToSave.length === 1 ? "" : "s"} for today`
+            : "Switched back to automatic problem selection"
+        );
+        setPickerOpen(false);
+        router.refresh();
+      } catch {
+        toast.error("Failed to save today's problems");
+      }
+    });
+  }
 
   function handleTopicChange(topicId: string) {
     if (!topicId || topicId === data.studyToday.currentTopic?.id) return;
@@ -132,17 +208,38 @@ export function DsaDashboardView({
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 space-y-3 overflow-hidden">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">1. What to study today</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-semibold">1. What to study today</h2>
+                {data.studyToday.isCustomSelected && (
+                  <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+                    Picked
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {data.studyToday.dueTodayCount} revision due today
               </p>
             </div>
-            <Link
-              href="/dsa/problems"
-              className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center shrink-0 whitespace-nowrap"
-            >
-              All problems
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              {data.studyToday.availableProblems.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={openPicker}
+                  className="min-h-[44px]"
+                >
+                  <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                  Pick problems
+                </Button>
+              )}
+              <Link
+                href="/dsa/problems"
+                className="text-xs font-medium text-primary hover:underline min-h-[44px] inline-flex items-center shrink-0 whitespace-nowrap"
+              >
+                All problems
+              </Link>
+            </div>
           </div>
 
           {data.topicsSummary.perTopic.length > 0 && (
@@ -200,6 +297,23 @@ export function DsaDashboardView({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {data.studyToday.isCustomSelected && (
+                      <button
+                        type="button"
+                        aria-label={`Remove ${p.title} from today`}
+                        disabled={problemsPending}
+                        onClick={() =>
+                          handleSavePickedProblems(
+                            data.studyToday.nextProblems
+                              .filter((item) => item.id !== p.id)
+                              .map((item) => item.id)
+                          )
+                        }
+                        className="inline-flex items-center justify-center rounded-md border border-border min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     {p.sourceUrl && (
                       <a
                         href={p.sourceUrl}
@@ -498,6 +612,109 @@ export function DsaDashboardView({
         onOpenChange={setSheetOpen}
         defaultDate={data.todayStr}
       />
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Pick problems for today</DialogTitle>
+            <DialogDescription>
+              Choose the problems you want to solve today ({selectedIds.length} selected). Leave empty to auto-pick the next 3.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={pickerSearch}
+              onChange={(e) => setPickerSearch(e.target.value)}
+              placeholder="Search problems..."
+              className="w-full min-h-[44px] rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            />
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={pickerTopicOnly}
+                  onChange={(e) => setPickerTopicOnly(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span>
+                  Current topic only ({data.studyToday.currentTopic?.name ?? "All"})
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-muted-foreground hover:text-foreground min-h-[44px] px-2"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto divide-y divide-border rounded-md border border-border min-h-[180px] max-h-[45vh]">
+            {filteredAvailableProblems.length === 0 ? (
+              <p className="p-4 text-xs text-muted-foreground text-center">
+                No matching problems found.
+              </p>
+            ) : (
+              filteredAvailableProblems.map((p) => {
+                const checked = selectedIds.includes(p.id);
+                return (
+                  <label
+                    key={p.id}
+                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/40 min-h-[44px]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePickedProblem(p.id)}
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {p.title}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {p.topicName}
+                        {p.subtopic ? ` · ${p.subtopic}` : ""}
+                        {p.attempted ? " · attempted" : ""}
+                      </p>
+                    </div>
+                    {p.difficulty && (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize shrink-0 ${DIFFICULTY_BADGE_CLASS[p.difficulty]}`}
+                      >
+                        {p.difficulty}
+                      </span>
+                    )}
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={problemsPending}
+              onClick={() => handleSavePickedProblems([])}
+              className="min-h-[44px]"
+            >
+              Use automatic
+            </Button>
+            <Button
+              type="button"
+              disabled={problemsPending}
+              onClick={() => handleSavePickedProblems(selectedIds)}
+              className="min-h-[44px]"
+            >
+              {problemsPending ? "Saving..." : "Save selection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

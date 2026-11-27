@@ -3,7 +3,10 @@ import { getCurrentUserId } from "@/lib/auth";
 import { getNow } from "@/lib/clock";
 import { getDsaDueSummary } from "@/features/dsa/lib/summary";
 import { getLatestDailyBriefs } from "@/features/briefs/lib/storage";
-import type { BriefPayload } from "@/features/briefs/lib/build";
+import {
+  isBriefPayloadV2,
+  parseStoredBriefPayload,
+} from "@/features/briefs/lib/payload-v2";
 import type { BriefTodaySummary } from "@/features/briefs/components/brief-today-card";
 import { formatDateOnly } from "@/lib/timezone";
 
@@ -26,12 +29,26 @@ export default async function TodayPage() {
           : briefs.evening
         : briefs.morning ?? briefs.evening;
     if (latest) {
-      const payload = latest.payload as unknown as BriefPayload;
-      briefSummary = {
-        kind: latest.kind,
-        forDate: formatDateOnly(latest.forDate),
-        pushSummary: payload.pushSummary,
-      };
+      const parsed = parseStoredBriefPayload(latest.payload);
+      if (parsed) {
+        if (isBriefPayloadV2(parsed)) {
+          briefSummary = {
+            kind: latest.kind,
+            forDate: formatDateOnly(latest.forDate),
+            headline: parsed.headline?.text ?? parsed.pushSummary,
+            nextUpLine: parsed.nextUp
+              ? `Next up: ${parsed.nextUp.title} at ${parsed.nextUp.startsAt} (in ${parsed.nextUp.minutesRemaining}m)`
+              : null,
+            pushSummary: parsed.pushSummary,
+          };
+        } else {
+          briefSummary = {
+            kind: latest.kind,
+            forDate: formatDateOnly(latest.forDate),
+            pushSummary: parsed.pushSummary,
+          };
+        }
+      }
     }
   } catch {
     dsaSummary = null;

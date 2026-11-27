@@ -2,30 +2,43 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { DEFAULT_TIMEZONE, formatDateOnly } from "@/lib/timezone";
+import { currentSemesterWhere } from "@/features/semesters/lib/current";
+import { getDsaDueSummary } from "@/features/dsa/lib/summary";
+import { getLocalTimeParts } from "@/features/notifications/lib/scheduler";
+import {
+  fetchGoogleCalendarEvents,
+  isGoogleCalendarConnected,
+} from "@/features/calendar/lib/google-calendar";
+import type {
+  BriefAssessmentItem,
+  BriefClassItem,
+  BriefEventItem,
+  BriefTaskItem,
+} from "./build";
+import type {
+  BriefKindV2,
+  BriefPayloadV2,
+  BriefTravelV2Item,
+} from "./payload-v2";
+import { buildBriefPayloadV2, type BriefGoogleEventInput } from "./sections";
+import { narrateBrief, type LlmNarrateFn } from "./narrate";
+import { saveDailyBrief } from "./storage";
+import {
+  fetchDestinationWeather,
+  fetchRichWeather,
+  type FetchLike,
+} from "./weather";
+import { selectTravelEventsWithin48Hours } from "./pin-tickets";
 
 function addDaysDateOnly(dateOnly: string, days: number): string {
   const d = new Date(`${dateOnly}T00:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
-import { currentSemesterWhere } from "@/features/semesters/lib/current";
-import { getDsaDueSummary } from "@/features/dsa/lib/summary";
-import { getLocalTimeParts } from "@/features/notifications/lib/scheduler";
-import {
-  buildEveningBriefPayload,
-  buildMorningBriefPayload,
-  type BriefAssessmentItem,
-  type BriefClassItem,
-  type BriefEventItem,
-  type BriefPayload,
-  type BriefTaskItem,
-  type BriefTravelItem,
-} from "./build";
-import { saveDailyBrief } from "./storage";
-import { fetchWeatherLine, type FetchLike } from "./weather";
-import { selectTravelEventsWithin48Hours } from "./pin-tickets";
 
-function getDayOfWeekEnum(day: number): "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" {
+function getDayOfWeekEnum(
+  day: number
+): "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" {
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
   return map[day] ?? "MON";
 }
@@ -37,15 +50,26 @@ function formatHm(date: Date, timezone: string): string {
 
 async function getClassesForDate(
   userId: string,
-  dateOnly: string
-): Promise<{ hasCurrentSemester: boolean; classes: BriefClassItem[]; unmarkedCount: number }> {
+  dateOnly: string,
+  nowHm?: string
+): Promise<{
+  hasCurrentSemester: boolean;
+  classes: BriefClassItem[];
+  unmarkedCount: number;
+  endedUnmarkedClasses: BriefClassItem[];
+}> {
   const sem = await prisma.semester.findFirst({
     where: currentSemesterWhere(userId, dateOnly),
     select: { id: true },
   });
 
   if (!sem) {
-    return { hasCurrentSemester: false, classes: [], unmarkedCount: 0 };
+    return {
+      hasCurrentSemester: false,
+      classes: [],
+      unmarkedCount: 0,
+      endedUnmarkedClasses: [],
+    };
   }
 
   const dateUtc = new Date(`${dateOnly}T00:00:00.000Z`);
@@ -65,23 +89,28 @@ async function getClassesForDate(
   });
 
   const classes: BriefClassItem[] = [];
+  const endedUnmarkedClasses: BriefClassItem[] = [];
   let unmarkedCount = 0;
 
   for (const s of schedules) {
     const exc = s.exceptions[0];
     if (exc?.type === "cancelled") continue;
 
-    const startTime = exc?.type === "rescheduled" && exc.newStartTime ? exc.newStartTime : s.startTime;
-    const endTime = exc?.type === "rescheduled" && exc.newEndTime ? exc.newEndTime : s.endTime;
-    const location = exc?.type === "rescheduled" && exc.newLocation ? exc.newLocation : s.location;
+    const startTime =
+      exc?.type === "rescheduled" && exc.newStartTime ? exc.newStartTime : s.startTime;
+    const endTime =
+      exc?.type === "rescheduled" && exc.newEndTime ? exc.newEndTime : s.endTime;
+    const location =
+      exc?.type === "rescheduled" && exc.newLocation ? exc.newLocation : s.location;
 
-    classes.push({
+    const classItem: BriefClassItem = {
       courseId: s.course.id,
       courseName: s.course.name,
       startTime,
       endTime,
       location,
-    });
+    };
+    classes.push(classItem);
 
     const record = await prisma.attendanceRecord.findFirst({
       where: {
@@ -93,24 +122,32 @@ async function getClassesForDate(
     });
     if (!record || record.status === "not_marked") {
       unmarkedCount += 1;
+      if (nowHm && endTime <= nowHm) {
+        endedUnmarkedClasses.push(classItem);
+      }
     }
   }
 
-  return { hasCurrentSemester: true, classes, unmarkedCount };
+  return { hasCurrentSemester: true, classes, unmarkedCount, endedUnmarkedClasses };
 }
 
 export async function generateAndPersistBrief(input: {
   userId: string;
-  kind: "morning" | "evening";
+  kind: BriefKindV2;
   now?: Date;
   timezone?: string;
   weatherFetcher?: FetchLike;
-}): Promise<BriefPayload> {
+  llmCall?: LlmNarrateFn;
+  includeAqi?: boolean;
+  aiHeadline?: boolean;
+}): Promise<BriefPayloadV2> {
   const now = input.now ?? getNow();
   const timezone = input.timezone ?? DEFAULT_TIMEZONE;
-  const todayStr = getLocalTimeParts(now, timezone).dateOnly;
+  const local = getLocalTimeParts(now, timezone);
+  const todayStr = local.dateOnly;
+  const nowHm = `${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")}`;
   const tomorrowStr = addDaysDateOnly(todayStr, 1);
-  const forDate = input.kind === "morning" ? todayStr : tomorrowStr;
+  const forDate = input.kind === "evening" ? tomorrowStr : todayStr;
 
   const locPref = await prisma.notificationPreference
     .findFirst({
@@ -119,19 +156,37 @@ export async function generateAndPersistBrief(input: {
     })
     .catch(() => null);
 
-  const weatherLine =
+  const weatherPromise =
     locPref?.locationLat != null && locPref?.locationLon != null
-      ? await fetchWeatherLine({
+      ? fetchRichWeather({
           latitude: locPref.locationLat,
           longitude: locPref.locationLon,
           dateOnly: forDate,
           locationName: locPref.locationName,
+          includeAqi: input.includeAqi ?? true,
           now,
           fetcher: input.weatherFetcher,
         })
-      : null;
+      : Promise.resolve(null);
 
-  const [dsaSummary, rawTasks, rawEvents, rawAssessments] = await Promise.all([
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const gcalConnectedPromise = isGoogleCalendarConnected(input.userId).catch(() => false);
+
+  const [
+    weather,
+    dsaSummary,
+    rawTasks,
+    rawEvents,
+    rawAssessments,
+    recentNotesRaw,
+    dsaSettings,
+    attemptsLast7Days,
+    dsaBankCount,
+    pushSubCount,
+    lastSemester,
+    gcalConnected,
+  ] = await Promise.all([
+    weatherPromise,
     getDsaDueSummary(input.userId, now).catch(() => null),
     prisma.task.findMany({
       where: {
@@ -172,30 +227,85 @@ export async function generateAndPersistBrief(input: {
       include: { course: { select: { name: true } } },
       orderBy: { date: "asc" },
     }),
+    prisma.note.findMany({
+      where: { userId: input.userId, isDocumentLibraryEntry: false },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        course: { select: { name: true } },
+      },
+    }),
+    prisma.dsaSettings
+      .findUnique({
+        where: { userId: input.userId },
+        select: { programmeStartDate: true },
+      })
+      .catch(() => null),
+    prisma.dsaAttempt
+      .count({
+        where: { userId: input.userId, attemptedAt: { gte: sevenDaysAgo } },
+      })
+      .catch(() => 0),
+    prisma.dsaProblem.count({ where: { userId: input.userId } }).catch(() => 0),
+    prisma.pushSubscription.count({ where: { userId: input.userId } }).catch(() => 0),
+    prisma.semester
+      .findFirst({
+        where: { userId: input.userId },
+        orderBy: { endDate: "desc" },
+        select: { name: true, endDate: true },
+      })
+      .catch(() => null),
+    gcalConnectedPromise,
   ]);
 
-  const tasksTodayOrOverdue: BriefTaskItem[] = [];
+  let googleEventsForDate: BriefGoogleEventInput[] = [];
+  if (gcalConnected) {
+    const rangeStart = new Date(`${forDate}T00:00:00.000Z`);
+    const rangeEnd = new Date(`${addDaysDateOnly(forDate, 1)}T23:59:59.999Z`);
+    const fetchedGcal = await fetchGoogleCalendarEvents(
+      rangeStart,
+      rangeEnd,
+      input.userId
+    ).catch(() => []);
+    googleEventsForDate = fetchedGcal
+      .filter((e) => getLocalTimeParts(e.start, timezone).dateOnly === forDate)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        time: e.isAllDay ? undefined : formatHm(e.start, timezone),
+        endTime: e.isAllDay || !e.end ? undefined : formatHm(e.end, timezone),
+        date: forDate,
+        location: e.location,
+        calendarName: e.calendarName,
+      }));
+  }
+
+  const tasksToday: BriefTaskItem[] = [];
+  const overdueTasks: BriefTaskItem[] = [];
   const tasksDueTomorrow: BriefTaskItem[] = [];
+  const tasksWithin3Days: BriefTaskItem[] = [];
+  const threeDaysStr = addDaysDateOnly(todayStr, 3);
 
   for (const t of rawTasks) {
     if (!t.dueDate) continue;
     const dueStr = getLocalTimeParts(t.dueDate, timezone).dateOnly;
-    if (dueStr <= todayStr) {
-      tasksTodayOrOverdue.push({
-        id: t.id,
-        title: t.title,
-        dueDate: dueStr,
-        isOverdue: dueStr < todayStr,
-        courseName: t.course?.name ?? null,
-      });
-    } else if (dueStr === tomorrowStr) {
-      tasksDueTomorrow.push({
-        id: t.id,
-        title: t.title,
-        dueDate: dueStr,
-        isOverdue: false,
-        courseName: t.course?.name ?? null,
-      });
+    const item: BriefTaskItem = {
+      id: t.id,
+      title: t.title,
+      dueDate: dueStr,
+      isOverdue: dueStr < todayStr,
+      courseName: t.course?.name ?? null,
+    };
+    if (dueStr < todayStr) overdueTasks.push(item);
+    else if (dueStr === todayStr) tasksToday.push(item);
+    else if (dueStr === tomorrowStr) {
+      tasksDueTomorrow.push(item);
+      tasksWithin3Days.push(item);
+    } else if (dueStr <= threeDaysStr) {
+      tasksWithin3Days.push(item);
     }
   }
 
@@ -214,85 +324,126 @@ export async function generateAndPersistBrief(input: {
     else if (eParts.dateOnly === tomorrowStr) eventsTomorrow.push(item);
   }
 
-  const assessmentsWithin3Days: BriefAssessmentItem[] = [];
   const assessmentsWithin7Days: BriefAssessmentItem[] = [];
-  const threeDaysStr = addDaysDateOnly(todayStr, 3);
   for (const a of rawAssessments) {
     if (!a.date) continue;
-    const dueStr = formatDateOnly(a.date);
-    const item: BriefAssessmentItem = {
+    assessmentsWithin7Days.push({
       id: a.id,
       title: String(a.componentType).replace(/_/g, " "),
       courseName: a.course.name,
-      dueDate: dueStr,
-    };
-    if (dueStr <= threeDaysStr) assessmentsWithin3Days.push(item);
-    assessmentsWithin7Days.push(item);
+      dueDate: formatDateOnly(a.date),
+    });
   }
 
   const formatTravelLabel = (d: Date) => {
     const p = getLocalTimeParts(d, timezone);
     return `${p.dateOnly} ${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
   };
-  const travel48h: BriefTravelItem[] = selectTravelEventsWithin48Hours(
+  const travelBase = selectTravelEventsWithin48Hours(
     rawEvents,
     now,
     formatTravelLabel
   );
-  const travelTomorrow: BriefTravelItem[] = rawEvents
-    .filter((e) => e.isTravel && getLocalTimeParts(e.dateTime, timezone).dateOnly === tomorrowStr)
-    .map((e) => ({
-      eventId: e.id,
-      title: e.title,
-      dateTimeLabel: formatTravelLabel(e.dateTime),
-      location: e.location,
-      documents: e.eventDocuments.map((ed) => ({
-        noteId: ed.note.id,
-        title: ed.note.fileName || ed.note.title || "Ticket",
-        offlineUrl: ed.note.s3Url || `/notes/${ed.note.id}`,
-      })),
-    }));
+  const travelV2: BriefTravelV2Item[] = await Promise.all(
+    travelBase.map(async (tr) => {
+      const travelDate = tr.dateTimeLabel.slice(0, 10);
+      const destinationWeather =
+        tr.location && tr.location.trim().length >= 2
+          ? await fetchDestinationWeather({
+              location: tr.location,
+              dateOnly: travelDate,
+              now,
+              fetcher: input.weatherFetcher,
+            })
+          : null;
+      return {
+        ...tr,
+        destinationWeather,
+        ticketsPinnedCount: tr.documents.length,
+      };
+    })
+  );
 
-  let payload: BriefPayload;
-  if (input.kind === "morning") {
-    const classInfo = await getClassesForDate(input.userId, todayStr);
-    payload = buildMorningBriefPayload({
-      forDate: todayStr,
-      hasCurrentSemester: classInfo.hasCurrentSemester,
-      weatherLine,
-      classes: classInfo.classes,
-      events: eventsToday,
-      tasks: tasksTodayOrOverdue,
-      travel: travel48h,
-      dsaSummary,
-      assessments: assessmentsWithin3Days,
-    });
-  } else {
-    const [todayClassInfo, tomorrowClassInfo] = await Promise.all([
-      getClassesForDate(input.userId, todayStr),
-      getClassesForDate(input.userId, tomorrowStr),
-    ]);
-    payload = buildEveningBriefPayload({
-      forDate: tomorrowStr,
-      hasCurrentSemester: todayClassInfo.hasCurrentSemester || tomorrowClassInfo.hasCurrentSemester,
-      weatherLine,
-      unmarkedTodayCount: todayClassInfo.unmarkedCount,
-      tomorrowClasses: tomorrowClassInfo.classes,
-      tomorrowEvents: eventsTomorrow,
-      tasksDueTomorrow,
-      assessmentsWithin7Days,
-      travelTomorrow,
-      tomorrowDsaDueCount: 0,
-    });
-  }
+  const programmeDay = dsaSettings?.programmeStartDate
+    ? Math.max(
+        1,
+        Math.floor(
+          (now.getTime() - dsaSettings.programmeStartDate.getTime()) / (24 * 60 * 60 * 1000)
+        ) + 1
+      )
+    : null;
 
-  await saveDailyBrief({
-    userId: input.userId,
+  const recentNotes = recentNotesRaw.map((n) => ({
+    id: n.id,
+    title: n.title || "Untitled note",
+    updatedAt: formatDateOnly(n.updatedAt),
+    courseName: n.course?.name ?? null,
+    href: `/notes/${n.id}`,
+  }));
+
+  const [todayClassInfo, targetClassInfo] = await Promise.all([
+    getClassesForDate(input.userId, todayStr, nowHm),
+    input.kind === "evening"
+      ? getClassesForDate(input.userId, tomorrowStr)
+      : Promise.resolve(null),
+  ]);
+
+  const activeClassInfo = targetClassInfo ?? todayClassInfo;
+
+  let payload = buildBriefPayloadV2({
     kind: input.kind,
     forDate,
-    payload: payload as unknown as Prisma.InputJsonValue,
-    generatedAt: now,
+    nowHm,
+    generatedAt: now.toISOString(),
+    hasCurrentSemester: activeClassInfo.hasCurrentSemester,
+    unmarkedTodayCount: todayClassInfo.unmarkedCount,
+    endedClassesToday: todayClassInfo.endedUnmarkedClasses,
+    classes: activeClassInfo.classes,
+    events: input.kind === "evening" ? eventsTomorrow : eventsToday,
+    googleEvents: googleEventsForDate,
+    tasksToday: input.kind === "evening" ? tasksDueTomorrow : tasksToday,
+    overdueTasks,
+    tasksWithin3Days,
+    assessmentsWithin7Days,
+    travel: travelV2,
+    dsaSummary,
+    programmeDay,
+    attemptsLast7Days,
+    recentNotes,
+    weather,
+    nudgeContext: {
+      hasCurrentSemester: todayClassInfo.hasCurrentSemester,
+      lastEndedSemester: lastSemester
+        ? { name: lastSemester.name, endDate: formatDateOnly(lastSemester.endDate) }
+        : null,
+      hasPushSubscription: pushSubCount > 0,
+      hasCitySet: Boolean(locPref),
+      googleCalendarConnected: gcalConnected,
+      dsaBankCount,
+    },
   });
+
+  const narrated = await narrateBrief(payload, {
+    aiHeadline: input.aiHeadline ?? true,
+    llmCall: input.llmCall,
+  });
+
+  payload = {
+    ...payload,
+    headline: narrated.headline,
+    summary: narrated.summary,
+    pushSummary: narrated.summary,
+  };
+
+  if (input.kind === "morning" || input.kind === "evening") {
+    await saveDailyBrief({
+      userId: input.userId,
+      kind: input.kind,
+      forDate,
+      payload: payload as unknown as Prisma.InputJsonValue,
+      generatedAt: now,
+    });
+  }
 
   return payload;
 }

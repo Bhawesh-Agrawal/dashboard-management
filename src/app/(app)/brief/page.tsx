@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { getCurrentUserId } from "@/lib/auth";
 import { formatDateOnly } from "@/lib/timezone";
 import { getLatestDailyBriefs } from "@/features/briefs/lib/storage";
-import type { BriefPayload } from "@/features/briefs/lib/build";
+import { parseStoredBriefPayload } from "@/features/briefs/lib/payload-v2";
 import { BriefView, type StoredBriefItem } from "@/features/briefs/components/brief-view";
 
 export const revalidate = 0;
@@ -13,11 +13,13 @@ export default async function BriefPage() {
 
   const toStored = (row: typeof morning): StoredBriefItem | null => {
     if (!row) return null;
+    const parsed = parseStoredBriefPayload(row.payload);
+    if (!parsed) return null;
     return {
       kind: row.kind,
       forDate: formatDateOnly(row.forDate),
       generatedAt: row.generatedAt.toISOString(),
-      payload: row.payload as unknown as BriefPayload,
+      payload: parsed,
     };
   };
 
@@ -25,7 +27,7 @@ export default async function BriefPage() {
     <div>
       <PageHeader
         title="Daily Brief"
-        subtitle="Deterministic morning and evening summary"
+        subtitle="Personalized morning, midday, and evening brief"
         backHref="/today"
       />
       <BriefView

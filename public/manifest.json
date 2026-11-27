@@ -66,6 +66,36 @@
     }
   ],
   "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "Open your Today overview",
+      "url": "/today",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Daily Brief",
+      "short_name": "Brief",
+      "description": "Read your daily brief",
+      "url": "/brief",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Quick Capture",
+      "short_name": "Capture",
+      "description": "Capture a quick note",
+      "url": "/notes?capture=1",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "DSA Log",
+      "short_name": "DSA Log",
+      "description": "Log a DSA problem attempt",
+      "url": "/dsa/log",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "screenshots": [],
   "prefer_related_applications": false
 }

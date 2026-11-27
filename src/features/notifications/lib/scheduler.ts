@@ -18,6 +18,7 @@ export type NotificationType =
   | "task_due"
   | "calendar_event"
   | "morning_brief"
+  | "midday_brief"
   | "evening_brief";
 
 export type NotificationPriority = "critical" | "normal" | "low";
@@ -37,12 +38,14 @@ export const DEFAULT_PRIORITY: Record<NotificationType, NotificationPriority> = 
   task_due: "normal",
   calendar_event: "normal",
   morning_brief: "normal",
+  midday_brief: "normal",
   evening_brief: "normal",
 };
 
 export const DEFAULT_CLASS_REMINDER_MINUTES = 10;
 export const DEFAULT_EVENT_REMINDER_MINUTES = 15;
 export const DEFAULT_MORNING_BRIEF_TIME = "07:00";
+export const DEFAULT_MIDDAY_BRIEF_TIME = "13:00";
 export const DEFAULT_EVENING_BRIEF_TIME = "20:30";
 export const BRIEF_GRACE_WINDOW_MINUTES = 180; // 3 hours
 
@@ -396,8 +399,110 @@ export async function generateCalendarEventCandidates(
   return candidates;
 }
 
+const PUSH_BODY_MAX_LEN = 180;
+
+function trimPushBody(text: string): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= PUSH_BODY_MAX_LEN) return cleaned;
+  return `${cleaned.slice(0, PUSH_BODY_MAX_LEN - 1)}…`;
+}
+
+async function generateBriefCandidateForKind(
+  userId: string,
+  now: Date,
+  timezone: string,
+  kind: "morning" | "midday" | "evening",
+  options?: {
+    targetTime?: string;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    force?: boolean;
+  }
+): Promise<NotificationCandidate[]> {
+  const local = getLocalTimeParts(now, timezone);
+  const defaultTime =
+    kind === "morning"
+      ? DEFAULT_MORNING_BRIEF_TIME
+      : kind === "midday"
+      ? DEFAULT_MIDDAY_BRIEF_TIME
+      : DEFAULT_EVENING_BRIEF_TIME;
+  const configuredTime = options?.targetTime ?? defaultTime;
+  const configuredMinutes = parseHmToMinutes(configuredTime);
+  if (configuredMinutes === null) return [];
+
+  const quietStart = options?.quietHoursStart ?? "22:00";
+  const quietEnd = options?.quietHoursEnd ?? "06:30";
+  const configuredInQuiet = isWithinQuietHours(
+    Math.floor(configuredMinutes / 60),
+    configuredMinutes % 60,
+    quietStart,
+    quietEnd
+  );
+  const effectiveTime = configuredInQuiet ? quietEnd : configuredTime;
+  const targetMinutes = parseHmToMinutes(effectiveTime);
+  if (targetMinutes === null) return [];
+
+  const diff = local.totalMinutes - targetMinutes;
+  if (!options?.force && (diff < 0 || diff >= BRIEF_GRACE_WINDOW_MINUTES)) {
+    return [];
+  }
+
+  const defaultTitle =
+    kind === "morning"
+      ? "Morning Brief"
+      : kind === "midday"
+      ? "Midday Brief"
+      : "Evening Brief";
+  const defaultBody =
+    kind === "morning"
+      ? "Your morning brief is ready."
+      : kind === "midday"
+      ? "Your midday brief is ready."
+      : "Your evening brief for tomorrow is ready.";
+
+  let title = defaultTitle;
+  let body = defaultBody;
+  try {
+    const payload = await generateAndPersistBrief({
+      userId,
+      kind,
+      now,
+      timezone,
+    });
+    if (payload.headline?.text) {
+      title = payload.headline.text.slice(0, 90);
+    }
+    body = trimPushBody(payload.summary || payload.pushSummary || defaultBody);
+  } catch {
+    // Fallback when brief dependencies are not mocked
+  }
+
+  const type: NotificationType =
+    kind === "morning"
+      ? "morning_brief"
+      : kind === "midday"
+      ? "midday_brief"
+      : "evening_brief";
+
+  return [
+    {
+      userId,
+      type,
+      entityId: "daily",
+      occurrenceDate: local.dateOnly,
+      scheduledFor: now,
+      dedupKey: buildDedupKey(type, "daily", local.dateOnly),
+      title,
+      body,
+      url: "/brief",
+      actions: [{ action: "view", title: "Open Brief" }],
+      requireInteraction: false,
+    },
+  ];
+}
+
 /**
- * 5. Morning Brief (stubbed summary for Step 3; full DailyBrief storage/content added in Steps 5–8).
+ * 5. Morning Brief.
  */
 export async function generateMorningBriefCandidates(
   userId: string,
@@ -410,60 +515,28 @@ export async function generateMorningBriefCandidates(
     force?: boolean;
   }
 ): Promise<NotificationCandidate[]> {
-  const local = getLocalTimeParts(now, timezone);
-  const configuredTime = options?.targetTime ?? DEFAULT_MORNING_BRIEF_TIME;
-  const configuredMinutes = parseHmToMinutes(configuredTime);
-  if (configuredMinutes === null) return [];
-
-  const quietStart = options?.quietHoursStart ?? "22:00";
-  const quietEnd = options?.quietHoursEnd ?? "06:30";
-  const configuredInQuiet = isWithinQuietHours(
-    Math.floor(configuredMinutes / 60),
-    configuredMinutes % 60,
-    quietStart,
-    quietEnd
-  );
-  const effectiveTime = configuredInQuiet ? quietEnd : configuredTime;
-  const targetMinutes = parseHmToMinutes(effectiveTime);
-  if (targetMinutes === null) return [];
-
-  const diff = local.totalMinutes - targetMinutes;
-  if (!options?.force && (diff < 0 || diff >= BRIEF_GRACE_WINDOW_MINUTES)) {
-    return [];
-  }
-
-  let body = "Your morning brief is ready.";
-  try {
-    const payload = await generateAndPersistBrief({
-      userId,
-      kind: "morning",
-      now,
-      timezone,
-    });
-    body = payload.pushSummary;
-  } catch {
-    // Fallback when brief dependencies are not mocked
-  }
-
-  return [
-    {
-      userId,
-      type: "morning_brief",
-      entityId: "daily",
-      occurrenceDate: local.dateOnly,
-      scheduledFor: now,
-      dedupKey: buildDedupKey("morning_brief", "daily", local.dateOnly),
-      title: "Morning Brief",
-      body,
-      url: "/brief",
-      actions: [{ action: "view", title: "Open Brief" }],
-      requireInteraction: false,
-    },
-  ];
+  return generateBriefCandidateForKind(userId, now, timezone, "morning", options);
 }
 
 /**
- * 6. Evening Brief.
+ * 6. Midday Brief (optional, off by default).
+ */
+export async function generateMiddayBriefCandidates(
+  userId: string,
+  now: Date,
+  timezone: string,
+  options?: {
+    targetTime?: string;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    force?: boolean;
+  }
+): Promise<NotificationCandidate[]> {
+  return generateBriefCandidateForKind(userId, now, timezone, "midday", options);
+}
+
+/**
+ * 7. Evening Brief.
  */
 export async function generateEveningBriefCandidates(
   userId: string,
@@ -476,56 +549,7 @@ export async function generateEveningBriefCandidates(
     force?: boolean;
   }
 ): Promise<NotificationCandidate[]> {
-  const local = getLocalTimeParts(now, timezone);
-  const configuredTime = options?.targetTime ?? DEFAULT_EVENING_BRIEF_TIME;
-  const configuredMinutes = parseHmToMinutes(configuredTime);
-  if (configuredMinutes === null) return [];
-
-  const quietStart = options?.quietHoursStart ?? "22:00";
-  const quietEnd = options?.quietHoursEnd ?? "06:30";
-  const configuredInQuiet = isWithinQuietHours(
-    Math.floor(configuredMinutes / 60),
-    configuredMinutes % 60,
-    quietStart,
-    quietEnd
-  );
-  const effectiveTime = configuredInQuiet ? quietEnd : configuredTime;
-  const targetMinutes = parseHmToMinutes(effectiveTime);
-  if (targetMinutes === null) return [];
-
-  const diff = local.totalMinutes - targetMinutes;
-  if (!options?.force && (diff < 0 || diff >= BRIEF_GRACE_WINDOW_MINUTES)) {
-    return [];
-  }
-
-  let body = "Your evening brief for tomorrow is ready.";
-  try {
-    const payload = await generateAndPersistBrief({
-      userId,
-      kind: "evening",
-      now,
-      timezone,
-    });
-    body = payload.pushSummary;
-  } catch {
-    // Fallback when brief dependencies are not mocked
-  }
-
-  return [
-    {
-      userId,
-      type: "evening_brief",
-      entityId: "daily",
-      occurrenceDate: local.dateOnly,
-      scheduledFor: now,
-      dedupKey: buildDedupKey("evening_brief", "daily", local.dateOnly),
-      title: "Evening Brief",
-      body,
-      url: "/brief",
-      actions: [{ action: "view", title: "Open Brief" }],
-      requireInteraction: false,
-    },
-  ];
+  return generateBriefCandidateForKind(userId, now, timezone, "evening", options);
 }
 
 async function cleanupOldSentNotifications(): Promise<void> {
@@ -575,6 +599,8 @@ export async function runNotificationScheduler(
   for (const userId of activeUserIds) {
     let timezone = DEFAULT_TIMEZONE;
     let morningTime = DEFAULT_MORNING_BRIEF_TIME;
+    let middayTime = DEFAULT_MIDDAY_BRIEF_TIME;
+    let middayEnabled = false;
     let eveningTime = DEFAULT_EVENING_BRIEF_TIME;
     let classMinutes = DEFAULT_CLASS_REMINDER_MINUTES;
     let eventMinutes = DEFAULT_EVENT_REMINDER_MINUTES;
@@ -590,6 +616,10 @@ export async function runNotificationScheduler(
 
       const morningPref = prefs.find((p) => p.type === "morning_brief");
       if (morningPref?.dailySummaryTime) morningTime = morningPref.dailySummaryTime;
+
+      const middayPref = prefs.find((p) => p.type === "midday_brief");
+      if (middayPref?.dailySummaryTime) middayTime = middayPref.dailySummaryTime;
+      if (middayPref) middayEnabled = middayPref.enabled;
 
       const eveningPref = prefs.find((p) => p.type === "evening_brief");
       if (eveningPref?.dailySummaryTime) eveningTime = eveningPref.dailySummaryTime;
@@ -633,6 +663,16 @@ export async function runNotificationScheduler(
       candidates.push(
         ...(await generateMorningBriefCandidates(userId, now, timezone, {
           targetTime: morningTime,
+          quietHoursStart,
+          quietHoursEnd,
+          force,
+        }))
+      );
+    }
+    if ((only === "midday_brief" || (!only && middayEnabled))) {
+      candidates.push(
+        ...(await generateMiddayBriefCandidates(userId, now, timezone, {
+          targetTime: middayTime,
           quietHoursStart,
           quietHoursEnd,
           force,

@@ -97,3 +97,9 @@ Generated from the codebase prior to Phase 4 refactoring. Every finding cites ex
 - **Eligible events:** `Event` rows where `userId = <user>` and `dateTime` falls on `todayDateOnly` in the user's timezone.
 - **Lead time:** Configurable via `NotificationPreference(type="calendar_event").reminderMinutes` (default **15 minutes**). Fires when `0 <= eventLocal.totalMinutes - local.totalMinutes <= minutesBefore`.
 - **Dedup key:** `calendar_event:${event.id}:${YYYY-MM-DD}`.
+
+## 7. Daily Brief v2 Push Format & Midday Brief
+
+- **Types:** `morning_brief` (default `07:00`), `midday_brief` (optional, default off, default `13:00`), `evening_brief` (default `20:30`).
+- **Payload mapping:** `title = payload.headline?.text` (fallback `"Morning Brief"` / `"Midday Brief"` / `"Evening Brief"`), `body = payload.summary || payload.pushSummary` (trimmed to 180 chars), `url = "/brief"`.
+- **Dedup keys:** `morning_brief:daily:<YYYY-MM-DD>`, `midday_brief:daily:<YYYY-MM-DD>`, `evening_brief:daily:<YYYY-MM-DD>`.

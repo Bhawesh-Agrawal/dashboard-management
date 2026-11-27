@@ -27,6 +27,8 @@ const state = {
 
 vi.mock("@/features/briefs/lib/generate", () => ({
   generateAndPersistBrief: vi.fn(async ({ kind }: { kind: string }) => ({
+    headline: { text: `${kind} headline`, source: "fallback" },
+    summary: `${kind} brief summary`,
     pushSummary: `${kind} brief summary`,
   })),
 }));
@@ -228,5 +230,46 @@ describe("Brief Scheduling Across Ticks, Timezones, and Missed Ticks (Step 8)", 
     );
     expect(repeat.sent).toBe(0);
     expect(sendPush).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires midday_brief once when enabled at 13:00 local, uses headline/summary, and skips when disabled", async () => {
+    const sendPush = vi.fn().mockResolvedValue(undefined);
+    state.prefs = [
+      {
+        userId: state.userId,
+        type: "midday_brief",
+        enabled: false,
+        priority: "normal",
+        dailySummaryTime: "13:00",
+        quietHoursStart: "22:00",
+        quietHoursEnd: "06:30",
+        timezone: "Asia/Kathmandu",
+        reminderMinutes: null,
+      },
+    ];
+
+    // 13:00 NPT = 07:15 UTC -> disabled by default
+    const disabledRes = await withSimulatedTime("2026-11-25T07:15:00.000Z", () =>
+      runNotificationScheduler(false, { only: "midday_brief", sendPush })
+    );
+    expect(disabledRes.sent).toBe(0);
+
+    // Enable midday_brief -> delivers once with title = headline, body = summary, url = /brief
+    state.prefs[0].enabled = true;
+    const enabledRes = await withSimulatedTime("2026-11-25T07:15:00.000Z", () =>
+      runNotificationScheduler(false, { only: "midday_brief", sendPush })
+    );
+    expect(enabledRes.sent).toBe(1);
+    const sentPayload = JSON.parse(sendPush.mock.calls[0][1] as string);
+    expect(sentPayload.title).toBe("midday headline");
+    expect(sentPayload.body).toBe("midday brief summary");
+    expect(sentPayload.tag).toBe("midday_brief:daily:2026-11-25");
+    expect(sentPayload.data.url).toBe("/brief");
+
+    // 13:05 NPT -> deduped
+    const repeat = await withSimulatedTime("2026-11-25T07:20:00.000Z", () =>
+      runNotificationScheduler(false, { only: "midday_brief", sendPush })
+    );
+    expect(repeat.sent).toBe(0);
   });
 });

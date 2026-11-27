@@ -15,6 +15,7 @@ type NotificationType =
   | "task_due"
   | "calendar_event"
   | "morning_brief"
+  | "midday_brief"
   | "evening_brief";
 
 type Priority = "critical" | "normal" | "low";
@@ -53,6 +54,12 @@ const NOTIFICATION_TYPES: {
     type: "morning_brief",
     label: "Morning Brief",
     description: "Daily morning summary of classes, tasks, DSA, and weather",
+    defaultPriority: "normal",
+  },
+  {
+    type: "midday_brief",
+    label: "Midday Brief",
+    description: "Optional midday update on remaining schedule and weather changes",
     defaultPriority: "normal",
   },
   {

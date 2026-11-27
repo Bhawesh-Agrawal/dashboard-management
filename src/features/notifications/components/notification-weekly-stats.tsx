@@ -13,6 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
   task_due: "Task Reminders",
   calendar_event: "Calendar Events",
   morning_brief: "Morning Brief",
+  midday_brief: "Midday Brief",
   evening_brief: "Evening Brief",
 };
 

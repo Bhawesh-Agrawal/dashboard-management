@@ -15,6 +15,7 @@ import {
   ViewportPosition
 } from "react-pdf-highlighter-extended";
 
+import { useHideMobileNav } from "@/lib/ui/fullscreen-flow";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -117,6 +118,7 @@ export function PdfViewerModal({
   annotations = [],
 }: PdfViewerModalProps) {
   const isMobile = useIsMobile();
+  useHideMobileNav("pdf-viewer", open);
   const containerRef = useRef<HTMLDivElement>(null);
   const toolbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toolbarVisible, setToolbarVisible] = useState(true);

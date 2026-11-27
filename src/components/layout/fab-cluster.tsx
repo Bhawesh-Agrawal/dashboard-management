@@ -7,6 +7,7 @@ import { createNote } from "@/features/notes/lib/actions";
 import { parseQuickCaptureAction } from "@/features/notes/lib/actions-nlp";
 import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
 import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
+import { useHideMobileNav } from "@/lib/ui/fullscreen-flow";
 import { TaskForm, type TaskFormData } from "@/features/tasks/components/TaskForm";
 import {
   Dialog,
@@ -19,6 +20,7 @@ type QuickAddType = "task" | "note";
 
 export function FabCluster() {
   const [open, setOpen] = useState(false);
+  useHideMobileNav("fab-capture", open);
   const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState<QuickAddType>("task");
 

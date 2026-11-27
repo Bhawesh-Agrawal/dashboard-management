@@ -9,6 +9,7 @@ import type { ParsedCapture } from "@/features/notes/lib/nlp-parsing";
 import type { LinkToOption } from "@/features/tasks/components/link-to-picker";
 import { useHideMobileNav } from "@/lib/ui/fullscreen-flow";
 import { TaskForm, type TaskFormData } from "@/features/tasks/components/TaskForm";
+import { CaptureSheet } from "@/features/notes/components/CaptureSheet";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,8 @@ type QuickAddType = "task" | "note";
 
 export function FabCluster() {
   const [open, setOpen] = useState(false);
-  useHideMobileNav("fab-capture", open);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  useHideMobileNav("fab-capture", open || captureOpen);
   const [loading, setLoading] = useState(false);
   const [activeType, setActiveType] = useState<QuickAddType>("task");
 
@@ -111,12 +113,16 @@ export function FabCluster() {
   return (
     <>
       <button
+        type="button"
+        aria-label="Quick add"
         onClick={() => setOpen(true)}
         className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 h-12 w-12 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center hover:bg-foreground/90 transition-colors active:scale-95"
         style={{ bottom: "max(7rem, calc(7rem + env(safe-area-inset-bottom, 0px)))" }}
       >
         <Plus className="h-5 w-5" />
       </button>
+
+      <CaptureSheet open={captureOpen} onOpenChange={setCaptureOpen} />
 
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
@@ -125,22 +131,38 @@ export function FabCluster() {
           </DialogHeader>
 
           <div className="flex gap-1 mt-4 p-1 bg-muted rounded-md">
-            {([
-              { value: "task" as const, label: "Task" },
-              { value: "note" as const, label: "Note" },
-            ]).map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveType(tab.value)}
-                className={`flex-1 py-1.5 text-sm rounded transition-colors ${
-                  activeType === tab.value
-                    ? "bg-background text-foreground font-medium shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setActiveType("task")}
+              className={`flex-1 py-1.5 text-sm rounded transition-colors ${
+                activeType === "task"
+                  ? "bg-background text-foreground font-medium shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Task
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setCaptureOpen(true);
+              }}
+              className="flex-1 py-1.5 text-sm rounded transition-colors text-muted-foreground hover:text-foreground"
+            >
+              Capture Note
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType("note")}
+              className={`flex-1 py-1.5 text-sm rounded transition-colors ${
+                activeType === "note"
+                  ? "bg-background text-foreground font-medium shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              AI Parse
+            </button>
           </div>
 
           {/* Task tab — delegates to shared TaskForm */}

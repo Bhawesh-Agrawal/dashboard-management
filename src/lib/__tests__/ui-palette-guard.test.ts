@@ -36,6 +36,7 @@ describe("UI palette guard", () => {
       path.resolve(process.cwd(), "src/features/notes/components/StepsChecklistEditor.tsx"),
       path.resolve(process.cwd(), "src/features/notes/components/NotesInboxClient.tsx"),
       path.resolve(process.cwd(), "src/features/notes/components/ShareCaptureClient.tsx"),
+      path.resolve(process.cwd(), "src/features/assistant/components"),
     ];
 
     const violations: string[] = [];

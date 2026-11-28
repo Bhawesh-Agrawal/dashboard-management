@@ -19,6 +19,7 @@ import {
   convertMeetingActionItemsToTasks,
   updateCaptureNote,
 } from "../lib/capture-actions";
+import { tidyMeetingMinutesAction } from "../lib/notes-ai-actions";
 
 export interface MeetingMinutesEditorProps {
   noteId: string;
@@ -153,6 +154,36 @@ export function MeetingMinutesEditor({
           className="flex-1 min-w-[200px] min-h-[44px] rounded-lg border border-input bg-background px-3 text-base font-medium text-foreground"
         />
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              void tidyMeetingMinutesAction(noteId).then((res) => {
+                if (!res.ok) {
+                  toast.error(res.error);
+                  return;
+                }
+                const nextMeta: MeetingMeta = {
+                  ...meta,
+                  decisions: res.draft.decisions || meta.decisions,
+                  actionItems: [
+                    ...meta.actionItems,
+                    ...res.draft.actionItems.map((a) => ({
+                      text: a.text,
+                      done: false,
+                      owner: a.owner ?? null,
+                      due: a.due ?? null,
+                      taskId: null,
+                    })),
+                  ],
+                };
+                setMeta(nextMeta);
+                toast.success("Draft applied — review and blur/save to keep");
+              });
+            }}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            Tidy minutes
+          </button>
           <button
             type="button"
             onClick={handleCopyText}

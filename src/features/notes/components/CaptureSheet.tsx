@@ -27,6 +27,7 @@ import {
   saveCaptureDraft,
 } from "../lib/capture-draft";
 import { createCaptureNote, undoCaptureNote } from "../lib/capture-actions";
+import { extractCaptureActionItemsAction } from "../lib/notes-ai-actions";
 
 const KIND_META: Record<NoteKind, { label: string; icon: typeof FileText; placeholder: string }> = {
   note: {
@@ -344,6 +345,24 @@ export function CaptureSheet({
               className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border px-3 text-sm text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              disabled={!text.trim() || saving}
+              onClick={() => {
+                void extractCaptureActionItemsAction(text).then((res) => {
+                  if (!res.ok) {
+                    toast.error(res.error);
+                    return;
+                  }
+                  setKind("checklist");
+                  setText(res.items.map((i) => i.text).join("\n"));
+                  toast.success("Extracted action items");
+                });
+              }}
+              className="min-h-[44px] rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Extract steps
             </button>
             <button
               type="button"

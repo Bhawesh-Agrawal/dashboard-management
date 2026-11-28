@@ -38,6 +38,7 @@ import {
   toggleNoteArchive,
   toggleNotePin,
 } from "../lib/capture-actions";
+import { summarizeLinkNoteAction } from "../lib/notes-ai-actions";
 import { deleteNote } from "../lib/actions";
 import type { InboxFilter, InboxNoteRow } from "../lib/inbox-queries";
 import type {
@@ -448,6 +449,18 @@ export function NotesInboxClient({
                           </span>
                         ))}
                       </div>
+
+                      {linkMeta &&
+                        "summary" in linkMeta &&
+                        Array.isArray((linkMeta as { summary?: { bullets?: string[] } }).summary?.bullets) && (
+                          <ul className="mt-1.5 list-disc pl-4 space-y-0.5 text-xs text-muted-foreground">
+                            {(linkMeta as { summary: { bullets: string[] } }).summary.bullets.map(
+                              (b, bi) => (
+                                <li key={bi}>{b}</li>
+                              )
+                            )}
+                          </ul>
+                        )}
                     </div>
 
                     {(linkMeta?.thumbnail || row.thumbnailUrl) && (
@@ -538,6 +551,25 @@ export function NotesInboxClient({
                           <CheckSquare className="h-4 w-4" aria-hidden="true" />
                           Convert to task
                         </button>
+                        {row.kind === "link" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              void summarizeLinkNoteAction(row.id).then((res) => {
+                                if (!res.ok) {
+                                  toast.error(res.error);
+                                } else {
+                                  toast.success("Summary saved");
+                                  void refreshInbox();
+                                }
+                              });
+                            }}
+                            className="flex w-full min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm text-foreground hover:bg-muted"
+                          >
+                            Summarize
+                          </button>
+                        )}
                         <Link
                           href={`/notes/${row.id}`}
                           onClick={() => setOpenMenuId(null)}

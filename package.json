@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:tick": "tsx scripts/dev-tick.ts",
     "check:env": "tsx scripts/check-env.ts",
+    "ai:eval": "tsx scripts/ai-eval.ts",
     "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
     "dev:prod-like": "npm run build && npm run start",

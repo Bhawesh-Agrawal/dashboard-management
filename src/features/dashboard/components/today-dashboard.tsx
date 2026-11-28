@@ -152,6 +152,14 @@ export function TodayDashboard({
           ))}
         </div>
       )}
+      <div className="flex items-center justify-end">
+        <Link
+          href={`/ask?prompt=${encodeURIComponent("What does my day look like?")}`}
+          className="inline-flex min-h-[44px] items-center rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
+        >
+          Ask about today
+        </Link>
+      </div>
       <BriefTodayCard summary={briefSummary} />
       {data.hasCurrentSemester === false && data.upcomingSemester && !data.upcomingSemester.hasTimetable ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">

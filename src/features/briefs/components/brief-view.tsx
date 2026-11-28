@@ -232,6 +232,12 @@ export function BriefView({
               Copy debug info
             </Button>
           )}
+          <Link
+            href={`/ask?prompt=${encodeURIComponent("What does my day look like?")}`}
+            className="inline-flex min-h-[44px] items-center rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            Ask about today
+          </Link>
           <Button
             type="button"
             variant="outline"

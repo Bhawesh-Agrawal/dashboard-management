@@ -13,6 +13,8 @@ import { OverdueBanner } from "@/components/layout/overdue-banner";
 import { KeyboardFocusHelper } from "@/components/shared/keyboard-focus-helper";
 import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
 import { InstallAppHint } from "@/components/shared/install-app-hint";
+import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 
 export default async function AppLayout({
   children,
@@ -39,7 +41,14 @@ export default async function AppLayout({
         {/* Persistent Overdue Tasks Banner */}
         <OverdueBanner />
 
-        <div className="lg:hidden flex justify-end px-4 pt-2" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}>
+        <div className="lg:hidden flex items-center justify-end gap-2 px-4 pt-2" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}>
+          <Link
+            href="/ask"
+            aria-label="Ask assistant"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Link>
           <SyncStatusIndicator />
         </div>
         <InstallAppHint />

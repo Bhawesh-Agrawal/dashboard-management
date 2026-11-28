@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import Link from "next/link";
 import { useNoteById } from "@/lib/sync/hooks";
 import { PageHeader } from "@/components/shared/page-header";
 import ReactMarkdown from "react-markdown";
@@ -36,6 +37,12 @@ export default function NoteDetailPage({
         backHref="/notes"
         action={
           <div className="flex items-center gap-2">
+            <Link
+              href={`/ask?focusNoteId=${id}&prompt=${encodeURIComponent("Summarize and explain this note")}`}
+              className="inline-flex min-h-[44px] items-center rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              Ask about this note
+            </Link>
             <EditNoteDialog note={note as any} />
           </div>
         }

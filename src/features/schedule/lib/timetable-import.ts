@@ -448,7 +448,7 @@ const AiTimetableResponseSchema = z.object({
 
 export type TimetableAiLlmFn = (
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; timeoutMs?: number }
 ) => Promise<string>;
 
 const MAX_AI_INPUT_CHARS = 8000;
@@ -494,18 +494,21 @@ export async function parseTimetableWithAI(
   ].join("\n");
 
   try {
-    const raw = await Promise.race<string>([
-      llmCall(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: capped },
-        ],
-        { temperature: 0.1, maxTokens: 1800 }
-      ),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI parse timeout")), timeoutMs)
-      ),
-    ]);
+    const callPromise = llmCall(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Timetable text:\n"""\n${capped}\n"""` },
+      ],
+      { temperature: 0.1, maxTokens: 1800, timeoutMs }
+    );
+    const raw = options?.llmCall
+      ? await Promise.race<string>([
+          callPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("AI parse timeout")), timeoutMs)
+          ),
+        ])
+      : await callPromise;
 
     const cleaned = raw
       .trim()

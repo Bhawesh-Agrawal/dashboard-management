@@ -12,7 +12,7 @@ const NarrateOutputSchema = z.object({
 
 export type LlmNarrateFn = (
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; timeoutMs?: number }
 ) => Promise<string>;
 
 function truncateTitle(value: string): string {
@@ -178,18 +178,21 @@ export async function narrateBrief(
   ].join("\n");
 
   try {
-    const raw = await Promise.race<string>([
-      llmCall(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Facts JSON:\n${factsJson}` },
-        ],
-        { temperature: 0.2, maxTokens: 200 }
-      ),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Narrate timeout")), timeoutMs);
-      }),
-    ]);
+    const callPromise = llmCall(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Facts JSON:\n${factsJson}` },
+      ],
+      { temperature: 0.2, maxTokens: 200, timeoutMs }
+    );
+    const raw = options?.llmCall
+      ? await Promise.race<string>([
+          callPromise,
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Narrate timeout")), timeoutMs);
+          }),
+        ])
+      : await callPromise;
 
     const parsedJson = JSON.parse(stripJsonFences(raw));
     const validated = NarrateOutputSchema.safeParse(parsedJson);

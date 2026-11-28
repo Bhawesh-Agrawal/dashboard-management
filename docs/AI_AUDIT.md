@@ -31,3 +31,11 @@
 6. **Stale `HTTP-Referer`:** Hardcoded `https://academic-command-center.vercel.app` instead of `APP_URL`.
 7. **System prompt claims attendance data, but only raw record IDs are supplied:** `askQuestion` tells the model it has attendance data, while `formatGraphContext` only passes raw entity IDs/titles without running `calculations.ts` (`attended`, `total`, `percent`, `canMiss`, `mustAttend`).
 8. **Missing data domains:** No calendar events, no `AcademicCalendarEntry` (holidays, breaks, exam periods, `follows_weekday`), no Phase 9 captures (`link`, `quote`, `meeting`, `checklist`), no DSA summary, and no Brief v2 data.
+
+
+## 4. Phase 10 Hardening Results
+
+- **`calendar-import.ts` & `timetable-import.ts`:** Verified Zod validation (`AiCalendarResponseSchema`, `AiTimetableResponseSchema`), wrapped user text in `"""..."""` delimiters, migrated default `chatCompletion` calls to `AbortController` `timeoutMs`, and confirmed all outputs flow through the UI review table before DB insertion.
+- **`narrate.ts`:** Verified Zod validation (`NarrateOutputSchema`), PII-free compact JSON facts, untrusted-data system instruction, numeric/time hallucination guard, and `AbortController` `timeoutMs`.
+- **`nlp-parsing.ts`:** Added `ParsedCaptureAiSchema` Zod validation, wrapped user input in `"""..."""` delimiters with untrusted-data instruction, and routed through `getFastModel()`. Draft-only (user confirms before save).
+- **`reviews/lib/generator.ts`:** Added `ReviewAiRawSchema` Zod validation in `parseAIResponse`, wrapped data summary in `"""..."""` delimiters, and added untrusted-data system instruction.

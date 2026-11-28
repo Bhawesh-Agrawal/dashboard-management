@@ -1700,3 +1700,47 @@ Route (app)
   - `vitest run`: `Test Files  74 passed (74)`, `Tests  374 passed (374)`
 - `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
   - `next build` (Turbopack): exited `0`, compiled in `7.2s`, TypeScript finished in `20.8s`, generated 21/21 static pages, including `/capture/share`, `/notes`, `/notes/[id]`, `/notes/graph`, and `/api/notes/link-metadata`.
+
+
+---
+
+## Phase 10: AI Assistant (`phase-10-assistant`)
+
+### Base Branch Verification
+
+- Ran `git log --oneline -15` and `git branch -a`: branched `phase-10-assistant` from `master` (`1d0cf59`), which contains Phases 1 through 9.
+
+### Pending Database Migrations (NOT Applied — Owner Approval Required)
+
+- `prisma/migrations/20261128000000_add_ai_assistant_persistence/migration.sql` — Additive only: creates `AiMessageRole` enum, `ai_conversations` and `ai_messages` tables with `(user_id, updated_at)`, `(conversation_id, created_at)`, and `(user_id, created_at)` indexes, and adds `assistant_enabled`, `assistant_dsa_access`, `ai_daily_token_cap` columns to `user_dashboard_preferences`. **Not applied** to any database (`prisma migrate deploy` / `prisma db push` not run).
+
+### OpenRouter Documentation Verification
+
+- Verified against official OpenRouter documentation: `POST https://openrouter.ai/api/v1/chat/completions` uses OpenAI-compatible `tools`, `tool_choice`, `tool_calls` (`choices[0].message.tool_calls` / `delta.tool_calls`), `role: "tool"` with `tool_call_id`, SSE `stream: true` with `stream_options: { include_usage: true }`, and `GET https://openrouter.ai/api/v1/models` `supported_parameters` (`"tools"`).
+
+### Item Status Summary
+
+| Item | Status | Commit | Key Files | What was NOT verified |
+| --- | --- | --- | --- | --- |
+| 1. Audit | DONE | `236bd2d` | `docs/AI_AUDIT.md` | — |
+| 2. Shared Client V2 | DONE | `8efdf07` | `src/lib/ai/openrouter.ts`, `src/lib/ai/__tests__/openrouter.test.ts`, `scripts/ai-models.ts`, `src/features/briefs/lib/narrate.ts`, `src/features/semesters/lib/calendar-import.ts`, `src/features/schedule/lib/timetable-import.ts` | Live OpenRouter API & `scripts/ai-models.ts` run (tested with mocked fetch) |
+| 3. Tools | DONE | `a75a91d` | `src/features/assistant/tools/{types,read-academic,read-workspace,write-proposals,registry}.ts` | Live Postgres queries inside tools |
+| 4. Agent Loop | DONE | `d85d49f` | `src/features/assistant/lib/agent.ts`, `src/features/assistant/lib/__tests__/agent.test.ts` | Live model tool-calling loop |
+| 5. Persistence (Additive) | DONE | `99234fa` | `prisma/schema.prisma`, `prisma/migrations/20261128000000_add_ai_assistant_persistence/migration.sql`, `src/features/assistant/lib/persistence.ts`, `src/app/api/cron/daily-diagnostics/route.ts` | Applying migration to Postgres |
+| 6. Streaming API & Proposals | DONE | `c8700d8` | `src/app/api/assistant/stream/route.ts`, `src/app/api/assistant/proposals/[id]/{confirm,dismiss}/route.ts`, `src/features/assistant/lib/{sse,proposals,runner,conversation-actions}.ts`, `src/features/calendar/lib/event-actions.ts` | Live SSE stream & client disconnect in browser |
+| 7. Chat UI (`/ask`) | DONE | `d730e27` | `src/features/assistant/components/AssistantChatClient.tsx`, `src/app/(app)/ask/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/(app)/notes/[id]/page.tsx`, `src/features/briefs/components/brief-view.tsx`, `src/features/dashboard/components/today-dashboard.tsx` | Mobile phone UI walkthrough |
+| 8. Notes AI Actions | DONE | `b5b537f` | `src/features/notes/lib/notes-ai-actions.ts`, `src/features/notes/components/{NotesInboxClient,CaptureSheet,MeetingMinutesEditor}.tsx` | Live link summarization against OpenRouter |
+| 9. Settings AI Section | DONE | `b93610a` | `src/features/settings/components/ai-provider-settings.tsx` | Live Settings toggle & 1-token test click |
+| 10. Hardening Existing AI | DONE | `c279fce` | `src/features/notes/lib/nlp-parsing.ts`, `src/features/reviews/lib/generator.ts`, `docs/AI_AUDIT.md` | Live review generation |
+| 11. Tests & Palette Guard | DONE | `7a6bc4a` | `src/features/assistant/lib/__tests__/tools-and-proposals.test.ts`, `src/features/notes/lib/__tests__/notes-ai-actions.test.ts`, `src/lib/__tests__/ui-palette-guard.test.ts` | — |
+| 12. Eval Script | DONE | `ai:eval` commit | `scripts/ai-eval.ts`, `package.json` | Live `npm run ai:eval` run (requires `OPENROUTER_API_KEY` + `DEPLOY_ENV=local`, excluded from CI) |
+| 13. Docs, Build & `CHANGES.md` | DONE | final commit | `docs/ASSISTANT.md`, `docs/TEST_PLAN.md`, `CHANGES.md` | Live production deployment (excluded per instructions) |
+
+### Verification Outputs (Final Code)
+
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run test:ci`:
+  - `tsc --noEmit`: passed (0 errors)
+  - `npm run lint`: passed (0 errors; warnings only)
+  - `vitest run`: `Test Files  78 passed (78)`, `Tests  397 passed (397)`
+- `NODE_OPTIONS="--max-old-space-size=4096" npm run build`:
+  - `next build` (Turbopack): exited `0`, 21/21 static pages generated, including `/ask`, `/api/assistant/stream`, `/api/assistant/proposals/[id]/confirm`, and `/api/assistant/proposals/[id]/dismiss`.

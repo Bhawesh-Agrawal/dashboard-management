@@ -147,3 +147,17 @@ Re-running any of the commands above for the same local date must return `"sent"
    - Tap **Copy as text** and paste into WhatsApp/Notes; verify clean plain-text formatting.
 4. **Search & Filters**
    - Search by title, URL host, body text, and `#tag`; verify pinned notes stay on top and **Files** chip opens Document Library.
+
+
+### Phase 10: AI Assistant Checklist
+
+1. **Grounded Q&A & Streaming**
+   - Ask `"what is due this week"`, `"when is my next exam"`, `"can I skip tomorrow's classes"`, and `"what did I save about <topic>"` on `/ask`.
+   - Verify `"Looked at: ..."` expands to tool names/args, source chips link to entities, and **Stop** aborts a streaming response cleanly.
+2. **Proposals & Conversations**
+   - Ask `"create a task to revise graphs tomorrow"`; verify a proposal card appears with **Confirm** and **Dismiss**, and confirming creates the task once and links to `/tasks`.
+   - Open the conversation history sheet, resume an earlier conversation, and delete one.
+3. **Settings, Caps & Notes AI**
+   - Lower the daily token cap in `/settings` and verify hitting the cap returns a friendly message without calling OpenRouter.
+   - Toggle `"Let the assistant read my DSA data"` off/on and verify DSA answers respect the setting.
+   - Run **Summarize** on a saved link note and **Tidy minutes** on a meeting note; verify drafts/summaries validate cleanly.

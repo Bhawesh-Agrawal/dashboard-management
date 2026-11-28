@@ -4,6 +4,7 @@ import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { getNow } from "@/lib/clock";
 import { generateReview } from "@/features/reviews/lib/generator";
+import { purgeOldConversationsAllUsers } from "@/features/assistant/lib/persistence";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -103,10 +104,12 @@ export async function GET(request: Request) {
     const cleaned = await prisma.sentNotification.deleteMany({
       where: { sentAt: { lt: cutoff } },
     });
+    const purgedConversations = await purgeOldConversationsAllUsers();
     deletedSentNotifications = cleaned.count;
     results["cleanup"] = {
       ok: true,
       deletedSentNotifications: cleaned.count,
+      purgedConversations,
       cutoff: cutoff.toISOString(),
     };
   } catch (err) {

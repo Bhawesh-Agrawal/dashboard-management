@@ -995,13 +995,55 @@ model UserDashboardPreference {
   userId          String   @map("user_id")
   widgetOrder     Json     @default("[]") @map("widget_order")    // Ordered array of widget IDs
   hiddenWidgets   String[] @default([]) @map("hidden_widgets")     // Widget IDs the user hid
-  accentColor     String?  @map("accent_color")                    // Hex color or null (default)
-  themeMode       String   @default("light") @map("theme_mode")   // "light" | "dark" | "system"
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  accentColor        String?  @map("accent_color")                    // Hex color or null (default)
+  themeMode          String   @default("light") @map("theme_mode")   // "light" | "dark" | "system"
+  assistantEnabled   Boolean  @default(true) @map("assistant_enabled")
+  assistantDsaAccess Boolean  @default(false) @map("assistant_dsa_access")
+  aiDailyTokenCap    Int      @default(200000) @map("ai_daily_token_cap")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@unique([userId])
   @@map("user_dashboard_preferences")
+}
+
+// ─── AI Assistant Conversations (Phase 10) ───────────────────────────────
+enum AiMessageRole {
+  user
+  assistant
+  tool
+}
+
+model AiConversation {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  title     String
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  messages AiMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String         @id @default(uuid())
+  conversationId String         @map("conversation_id")
+  userId         String         @map("user_id")
+  role           AiMessageRole
+  content        String
+  toolCalls      Json?          @map("tool_calls")
+  sources        Json?
+  proposals      Json?
+  usage          Json?
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([userId, createdAt])
+  @@map("ai_messages")
 }
 
 // ═════════════════════════════════════════════════════════════
